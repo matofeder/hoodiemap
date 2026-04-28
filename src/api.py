@@ -55,7 +55,10 @@ async def geocode(q: str):
     headers = {"User-Agent": "genmap/1.0 (neighbourhood-map)"}
     async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.get(url, params=params, headers=headers)
-        resp.raise_for_status()
+        try:
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(status_code=exc.response.status_code, detail="Geocode upstream error") from exc
     return resp.json()
 
 

@@ -42,7 +42,6 @@ class OutputConfig(BaseModel):
 class ApiConfig(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8000
-    config_path: str = "config.yaml"
 
 
 class Config(BaseModel):

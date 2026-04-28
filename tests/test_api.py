@@ -60,3 +60,4 @@ async def test_geocode_endpoint_returns_results():
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/geocode?q=Pezinok")
     assert response.status_code == 200
+    assert response.json() == mock_nominatim
