@@ -146,3 +146,18 @@ def test_trees_projected(default_config):
     assert "x" in t and "y" in t and "radius" in t and "height" in t
     assert t["radius"] == 3.0
     assert t["height"] == 10.0
+
+
+def test_building_height_from_levels():
+    from scene_builder import _building_height
+    row = {"building": "residential", "building:levels": "4", "height": None}
+    assert _building_height(row) == 12.0  # 4 * 3.0
+
+
+def test_building_height_from_type_default():
+    from scene_builder import _building_height
+    row = {"building": "commercial", "building:levels": None, "height": None}
+    # BUILDING_TYPE_HEIGHTS["commercial"] from styles.py
+    from styles import BUILDING_TYPE_HEIGHTS
+    expected = BUILDING_TYPE_HEIGHTS.get("commercial", 8.0)
+    assert _building_height(row) == expected

@@ -1,9 +1,13 @@
+import logging
+
 import geopandas as gpd
 import osmnx as ox
 from pyproj import CRS
 from shapely.geometry import Point
 
 from config import Config
+
+logger = logging.getLogger(__name__)
 from fetcher import fetch_geo_layers, fetch_pois, fetch_street_network, fetch_trees
 from geo import compute_bbox
 from styles import BUILDING_TYPE_HEIGHTS, BUILDING_HEIGHTS_DEFAULT_M
@@ -25,19 +29,19 @@ def _latlon_to_local(lat: float, lon: float, cx: float, cy: float, crs: CRS) -> 
 
 
 def _building_height(row) -> float:
-    raw = row.get("height") if hasattr(row, "get") else getattr(row, "height", None)
+    raw = row.get("height")
     if raw is not None:
         try:
             return max(2.0, float(str(raw).replace("m", "").strip()))
         except (ValueError, TypeError):
             pass
-    levels = row.get("building:levels") if hasattr(row, "get") else getattr(row, "building:levels", None)
+    levels = row.get("building:levels")
     if levels is not None:
         try:
             return max(1, int(float(str(levels)))) * 3.0
         except (ValueError, TypeError):
             pass
-    btype = str(row.get("building", "yes") if hasattr(row, "get") else getattr(row, "building", "yes")).lower()
+    btype = str(row.get("building") or "yes").lower()
     return BUILDING_TYPE_HEIGHTS.get(btype, BUILDING_HEIGHTS_DEFAULT_M)
 
 
@@ -93,7 +97,8 @@ def build_scene(lat: float, lon: float, cfg: Config) -> dict:
                     "height": _building_height(row),
                     "type": str(row.get("building", "yes")).lower(),
                 })
-            except Exception:
+            except (AttributeError, IndexError) as e:
+                logger.warning("Skipping building geometry: %s", e)
                 continue
 
     pois = []
@@ -101,7 +106,7 @@ def build_scene(lat: float, lon: float, cfg: Config) -> dict:
         x, y = _latlon_to_local(poi.lat, poi.lon, cx, cy, utm_crs)
         pois.append({
             "x": x, "y": y,
-            "lat": poi.lat, "lon": poi.lon,
+            "lat": poi.lat, "lon": poi.lon,  # retained for popup links (e.g., Google Maps)
             "category": poi.category,
             "name": poi.name,
             "distance_m": poi.distance_m,
