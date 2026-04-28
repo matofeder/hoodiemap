@@ -25,7 +25,8 @@ _cfg = None
 def _get_cfg():
     global _cfg
     if _cfg is None:
-        _cfg = load_config("config.yaml")
+        config_path = Path(__file__).parent.parent / "config.yaml"
+        _cfg = load_config(str(config_path))
     return _cfg
 
 
