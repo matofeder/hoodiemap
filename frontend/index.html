@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neighbourly — 3D Neighborhood Map</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0d1b2a; overflow: hidden; font-family: sans-serif; }
+    #canvas-container { position: fixed; inset: 0; }
+    #ui-overlay { position: fixed; inset: 0; pointer-events: none; }
+    #ui-overlay > * { pointer-events: auto; }
+
+    /* Search bar */
+    #search-bar {
+      position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 8px; align-items: center;
+      background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+      border-radius: 30px; padding: 8px 16px; min-width: 380px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    #search-bar input {
+      flex: 1; background: none; border: none; outline: none;
+      color: #fff; font-size: 14px;
+    }
+    #search-bar input::placeholder { color: rgba(255,255,255,0.4); }
+    #search-bar button {
+      background: #e8c547; color: #000; border: none; border-radius: 20px;
+      padding: 4px 14px; font-size: 13px; font-weight: bold; cursor: pointer;
+    }
+    #brand { color: #e8c547; font-weight: bold; font-size: 13px; white-space: nowrap; }
+
+    /* Info card */
+    #info-card {
+      position: absolute; bottom: 24px; left: 24px;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+      border-radius: 10px; padding: 12px 16px;
+      border-left: 3px solid #e05252; min-width: 200px; max-width: 300px;
+      display: none;
+    }
+    #info-card .address { color: #fff; font-weight: bold; font-size: 13px; margin-bottom: 6px; }
+    #info-card .pois { color: rgba(255,255,255,0.6); font-size: 11px; line-height: 1.8; }
+
+    /* Compass */
+    #compass {
+      position: absolute; bottom: 24px; right: 24px;
+      width: 36px; height: 36px; border-radius: 50%;
+      background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 11px; font-family: monospace;
+    }
+
+    /* Embed code button */
+    #embed-btn {
+      position: absolute; top: 20px; right: 20px;
+      background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.15); border-radius: 6px;
+      color: rgba(255,255,255,0.7); font-size: 12px; padding: 6px 12px;
+      cursor: pointer; display: none;
+    }
+
+    /* Modal */
+    #embed-modal {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      display: none; align-items: center; justify-content: center; z-index: 100;
+    }
+    #embed-modal .modal-box {
+      background: #1a2535; border-radius: 12px; padding: 24px;
+      max-width: 520px; width: 90%; border: 1px solid rgba(255,255,255,0.1);
+    }
+    #embed-modal h3 { color: #fff; margin-bottom: 12px; }
+    #embed-modal textarea {
+      width: 100%; height: 80px; background: #0d1b2a; color: #aef;
+      border: 1px solid rgba(255,255,255,0.2); border-radius: 6px;
+      padding: 8px; font-family: monospace; font-size: 12px; resize: none;
+    }
+    #embed-modal .close {
+      float: right; background: none; border: none; color: #aaa;
+      font-size: 20px; cursor: pointer; margin-top: -4px;
+    }
+
+    /* POI popup (CSS2D labels handled via Three.js CSS2DRenderer) */
+    .poi-label {
+      background: rgba(0,0,0,0.75); color: #fff; font-size: 11px;
+      padding: 2px 7px; border-radius: 10px; white-space: nowrap;
+      pointer-events: none; transform: translateY(-18px);
+    }
+    .poi-popup {
+      background: rgba(10,20,35,0.95); color: #fff; font-size: 12px;
+      padding: 8px 12px; border-radius: 8px; min-width: 140px;
+      pointer-events: auto; cursor: default;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+    .poi-popup .poi-name { font-weight: bold; margin-bottom: 2px; }
+    .poi-popup .poi-meta { color: rgba(255,255,255,0.5); font-size: 10px; }
+
+    #loading {
+      position: fixed; inset: 0; background: #0d1b2a;
+      display: flex; align-items: center; justify-content: center;
+      color: #e8c547; font-size: 16px; z-index: 200;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">Načítavam mapu…</div>
+  <div id="canvas-container"></div>
+
+  <div id="ui-overlay">
+    <div id="search-bar">
+      <span id="brand">◈ NEIGHBOURLY</span>
+      <input id="search-input" type="text" placeholder="Zadaj adresu…" />
+      <button id="search-btn">Zobraziť</button>
+    </div>
+    <div id="info-card">
+      <div class="address" id="info-address"></div>
+      <div class="pois" id="info-pois"></div>
+    </div>
+    <div id="compass">N↑</div>
+    <button id="embed-btn">&#60;/&#62; Embed</button>
+  </div>
+
+  <div id="embed-modal">
+    <div class="modal-box">
+      <button class="close" id="modal-close">×</button>
+      <h3>Embed kód</h3>
+      <p style="color:#aaa;font-size:12px;margin-bottom:10px">Skopíruj do svojho webu:</p>
+      <textarea id="embed-code" readonly></textarea>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
