@@ -1,0 +1,31 @@
+location:
+  lat: 48.28646434486518
+  lon: 17.27221245956356
+
+radii:
+  fetch_meters: 3000
+  display_meters: 600
+
+poi:
+  max_per_category: 3
+  show:
+    hospital: true
+    grocery: true
+    school: true
+    pharmacy: true
+    pub: true
+    bar: true
+    restaurant: true
+    public_office: true
+
+cache:
+  enabled: true
+  dir: .cache
+
+output:
+  path: output/map.png
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  config_path: "config.yaml"
