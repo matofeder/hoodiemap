@@ -1,1 +1,1 @@
-export function createScene() {}
+export function createScene(container, sceneData, mode) {}

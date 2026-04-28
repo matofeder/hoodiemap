@@ -1,13 +1,12 @@
-export function getMode() {
-  const params = new URLSearchParams(window.location.search);
-  const path = window.location.pathname;
-  if (path.startsWith('/embed')) return 'embed';
-  if (path.startsWith('/view/')) return 'view';
+export function getMode(pathname = window.location.pathname, search = window.location.search) {
+  const params = new URLSearchParams(search);
+  if (pathname.startsWith('/embed')) return 'embed';
+  if (pathname.startsWith('/view/')) return 'view';
   return params.get('mode') || 'demo';
 }
 
-export function getCoordsFromURL() {
-  const params = new URLSearchParams(window.location.search);
+export function getCoordsFromURL(search = window.location.search) {
+  const params = new URLSearchParams(search);
   const lat = parseFloat(params.get('lat'));
   const lon = parseFloat(params.get('lon'));
   if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
@@ -71,6 +70,8 @@ async function init() {
   document.getElementById('loading').style.display = 'none';
 }
 
-init().catch(err => {
-  document.getElementById('loading').textContent = `Chyba: ${err.message}`;
-});
+if (typeof document !== 'undefined') {
+  init().catch(err => {
+    document.getElementById('loading').textContent = `Chyba: ${err.message}`;
+  });
+}

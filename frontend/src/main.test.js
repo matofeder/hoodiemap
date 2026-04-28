@@ -1,31 +1,29 @@
 import { describe, it, expect } from 'vitest';
+import { getMode, getCoordsFromURL } from './main.js';
 
 describe('getMode', () => {
-  it('returns correct mode for paths and params', () => {
-    function getMode(pathname, search) {
-      const params = new URLSearchParams(search);
-      if (pathname.startsWith('/embed')) return 'embed';
-      if (pathname.startsWith('/view/')) return 'view';
-      return params.get('mode') || 'demo';
-    }
+  it('returns demo by default', () => {
     expect(getMode('/', '')).toBe('demo');
+  });
+  it('returns embed for /embed path', () => {
     expect(getMode('/embed', '?lat=48&lon=17')).toBe('embed');
+  });
+  it('returns view for /view/ path', () => {
     expect(getMode('/view/abc123', '')).toBe('view');
+  });
+  it('returns mode from query param', () => {
     expect(getMode('/', '?mode=embed')).toBe('embed');
   });
 });
 
 describe('getCoordsFromURL', () => {
   it('parses lat/lon from search params', () => {
-    function getCoordsFromURL(search) {
-      const params = new URLSearchParams(search);
-      const lat = parseFloat(params.get('lat'));
-      const lon = parseFloat(params.get('lon'));
-      if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
-      return null;
-    }
     expect(getCoordsFromURL('?lat=48.286&lon=17.272')).toEqual({ lat: 48.286, lon: 17.272 });
+  });
+  it('returns null when params absent', () => {
     expect(getCoordsFromURL('')).toBeNull();
+  });
+  it('returns null for non-numeric lat', () => {
     expect(getCoordsFromURL('?lat=abc&lon=17')).toBeNull();
   });
 });

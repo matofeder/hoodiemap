@@ -1,1 +1,1 @@
-export function initDemoUI() {}
+export function initDemoUI(onSearch) {}
