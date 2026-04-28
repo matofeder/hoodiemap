@@ -7,6 +7,10 @@ import { addPOIs } from './poi.js';
 
 let _activeScene = null;
 
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => { _activeScene?.dispose(); });
+}
+
 export function createScene(container, sceneData, mode) {
   if (_activeScene) {
     _activeScene.dispose();
@@ -178,8 +182,8 @@ function _addBuildings(scene, buildings) {
       const roofMat = new THREE.MeshLambertMaterial({ color: darkColor });
       const roof = new THREE.Mesh(roofGeo, roofMat);
       scene.add(roof);
-    } catch {
-      // skip malformed footprints
+    } catch (err) {
+      console.warn('_addBuildings: skipped footprint', b, err);
     }
   });
 }
