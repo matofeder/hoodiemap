@@ -50,6 +50,7 @@ export function hideRouteHint(scene) {
   }
   if (_activeFallback) {
     _activeFallback.geometry.dispose();
+    _activeFallback.material.dispose();
     scene.remove(_activeFallback);
     _activeFallback = null;
   }

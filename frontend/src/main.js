@@ -1,3 +1,7 @@
+import { initFrame } from './frame.js';
+import { showRouteHint, hideRouteHint } from './route.js';
+import { POI_COLORS } from './colors.js';
+
 export function getMode(pathname = window.location.pathname, search = window.location.search) {
   const params = new URLSearchParams(search);
   if (pathname.startsWith('/embed')) return 'embed';
@@ -32,7 +36,26 @@ async function init() {
     const sceneData = await fetchScene(coordsFromURL.lat, coordsFromURL.lon);
     const { createScene } = await import('./scene.js');
     const container = document.getElementById('threejs-mount');
-    createScene(container, sceneData, mode);
+    const { scene: embedScene, needleController: embedNeedles } = createScene(container, sceneData, mode);
+    if (sceneData.outer_pois && sceneData.outer_pois.length > 0) {
+      const center = sceneData.center;
+      const frameContainer = document.getElementById('canvas-container');
+      initFrame(
+        frameContainer,
+        sceneData.outer_pois,
+        center.lat,
+        center.lon,
+        (poi) => {
+          const color = POI_COLORS[poi.category] || '#888888';
+          if (embedNeedles) embedNeedles.highlight(poi);
+          showRouteHint(embedScene, center.lat, center.lon, poi.lat, poi.lon, color);
+        },
+        (poi) => {
+          if (embedNeedles) embedNeedles.highlight(null);
+          hideRouteHint(embedScene);
+        },
+      );
+    }
     document.getElementById('loading').style.display = 'none';
     return;
   }
@@ -47,7 +70,45 @@ async function init() {
     try {
       const sceneData = await fetchScene(lat, lon);
       const container = document.getElementById('threejs-mount');
-      createScene(container, sceneData, 'demo');
+      const frameContainer = document.getElementById('canvas-container');
+      const { scene, needleController } = createScene(container, sceneData, 'demo');
+
+      // Clear any previous frame indicators
+      document.querySelectorAll('.outer-poi-indicator').forEach(el => el.remove());
+
+      // Render outer POI indicators
+      if (sceneData.outer_pois && sceneData.outer_pois.length > 0) {
+        const center = sceneData.center;
+        initFrame(
+          frameContainer,
+          sceneData.outer_pois,
+          center.lat,
+          center.lon,
+          // onHover
+          (poi, el) => {
+            const color = POI_COLORS[poi.category] || '#888888';
+            if (needleController) needleController.highlight(poi);
+            // Show info card
+            const card = document.getElementById('outer-poi-info-card');
+            const rect = el.getBoundingClientRect();
+            const containerRect = frameContainer.getBoundingClientRect();
+            card.style.left = `${rect.left - containerRect.left + rect.width / 2}px`;
+            card.style.top = `${rect.top - containerRect.top - 10}px`;
+            card.style.transform = 'translate(-50%, -100%)';
+            document.getElementById('opc-name').textContent = poi.name;
+            document.getElementById('opc-meta').textContent =
+              `${poi.category} · ${poi.distance_m >= 1000 ? (poi.distance_m / 1000).toFixed(1) + ' km' : poi.distance_m + ' m'}`;
+            card.classList.add('visible');
+            showRouteHint(scene, center.lat, center.lon, poi.lat, poi.lon, color);
+          },
+          // onLeave
+          (poi, el) => {
+            if (needleController) needleController.highlight(null);
+            document.getElementById('outer-poi-info-card').classList.remove('visible');
+            hideRouteHint(scene);
+          },
+        );
+      }
       document.getElementById('info-address').textContent = displayName;
       const top3 = sceneData.pois.slice(0, 3).map(p => `${p.name} ${p.distance_m}m`).join(' · ');
       document.getElementById('info-pois').textContent = top3;
