@@ -57,7 +57,7 @@ function _addTrees(scene, trees) {
 
 const CAR_COLORS = [0xffd93d, 0xff6b6b, 0x4ecdc4, 0xa8e6cf, 0xffeaa7];
 const MAJOR_ROAD_TYPES = new Set(['primary', 'secondary', 'tertiary', 'residential']);
-const NUM_CARS = 4;
+const NUM_CARS = 8;
 
 function _makeCar(color) {
   const group = new THREE.Group();
@@ -90,7 +90,7 @@ function _buildRoadCurves(roads) {
   return roads
     .filter(r => MAJOR_ROAD_TYPES.has(r.type) && r.points.length >= 2)
     .map(r => {
-      const pts = r.points.map(([x, y]) => new THREE.Vector3(x, 0.2, -y));
+      const pts = r.points.map(([x, y]) => new THREE.Vector3(x, 0.3, -y));
       return new THREE.CatmullRomCurve3(pts);
     })
     .filter(c => c.getLength() > 30);
