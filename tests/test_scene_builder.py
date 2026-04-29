@@ -4,6 +4,7 @@ import networkx as nx
 import geopandas as gpd
 from shapely.geometry import MultiPolygon, Polygon, Point
 from pyproj import CRS
+from geo import POI
 
 
 def _make_mock_graph(cx_utm, cy_utm):
@@ -63,7 +64,9 @@ def test_build_scene_returns_required_keys(default_config):
         mock_pois.return_value = []
         result = build_scene(lat, lon, default_config)
 
-    assert set(result.keys()) == {"center", "bbox_m", "roads", "buildings", "pois", "trees", "geo_layers"}
+    assert set(result.keys()) == {"center", "bbox_m", "display_radius_m", "roads", "buildings", "pois", "outer_pois", "trees", "geo_layers"}
+    assert result["display_radius_m"] == 600
+    assert isinstance(result["outer_pois"], list)
     assert result["center"] == {"lat": lat, "lon": lon}
     assert result["bbox_m"] == 600
 
@@ -165,6 +168,10 @@ def test_building_height_from_type_default():
     assert _building_height(row) == expected
 
 
+def _make_poi(lat, lon, name, category, distance_m):
+    return POI(name=name, lat=lat, lon=lon, category=category, distance_m=distance_m, bearing_deg=0.0)
+
+
 def _make_mock_geo_layer_gdf(cx_utm, cy_utm, offset=100):
     """A simple square polygon GDF in UTM CRS, offset from center."""
     poly = Polygon([
@@ -252,3 +259,69 @@ def test_geo_layers_multipolygon(default_config):
 
     # One MultiPolygon with two parts → two rings in output
     assert len(result["geo_layers"]["water"]) == 2
+
+
+def test_scene_includes_display_radius_m(default_config):
+    from scene_builder import build_scene
+    lat, lon = 48.28646, 17.27221
+    cx, cy = _get_utm_center(lat, lon)
+    with patch("scene_builder.fetch_street_network") as m1, \
+         patch("scene_builder.fetch_geo_layers") as m2, \
+         patch("scene_builder.fetch_trees") as m3, \
+         patch("scene_builder.fetch_pois") as m4, \
+         patch("scene_builder.ox.project_graph") as m5:
+        m1.return_value = MagicMock()
+        m2.return_value = {k: None for k in ["building", "water", "forest", "park", "railway", "residential"]}
+        m3.return_value = []
+        m4.return_value = []
+        m5.return_value = _make_mock_graph(cx, cy)
+        result = build_scene(lat, lon, default_config)
+    assert result["display_radius_m"] == 600
+
+
+def test_outer_pois_classified_and_have_bearing(default_config):
+    from scene_builder import build_scene
+    lat, lon = 48.28646, 17.27221
+    cx, cy = _get_utm_center(lat, lon)
+    near = _make_poi(lat, lon + 200 / 111320, "Kaviarnen", "bar", 200)
+    far = _make_poi(lat + 800 / 111320, lon, "Nemocnica", "hospital", 800)
+    with patch("scene_builder.fetch_street_network") as m1, \
+         patch("scene_builder.fetch_geo_layers") as m2, \
+         patch("scene_builder.fetch_trees") as m3, \
+         patch("scene_builder.fetch_pois") as m4, \
+         patch("scene_builder.ox.project_graph") as m5:
+        m1.return_value = MagicMock()
+        m2.return_value = {k: None for k in ["building", "water", "forest", "park", "railway", "residential"]}
+        m3.return_value = []
+        m4.return_value = [near, far]
+        m5.return_value = _make_mock_graph(cx, cy)
+        result = build_scene(lat, lon, default_config)
+    assert len(result["pois"]) == 1
+    assert result["pois"][0]["name"] == "Kaviarnen"
+    assert len(result["outer_pois"]) == 1
+    op = result["outer_pois"][0]
+    assert op["name"] == "Nemocnica"
+    assert "bearing_deg" in op
+    assert "lat" in op and "lon" in op
+    assert "x" not in op and "y" not in op
+
+
+def test_outer_poi_north_has_bearing_near_zero(default_config):
+    from scene_builder import build_scene
+    lat, lon = 48.28646, 17.27221
+    cx, cy = _get_utm_center(lat, lon)
+    dlat = 800 / 111320
+    north_poi = _make_poi(lat + dlat, lon, "Hospital", "hospital", 800)
+    with patch("scene_builder.fetch_street_network") as m1, \
+         patch("scene_builder.fetch_geo_layers") as m2, \
+         patch("scene_builder.fetch_trees") as m3, \
+         patch("scene_builder.fetch_pois") as m4, \
+         patch("scene_builder.ox.project_graph") as m5:
+        m1.return_value = MagicMock()
+        m2.return_value = {k: None for k in ["building", "water", "forest", "park", "railway", "residential"]}
+        m3.return_value = []
+        m4.return_value = [north_poi]
+        m5.return_value = _make_mock_graph(cx, cy)
+        result = build_scene(lat, lon, default_config)
+    bearing = result["outer_pois"][0]["bearing_deg"]
+    assert bearing < 1.0 or bearing > 359.0

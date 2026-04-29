@@ -9,7 +9,7 @@ from config import Config
 
 logger = logging.getLogger(__name__)
 from fetcher import fetch_geo_layers, fetch_pois, fetch_street_network, fetch_trees
-from geo import compute_bbox
+from geo import compute_bbox, compute_bearing
 from styles import BUILDING_TYPE_HEIGHTS, BUILDING_HEIGHTS_DEFAULT_M
 
 
@@ -120,16 +120,29 @@ def build_scene(lat: float, lon: float, cfg: Config) -> dict:
                 logger.warning("Skipping %s geometry: %s", layer_name, e)
                 continue
 
-    pois = []
+    threshold_m = cfg.radii.display_meters
+    inner_pois = []
+    outer_pois = []
     for poi in pois_raw:
-        x, y = _latlon_to_local(poi.lat, poi.lon, cx, cy, utm_crs)
-        pois.append({
-            "x": x, "y": y,
-            "lat": poi.lat, "lon": poi.lon,  # retained for popup links (e.g., Google Maps)
-            "category": poi.category,
-            "name": poi.name,
-            "distance_m": poi.distance_m,
-        })
+        if poi.distance_m <= threshold_m:
+            x, y = _latlon_to_local(poi.lat, poi.lon, cx, cy, utm_crs)
+            inner_pois.append({
+                "x": x, "y": y,
+                "lat": poi.lat, "lon": poi.lon,
+                "category": poi.category,
+                "name": poi.name,
+                "distance_m": round(poi.distance_m),
+            })
+        else:
+            bearing = compute_bearing(lat, lon, poi.lat, poi.lon)
+            outer_pois.append({
+                "name": poi.name,
+                "category": poi.category,
+                "distance_m": round(poi.distance_m),
+                "bearing_deg": round(bearing, 1),
+                "lat": poi.lat,
+                "lon": poi.lon,
+            })
 
     trees = []
     for tree in trees_raw:
@@ -142,10 +155,12 @@ def build_scene(lat: float, lon: float, cfg: Config) -> dict:
 
     return {
         "center": {"lat": lat, "lon": lon},
+        "display_radius_m": cfg.radii.display_meters,
         "bbox_m": cfg.radii.display_meters,
         "roads": roads,
         "buildings": buildings,
-        "pois": pois,
+        "pois": inner_pois,
+        "outer_pois": outer_pois,
         "trees": trees,
         "geo_layers": geo_layers_out,
     }
