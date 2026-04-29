@@ -36,6 +36,12 @@ export const BUILDING_COLORS = {
 };
 export const BUILDING_COLOR_DEFAULT = '#BEB2A2';
 
+export const GEO_LAYER_COLORS = {
+  water:  0x5ba0d0,
+  forest: 0x4a7a4a,
+  park:   0x6eae4e,
+};
+
 export const ROAD_COLORS = {
   motorway:    { fill: '#ffffff', width: 5 },
   trunk:       { fill: '#ffffff', width: 5 },

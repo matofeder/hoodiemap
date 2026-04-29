@@ -101,6 +101,25 @@ def build_scene(lat: float, lon: float, cfg: Config) -> dict:
                 logger.warning("Skipping building geometry: %s", e)
                 continue
 
+    geo_layers_out: dict[str, list] = {"water": [], "forest": [], "park": []}
+    for layer_name in ("water", "forest", "park"):
+        gdf = geo_layers.get(layer_name)
+        if gdf is None:
+            continue
+        gdf_proj = gdf.to_crs(utm_crs)
+        for _, row in gdf_proj.iterrows():
+            geom = row.geometry
+            if geom is None or geom.is_empty:
+                continue
+            try:
+                polys = [geom] if geom.geom_type == "Polygon" else list(geom.geoms)
+                for poly in polys:
+                    ring = [[round(x - cx, 2), round(y - cy, 2)] for x, y in poly.exterior.coords]
+                    geo_layers_out[layer_name].append(ring)
+            except (AttributeError, IndexError) as e:
+                logger.warning("Skipping %s geometry: %s", layer_name, e)
+                continue
+
     pois = []
     for poi in pois_raw:
         x, y = _latlon_to_local(poi.lat, poi.lon, cx, cy, utm_crs)
@@ -128,4 +147,5 @@ def build_scene(lat: float, lon: float, cfg: Config) -> dict:
         "buildings": buildings,
         "pois": pois,
         "trees": trees,
+        "geo_layers": geo_layers_out,
     }

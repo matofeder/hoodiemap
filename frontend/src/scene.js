@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
-import { BUILDING_COLORS, BUILDING_COLOR_DEFAULT, ROAD_COLORS, ROAD_COLOR_DEFAULT } from './colors.js';
+import { BUILDING_COLORS, BUILDING_COLOR_DEFAULT, GEO_LAYER_COLORS, ROAD_COLORS, ROAD_COLOR_DEFAULT } from './colors.js';
 import { addAnimations } from './animations.js';
 import { addPOIs } from './poi.js';
 
@@ -75,6 +75,11 @@ export function createScene(container, sceneData, mode) {
   // Ground
   _addGround(scene, sceneData.bbox_m);
 
+  // Geo layers (water / forest / park) — above ground, below roads and buildings
+  if (sceneData.geo_layers) {
+    _addGeoLayers(scene, sceneData.geo_layers);
+  }
+
   // Roads
   _addRoads(scene, sceneData.roads);
 
@@ -131,6 +136,30 @@ function _addGround(scene, bboxM) {
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   scene.add(ground);
+}
+
+
+function _addGeoLayers(scene, geoLayers) {
+  ['water', 'forest', 'park'].forEach(layerName => {
+    const rings = geoLayers[layerName];
+    if (!rings || rings.length === 0) return;
+    const color = GEO_LAYER_COLORS[layerName];
+    rings.forEach(ring => {
+      if (!ring || ring.length < 3) return;
+      try {
+        const shape = new THREE.Shape(ring.map(([x, y]) => new THREE.Vector2(x, y)));
+        const geo = new THREE.ShapeGeometry(shape);
+        geo.rotateX(-Math.PI / 2);
+        geo.translate(0, 0.05, 0);
+        const mat = new THREE.MeshLambertMaterial({ color });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.receiveShadow = true;
+        scene.add(mesh);
+      } catch (err) {
+        console.warn('_addGeoLayers: skipped ring in', layerName, err);
+      }
+    });
+  });
 }
 
 

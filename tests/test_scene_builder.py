@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 import networkx as nx
 import geopandas as gpd
-from shapely.geometry import Polygon, Point
+from shapely.geometry import MultiPolygon, Polygon, Point
 from pyproj import CRS
 
 
@@ -62,7 +62,7 @@ def test_build_scene_returns_required_keys(default_config):
         mock_pois.return_value = []
         result = build_scene(lat, lon, default_config)
 
-    assert set(result.keys()) == {"center", "bbox_m", "roads", "buildings", "pois", "trees"}
+    assert set(result.keys()) == {"center", "bbox_m", "roads", "buildings", "pois", "trees", "geo_layers"}
     assert result["center"] == {"lat": lat, "lon": lon}
     assert result["bbox_m"] == 600
 
@@ -161,3 +161,90 @@ def test_building_height_from_type_default():
     from styles import BUILDING_TYPE_HEIGHTS
     expected = BUILDING_TYPE_HEIGHTS.get("commercial", 8.0)
     assert _building_height(row) == expected
+
+
+def _make_mock_geo_layer_gdf(cx_utm, cy_utm, offset=100):
+    """A simple square polygon GDF in UTM CRS, offset from center."""
+    poly = Polygon([
+        (cx_utm + offset,      cy_utm + offset),
+        (cx_utm + offset + 50, cy_utm + offset),
+        (cx_utm + offset + 50, cy_utm + offset + 50),
+        (cx_utm + offset,      cy_utm + offset + 50),
+    ])
+    return gpd.GeoDataFrame([{"geometry": poly}], crs=CRS.from_epsg(32633))
+
+
+def test_geo_layers_in_scene_output(default_config):
+    from scene_builder import build_scene
+    lat, lon = 48.28646, 17.27221
+    cx, cy = _get_utm_center(lat, lon)
+
+    with patch("scene_builder.fetch_street_network") as mock_net, \
+         patch("scene_builder.fetch_geo_layers") as mock_geo, \
+         patch("scene_builder.fetch_trees") as mock_trees, \
+         patch("scene_builder.fetch_pois") as mock_pois, \
+         patch("scene_builder.ox.project_graph") as mock_proj:
+
+        mock_net.return_value = MagicMock()
+        mock_proj.return_value = _make_mock_graph(cx, cy)
+        mock_geo.return_value = {
+            "building": None,
+            "water":  _make_mock_geo_layer_gdf(cx, cy, offset=100),
+            "forest": _make_mock_geo_layer_gdf(cx, cy, offset=200),
+            "park":   None,
+            "railway": None,
+        }
+        mock_trees.return_value = []
+        mock_pois.return_value = []
+        result = build_scene(lat, lon, default_config)
+
+    gl = result["geo_layers"]
+    assert set(gl.keys()) == {"water", "forest", "park"}
+
+    # water has one polygon ring
+    assert len(gl["water"]) == 1
+    ring = gl["water"][0]
+    assert len(ring) >= 4  # 4 corners + closing coord
+    for coord in ring:
+        assert len(coord) == 2
+        assert abs(coord[0]) < 1000 and abs(coord[1]) < 1000
+
+    # forest also has one ring
+    assert len(gl["forest"]) == 1
+
+    # park was None → empty list
+    assert gl["park"] == []
+
+
+def test_geo_layers_multipolygon(default_config):
+    """MultiPolygon geometries are split into individual rings."""
+    from scene_builder import build_scene
+    lat, lon = 48.28646, 17.27221
+    cx, cy = _get_utm_center(lat, lon)
+
+    poly1 = Polygon([(cx+10, cy+10), (cx+30, cy+10), (cx+30, cy+30), (cx+10, cy+30)])
+    poly2 = Polygon([(cx+50, cy+50), (cx+80, cy+50), (cx+80, cy+80), (cx+50, cy+80)])
+    multi = MultiPolygon([poly1, poly2])
+    gdf = gpd.GeoDataFrame([{"geometry": multi}], crs=CRS.from_epsg(32633))
+
+    with patch("scene_builder.fetch_street_network") as mock_net, \
+         patch("scene_builder.fetch_geo_layers") as mock_geo, \
+         patch("scene_builder.fetch_trees") as mock_trees, \
+         patch("scene_builder.fetch_pois") as mock_pois, \
+         patch("scene_builder.ox.project_graph") as mock_proj:
+
+        mock_net.return_value = MagicMock()
+        mock_proj.return_value = _make_mock_graph(cx, cy)
+        mock_geo.return_value = {
+            "building": None,
+            "water": gdf,
+            "forest": None,
+            "park": None,
+            "railway": None,
+        }
+        mock_trees.return_value = []
+        mock_pois.return_value = []
+        result = build_scene(lat, lon, default_config)
+
+    # One MultiPolygon with two parts → two rings in output
+    assert len(result["geo_layers"]["water"]) == 2
