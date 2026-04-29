@@ -64,6 +64,7 @@ async function init() {
   const { initDemoUI } = await import('./ui.js');
   const { createScene } = await import('./scene.js');
 
+  let frameCtrl = null;
   initDemoUI(async (lat, lon, displayName) => {
     document.getElementById('loading').style.display = 'flex';
     document.getElementById('loading-text').textContent = 'Načítavam mapu…';
@@ -71,15 +72,16 @@ async function init() {
       const sceneData = await fetchScene(lat, lon);
       const container = document.getElementById('threejs-mount');
       const frameContainer = document.getElementById('canvas-container');
-      const { scene, needleController } = createScene(container, sceneData, 'demo');
 
-      // Clear any previous frame indicators
-      document.querySelectorAll('.outer-poi-indicator').forEach(el => el.remove());
+      // Tear down previous frame before creating new scene
+      if (frameCtrl) { frameCtrl.clear(); frameCtrl = null; }
+
+      const { scene, needleController } = createScene(container, sceneData, 'demo');
 
       // Render outer POI indicators
       if (sceneData.outer_pois && sceneData.outer_pois.length > 0) {
         const center = sceneData.center;
-        initFrame(
+        frameCtrl = initFrame(
           frameContainer,
           sceneData.outer_pois,
           center.lat,
