@@ -294,3 +294,58 @@ function _placeShrub(scene, wx, wy, idx) {
     scene.add(mesh);
   }
 }
+
+
+// ── Cyclists ─────────────────────────────────────────────────────────────────
+
+const NUM_CYCLISTS = 3;
+const CYCLIST_COLORS = [0x3d9970, 0x2980b9, 0xe67e22];
+
+function _makeCyclist(color) {
+  const group = new THREE.Group();
+  const mat = new THREE.MeshLambertMaterial({ color });
+
+  const bodyGeo = new THREE.BoxGeometry(0.4, 0.8, 1.2);
+  const body = new THREE.Mesh(bodyGeo, mat);
+  body.position.y = 1.1;
+  body.castShadow = true;
+  group.add(body);
+
+  const headGeo = new THREE.SphereGeometry(0.22, 6, 6);
+  const head = new THREE.Mesh(headGeo, mat);
+  head.position.set(0, 1.7, -0.4);
+  head.castShadow = true;
+  group.add(head);
+
+  const wheelGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 8);
+  wheelGeo.rotateZ(Math.PI / 2);
+  const wheelMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+  for (const wz of [-0.5, 0.5]) {
+    const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+    wheel.position.set(0, 0.3, wz);
+    group.add(wheel);
+  }
+  return group;
+}
+
+export function addCyclists(scene, roads) {
+  const curves = _buildRoadCurves(roads);
+  if (curves.length === 0) return [];
+  const tickers = [];
+  for (let i = 0; i < NUM_CYCLISTS; i++) {
+    const baseCurve = curves[i % curves.length];
+    const lane = _offsetCurve(baseCurve, 1.8);
+    const cyclist = _makeCyclist(CYCLIST_COLORS[i % CYCLIST_COLORS.length]);
+    scene.add(cyclist);
+    const baseT = (i + 0.5) / NUM_CYCLISTS;
+    const speed = 4 / lane.getLength();
+    tickers.push(t => {
+      const tPath = (baseT + t * speed) % 1;
+      const pos = lane.getPoint(tPath);
+      const tangent = lane.getTangent(tPath);
+      cyclist.position.copy(pos);
+      cyclist.rotation.y = Math.atan2(tangent.x, tangent.z);
+    });
+  }
+  return tickers;
+}

@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { BUILDING_COLORS, BUILDING_COLOR_DEFAULT, GEO_LAYER_COLORS, ROAD_COLORS, ROAD_COLOR_DEFAULT } from './colors.js';
 import { buildRibbonGeometry, buildDashLineGeometry } from './geometry.js';
-import { addAnimations, addShrubs } from './animations.js';
+import { addAnimations, addShrubs, addCyclists } from './animations.js';
 import { addPOIs } from './poi.js';
 
 const HOUSE_TYPES      = new Set(['house', 'detached', 'bungalow']);
@@ -94,7 +94,10 @@ export function createScene(container, sceneData, mode) {
   _addBuildings(scene, sceneData.buildings);
 
   // Animations (cars, trees, pedestrians, center pin)
-  const animatables = addAnimations(scene, sceneData);
+  const animatables = [
+    ...addAnimations(scene, sceneData),
+    ...addCyclists(scene, sceneData.roads),
+  ];
   addShrubs(scene, sceneData);
 
   // POI markers
