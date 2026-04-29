@@ -98,7 +98,7 @@ function _buildRoadCurves(roads) {
   return roads
     .filter(r => MAJOR_ROAD_TYPES.has(r.type) && r.points.length >= 2)
     .map(r => {
-      const pts = r.points.map(([x, y]) => new THREE.Vector3(x, 0.3, -y));
+      const pts = r.points.map(([x, y]) => new THREE.Vector3(x, 0.5, -y));
       return new THREE.CatmullRomCurve3(pts);
     })
     .filter(c => c.getLength() > 30);
@@ -115,7 +115,7 @@ function _addCars(scene, roads) {
     scene.add(car);
 
     const baseT = i / NUM_CARS;
-    const carSpeed = (3 + Math.random() * 2) / curve.getLength();  // 3-5 m/s on normalized curve
+    const carSpeed = (2 + Math.random() * 1) / curve.getLength();  // 2-3 m/s on normalized curve
 
     tickers.push((t) => {
       const tPath = (baseT + t * carSpeed) % 1;
@@ -137,13 +137,13 @@ const PEDESTRIAN_COLORS = [0xffd3b6, 0xffaaa5, 0xa8d8ea, 0xaa96da, 0xfcbad3];
 
 function _makePedestrian(color) {
   const group = new THREE.Group();
-  const bodyGeo = new THREE.CapsuleGeometry(0.22, 0.7, 4, 6);
+  const bodyGeo = new THREE.CapsuleGeometry(0.28, 0.9, 4, 6);
   const mat = new THREE.MeshLambertMaterial({ color });
   const body = new THREE.Mesh(bodyGeo, mat);
   body.position.y = 0.9;
   group.add(body);
 
-  const headGeo = new THREE.SphereGeometry(0.2, 6, 6);
+  const headGeo = new THREE.SphereGeometry(0.25, 6, 6);
   const head = new THREE.Mesh(headGeo, mat);
   head.position.y = 1.7;
   group.add(head);
@@ -174,7 +174,7 @@ function _addPedestrians(scene, roads) {
   const tickers = [];
   for (let i = 0; i < NUM_PEDESTRIANS; i++) {
     const baseCurve = curves[i % curves.length];
-    const sidewalk = _offsetCurve(baseCurve, 2.5 + (i % 2) * 1.5);
+    const sidewalk = _offsetCurve(baseCurve, 3.5 + (i % 2) * 1.0);
     const ped = _makePedestrian(PEDESTRIAN_COLORS[i % PEDESTRIAN_COLORS.length]);
     scene.add(ped);
 
