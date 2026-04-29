@@ -18,8 +18,8 @@ export function createScene(container, sceneData, mode) {
   }
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0d1b2a);
-  scene.fog = new THREE.Fog(0x0d1b2a, 400, 900);
+  scene.background = new THREE.Color(0x87ceeb);
+  scene.fog = new THREE.Fog(0xc9e8f4, 600, 1200);
 
   // Renderer
   const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -57,11 +57,11 @@ export function createScene(container, sceneData, mode) {
   controls.maxDistance = 800;
 
   // Lights
-  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+  const ambient = new THREE.AmbientLight(0xffffff, 1.0);
   scene.add(ambient);
 
-  const sun = new THREE.DirectionalLight(0xfff5e0, 1.0);
-  sun.position.set(200, 300, 200);
+  const sun = new THREE.DirectionalLight(0xfff5e0, 1.4);
+  sun.position.set(300, 500, 200);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.camera.near = 10;
@@ -131,7 +131,7 @@ export function createScene(container, sceneData, mode) {
 function _addGround(scene, bboxM) {
   const size = bboxM * 2.2;
   const geo = new THREE.PlaneGeometry(size, size);
-  const mat = new THREE.MeshLambertMaterial({ color: 0x3a5a3a });
+  const mat = new THREE.MeshLambertMaterial({ color: 0x7ab648 });
   const ground = new THREE.Mesh(geo, mat);
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
