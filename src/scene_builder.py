@@ -101,8 +101,8 @@ def build_scene(lat: float, lon: float, cfg: Config) -> dict:
                 logger.warning("Skipping building geometry: %s", e)
                 continue
 
-    geo_layers_out: dict[str, list] = {"water": [], "forest": [], "park": []}
-    for layer_name in ("water", "forest", "park"):
+    geo_layers_out: dict[str, list] = {"water": [], "forest": [], "park": [], "residential": []}
+    for layer_name in ("water", "forest", "park", "residential"):
         gdf = geo_layers.get(layer_name)
         if gdf is None:
             continue
