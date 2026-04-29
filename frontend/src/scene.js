@@ -52,7 +52,7 @@ export function createScene(container, sceneData, mode) {
     0.1,
     2000,
   );
-  camera.position.set(0, 300, 350);
+  camera.position.set(0, 450, 550);
   camera.lookAt(0, 0, 0);
 
   // Controls
@@ -61,7 +61,7 @@ export function createScene(container, sceneData, mode) {
   controls.dampingFactor = 0.08;
   controls.maxPolarAngle = Math.PI / 2.2;
   controls.minDistance = 50;
-  controls.maxDistance = 800;
+  controls.maxDistance = 1200;
 
   // Lights
   const ambient = new THREE.AmbientLight(0xffffff, 1.0);

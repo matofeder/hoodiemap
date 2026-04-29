@@ -4,7 +4,7 @@ location:
 
 radii:
   fetch_meters: 3000
-  display_meters: 600
+  display_meters: 1000
 
 poi:
   max_per_category: 3
