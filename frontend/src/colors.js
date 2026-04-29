@@ -43,13 +43,13 @@ export const GEO_LAYER_COLORS = {
 };
 
 export const ROAD_COLORS = {
-  motorway:    { fill: '#ffffff', width: 5 },
-  trunk:       { fill: '#ffffff', width: 5 },
-  primary:     { fill: '#f0f0f0', width: 4 },
-  secondary:   { fill: '#e8e8e8', width: 3 },
-  tertiary:    { fill: '#e0e0e0', width: 2.5 },
-  residential: { fill: '#d8d8d8', width: 2 },
-  unclassified:{ fill: '#d0d0d0', width: 1.5 },
-  service:     { fill: '#cccccc', width: 1 },
+  motorway:    { fill: '#ffffff', width: 7 },
+  trunk:       { fill: '#ffffff', width: 7 },
+  primary:     { fill: '#f0f0f0', width: 5.6 },
+  secondary:   { fill: '#e8e8e8', width: 4.2 },
+  tertiary:    { fill: '#e0e0e0', width: 3.5 },
+  residential: { fill: '#d8d8d8', width: 2.8 },
+  unclassified:{ fill: '#d0d0d0', width: 2.1 },
+  service:     { fill: '#cccccc', width: 1.4 },
 };
-export const ROAD_COLOR_DEFAULT = { fill: '#cccccc', width: 1.5 };
+export const ROAD_COLOR_DEFAULT = { fill: '#cccccc', width: 2.1 };
