@@ -31,7 +31,7 @@ async function init() {
     }
     const sceneData = await fetchScene(coordsFromURL.lat, coordsFromURL.lon);
     const { createScene } = await import('./scene.js');
-    const container = document.getElementById('canvas-container');
+    const container = document.getElementById('threejs-mount');
     createScene(container, sceneData, mode);
     document.getElementById('loading').style.display = 'none';
     return;
@@ -46,7 +46,7 @@ async function init() {
     document.getElementById('loading').textContent = 'Načítavam mapu…';
     try {
       const sceneData = await fetchScene(lat, lon);
-      const container = document.getElementById('canvas-container');
+      const container = document.getElementById('threejs-mount');
       createScene(container, sceneData, 'demo');
       document.getElementById('info-address').textContent = displayName;
       const top3 = sceneData.pois.slice(0, 3).map(p => `${p.name} ${p.distance_m}m`).join(' · ');

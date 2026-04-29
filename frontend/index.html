@@ -51,7 +51,8 @@
       overflow: hidden;
       background: #87ceeb;
     }
-    #canvas-container canvas { display: block; width: 100% !important; height: 100% !important; }
+    #threejs-mount { position: absolute; inset: 0; }
+    #threejs-mount canvas { display: block; width: 100% !important; height: 100% !important; }
 
     /* Embed code button */
     #embed-btn {
@@ -144,6 +145,7 @@
       <button id="search-btn">Zobraziť</button>
     </div>
     <div id="canvas-container">
+      <div id="threejs-mount"></div>
       <div id="loading">Načítavam mapu…</div>
       <div id="info-card">
         <div class="address" id="info-address"></div>
