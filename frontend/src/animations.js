@@ -27,6 +27,7 @@ function _addTrees(scene, trees) {
     const h = Math.min(tree.height, 20);
     const r = Math.min(tree.radius, 8);
     const phase = i * 1.3;
+    const isConifer = i % 3 === 0;
 
     const trunkH = h * 0.4;
     const trunkGeo = new THREE.CylinderGeometry(r * 0.12, r * 0.18, trunkH, 6);
@@ -36,9 +37,16 @@ function _addTrees(scene, trees) {
     scene.add(trunk);
 
     const canopyMat = new THREE.MeshLambertMaterial({ color: canopyColors[i % canopyColors.length] });
-    const canopyGeo = new THREE.ConeGeometry(r * 0.7, h * 0.7, 7);
-    const canopy = new THREE.Mesh(canopyGeo, canopyMat);
-    canopy.position.set(tree.x, trunkH + (h * 0.7) / 2, -tree.y);
+    let canopy;
+    if (isConifer) {
+      const canopyGeo = new THREE.ConeGeometry(r * 0.7, h * 0.7, 7);
+      canopy = new THREE.Mesh(canopyGeo, canopyMat);
+      canopy.position.set(tree.x, trunkH + (h * 0.7) / 2, -tree.y);
+    } else {
+      const canopyGeo = new THREE.SphereGeometry(r * 0.8, 8, 6);
+      canopy = new THREE.Mesh(canopyGeo, canopyMat);
+      canopy.position.set(tree.x, trunkH + r * 0.6, -tree.y);
+    }
     canopy.castShadow = true;
     scene.add(canopy);
 
@@ -220,4 +228,69 @@ function _addCenterPin(scene) {
     halo.material.opacity = 0.25 + Math.sin(t * 2.5) * 0.15;
     halo.scale.setScalar(1 + Math.sin(t * 1.5) * 0.12);
   };
+}
+
+
+// ── Shrubs ────────────────────────────────────────────────────────────────────
+
+const SHRUB_COLORS = [0x4a7a4a, 0x5a8c3a, 0x3d6e2e, 0x508040];
+const MAX_SHRUBS = 200;
+
+export function addShrubs(scene, sceneData) {
+  const layers = sceneData.geo_layers;
+  if (!layers) return;
+
+  let totalShrubs = 0;
+  const SPACING = 8;
+
+  for (const layerName of ['park', 'forest']) {
+    const rings = layers[layerName];
+    if (!rings) continue;
+
+    for (const ring of rings) {
+      if (totalShrubs >= MAX_SHRUBS) return;
+      if (!ring || ring.length < 2) continue;
+
+      let accumulated = 0;
+
+      for (let i = 0; i < ring.length - 1; i++) {
+        const [x0, y0] = ring[i];
+        const [x1, y1] = ring[i + 1];
+        const segLen = Math.hypot(x1 - x0, y1 - y0);
+        let t = (accumulated === 0) ? 0 : SPACING - accumulated;
+
+        while (t <= segLen) {
+          if (totalShrubs >= MAX_SHRUBS) return;
+          const frac = t / segLen;
+          const sx = x0 + (x1 - x0) * frac;
+          const sy = y0 + (y1 - y0) * frac;
+          _placeShrub(scene, sx, sy, totalShrubs);
+          totalShrubs++;
+          t += SPACING;
+        }
+        accumulated = (accumulated + segLen) % SPACING;
+      }
+    }
+  }
+}
+
+function _placeShrub(scene, wx, wy, idx) {
+  const clusterCount = 2 + (idx % 3);
+  const color = SHRUB_COLORS[idx % SHRUB_COLORS.length];
+  const mat = new THREE.MeshLambertMaterial({ color });
+
+  for (let k = 0; k < clusterCount; k++) {
+    const angle = (k / clusterCount) * Math.PI * 2 + idx * 0.7;
+    const radius = (k === 0) ? 0 : 0.8 + (k * 0.3);
+    const r = 0.8 + (k % 2) * 0.4;
+    const geo = new THREE.SphereGeometry(r, 6, 5);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(
+      wx + Math.cos(angle) * radius,
+      r,
+      -(wy + Math.sin(angle) * radius),
+    );
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+  }
 }
