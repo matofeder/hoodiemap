@@ -61,3 +61,44 @@ async def test_geocode_endpoint_returns_results():
             response = await client.get("/api/geocode?q=Pezinok")
     assert response.status_code == 200
     assert response.json() == mock_nominatim
+
+
+@pytest.mark.asyncio
+async def test_share_endpoint_returns_id():
+    from api import app
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/scene/share?lat=48.28646&lon=17.27221")
+    assert response.status_code == 200
+    data = response.json()
+    assert {"id", "view_url", "embed_url"} <= data.keys()
+    assert data["view_url"].startswith("/view/")
+    assert data["embed_url"].startswith("/embed")
+
+
+@pytest.mark.asyncio
+async def test_share_endpoint_same_coords_same_id():
+    from api import app
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        r1 = await client.get("/api/scene/share?lat=48.28646&lon=17.27221")
+        r2 = await client.get("/api/scene/share?lat=48.28646&lon=17.27221")
+    assert r1.json()["id"] == r2.json()["id"]
+
+
+@pytest.mark.asyncio
+async def test_view_redirect_follows_to_embed():
+    from api import app, _share_store
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        share = await client.get("/api/scene/share?lat=48.28646&lon=17.27221")
+        scene_id = share.json()["id"]
+        response = await client.get(f"/view/{scene_id}", follow_redirects=False)
+    assert response.status_code == 302
+    location = response.headers["location"]
+    assert "lat=" in location and "lon=" in location
+
+
+@pytest.mark.asyncio
+async def test_view_unknown_id_returns_404():
+    from api import app
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/view/deadbeef")
+    assert response.status_code == 404

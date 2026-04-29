@@ -99,6 +99,16 @@
       display: flex; align-items: center; justify-content: center;
       color: #e8c547; font-size: 16px; z-index: 200;
     }
+
+    /* Embed / view mode: hide demo-only chrome */
+    body[data-mode="embed"] #search-bar,
+    body[data-mode="embed"] #embed-btn,
+    body[data-mode="embed"] #compass,
+    body[data-mode="embed"] #embed-modal,
+    body[data-mode="view"] #search-bar,
+    body[data-mode="view"] #embed-btn,
+    body[data-mode="view"] #compass,
+    body[data-mode="view"] #embed-modal { display: none !important; }
   </style>
 </head>
 <body>
@@ -125,6 +135,8 @@
       <h3>Embed kód</h3>
       <p style="color:#aaa;font-size:12px;margin-bottom:10px">Skopíruj do svojho webu:</p>
       <textarea id="embed-code" readonly></textarea>
+      <p style="color:#aaa;font-size:12px;margin: 10px 0 6px">Alebo zdieľaj priamo:</p>
+      <input id="share-url" readonly style="width:100%;background:#0d1b2a;color:#aef;border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:8px;font-family:monospace;font-size:12px;" value="…" />
     </div>
   </div>
 

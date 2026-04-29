@@ -1,10 +1,12 @@
 import asyncio
+import hashlib
 from pathlib import Path
 from typing import Annotated
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from config import load_config
@@ -20,6 +22,7 @@ app.add_middleware(
 )
 
 _cfg = None
+_share_store: dict[str, tuple[float, float]] = {}
 
 
 def _get_cfg():
@@ -60,6 +63,29 @@ async def geocode(q: str):
         except httpx.HTTPStatusError as exc:
             raise HTTPException(status_code=exc.response.status_code, detail="Geocode upstream error") from exc
     return resp.json()
+
+
+@app.get("/api/scene/share")
+async def scene_share(
+    lat: Annotated[float, Query(ge=-90, le=90)],
+    lon: Annotated[float, Query(ge=-180, le=180)],
+):
+    scene_id = hashlib.sha256(f"{lat:.6f},{lon:.6f}".encode()).hexdigest()[:8]
+    _share_store[scene_id] = (lat, lon)
+    return {
+        "id": scene_id,
+        "view_url": f"/view/{scene_id}",
+        "embed_url": f"/embed?lat={lat}&lon={lon}",
+    }
+
+
+@app.get("/view/{scene_id}")
+async def view_scene(scene_id: str):
+    coords = _share_store.get(scene_id)
+    if coords is None:
+        raise HTTPException(status_code=404, detail="Scene not found")
+    lat, lon = coords
+    return RedirectResponse(f"/embed?lat={lat}&lon={lon}", status_code=302)
 
 
 # Serve frontend build if it exists (production mode)

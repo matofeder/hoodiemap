@@ -21,6 +21,7 @@ async function fetchScene(lat, lon) {
 
 async function init() {
   const mode = getMode();
+  document.body.dataset.mode = mode;
   const coordsFromURL = getCoordsFromURL();
 
   if (mode === 'embed' || mode === 'view') {
@@ -52,6 +53,13 @@ async function init() {
       document.getElementById('info-pois').textContent = top3;
       document.getElementById('info-card').style.display = 'block';
       document.getElementById('embed-btn').style.display = 'block';
+      const shareInput = document.getElementById('share-url');
+      if (shareInput) {
+        fetch(`/api/scene/share?lat=${lat}&lon=${lon}`)
+          .then(r => r.json())
+          .then(share => { shareInput.value = `${window.location.origin}${share.view_url}`; })
+          .catch(() => {});
+      }
       const embedSrc = `${window.location.origin}/embed?lat=${lat}&lon=${lon}`;
       document.getElementById('embed-code').value =
         `<iframe src="${embedSrc}" width="100%" height="500" allow="fullscreen" style="border:none;border-radius:8px"></iframe>`;
