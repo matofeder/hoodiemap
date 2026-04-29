@@ -139,7 +139,7 @@ export function createScene(container, sceneData, mode) {
 function _addGround(scene, bboxM) {
   const size = bboxM * 2.2;
   const geo = new THREE.PlaneGeometry(size, size);
-  const mat = new THREE.MeshLambertMaterial({ color: 0x7ab648 });
+  const mat = new THREE.MeshLambertMaterial({ color: 0xc8bfb0 });
   const ground = new THREE.Mesh(geo, mat);
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
@@ -148,17 +148,20 @@ function _addGround(scene, bboxM) {
 
 
 function _addGeoLayers(scene, geoLayers) {
-  ['water', 'forest', 'park'].forEach(layerName => {
+  const Y_OFFSET = { residential: 0.03, forest: 0.05, park: 0.05, water: 0.07 };
+
+  ['residential', 'water', 'forest', 'park'].forEach(layerName => {
     const rings = geoLayers[layerName];
     if (!rings || rings.length === 0) return;
     const color = GEO_LAYER_COLORS[layerName];
+    const yOff = Y_OFFSET[layerName] ?? 0.05;
     rings.forEach(ring => {
       if (!ring || ring.length < 3) return;
       try {
         const shape = new THREE.Shape(ring.map(([x, y]) => new THREE.Vector2(x, y)));
         const geo = new THREE.ShapeGeometry(shape);
         geo.rotateX(-Math.PI / 2);
-        geo.translate(0, 0.05, 0);
+        geo.translate(0, yOff, 0);
         const mat = new THREE.MeshLambertMaterial({ color });
         const mesh = new THREE.Mesh(geo, mat);
         mesh.receiveShadow = true;
