@@ -26,7 +26,7 @@ async function init() {
 
   if (mode === 'embed' || mode === 'view') {
     if (!coordsFromURL) {
-      document.getElementById('loading').textContent = 'Chýbajú koordináty (lat/lon).';
+      document.getElementById('loading-text').textContent = 'Chýbajú koordináty (lat/lon).';
       return;
     }
     const sceneData = await fetchScene(coordsFromURL.lat, coordsFromURL.lon);
@@ -43,7 +43,7 @@ async function init() {
 
   initDemoUI(async (lat, lon, displayName) => {
     document.getElementById('loading').style.display = 'flex';
-    document.getElementById('loading').textContent = 'Načítavam mapu…';
+    document.getElementById('loading-text').textContent = 'Načítavam mapu…';
     try {
       const sceneData = await fetchScene(lat, lon);
       const container = document.getElementById('threejs-mount');
@@ -80,6 +80,7 @@ async function init() {
 
 if (typeof document !== 'undefined') {
   init().catch(err => {
-    document.getElementById('loading').textContent = `Chyba: ${err.message}`;
+    document.getElementById('loading-text').textContent = `Chyba: ${err.message}`;
+    document.getElementById('loading-spinner').style.display = 'none';
   });
 }
