@@ -35,6 +35,9 @@ describe('_bearingToCardinal', () => {
   it('360° wraps to S', () => {
     expect(_bearingToCardinal(360)).toBe('S');
   });
+  it('handles negative bearings (-45° → SZ)', () => {
+    expect(_bearingToCardinal(-45)).toBe('SZ');
+  });
 });
 
 describe('_resolveCollisions', () => {
@@ -65,5 +68,22 @@ describe('_resolveCollisions', () => {
     _resolveCollisions(pois);
     expect(pois[0].bearing_deg).toBe(45);
     expect(pois[1].bearing_deg).toBe(50);
+  });
+
+  it('separates three collinear POIs', () => {
+    const pois = [{ bearing_deg: 45 }, { bearing_deg: 45 }, { bearing_deg: 45 }];
+    const result = _resolveCollisions(pois);
+    expect(Math.abs(result[1].bearing_deg - result[0].bearing_deg)).toBeGreaterThanOrEqual(15);
+    expect(Math.abs(result[2].bearing_deg - result[1].bearing_deg)).toBeGreaterThanOrEqual(15);
+    expect(Math.abs(result[2].bearing_deg - result[0].bearing_deg)).toBeGreaterThanOrEqual(15);
+  });
+
+  it('handles wraparound bearings (350° and 5°)', () => {
+    const pois = [{ bearing_deg: 350 }, { bearing_deg: 5 }];
+    const result = _resolveCollisions(pois);
+    let diff = result[1].bearing_deg - result[0].bearing_deg;
+    if (diff > 180) diff -= 360;
+    if (diff < -180) diff += 360;
+    expect(Math.abs(diff)).toBeGreaterThanOrEqual(15);
   });
 });

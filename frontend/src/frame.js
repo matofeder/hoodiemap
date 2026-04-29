@@ -18,18 +18,19 @@ export function initFrame(container, outerPois, centerLat, centerLon, onHover, o
 
   const resolved = _resolveCollisions(sorted);
 
-  const entries = resolved.map(poi => {
-    const el = _createIndicator(poi);
+  const entries = resolved.map((resolvedPoi, idx) => {
+    const originalPoi = sorted[idx];
+    const el = _createIndicator({ ...originalPoi, display_bearing: originalPoi.bearing_deg });
     container.appendChild(el);
-    _positionIndicator(el, poi.bearing_deg, container);
-    el.addEventListener('mouseenter', () => onHover(poi, el));
-    el.addEventListener('mouseleave', () => onLeave(poi, el));
-    return { el, poi };
+    _positionIndicator(el, resolvedPoi.bearing_deg, container);
+    el.addEventListener('mouseenter', () => onHover(originalPoi, el));
+    el.addEventListener('mouseleave', () => onLeave(originalPoi, el));
+    return { el, poi: originalPoi, resolvedBearing: resolvedPoi.bearing_deg };
   });
 
   // Reposition on resize
   const observer = new ResizeObserver(() => {
-    entries.forEach(({ el, poi }) => _positionIndicator(el, poi.bearing_deg, container));
+    entries.forEach(({ el, resolvedBearing }) => _positionIndicator(el, resolvedBearing, container));
   });
   observer.observe(container);
 
@@ -47,13 +48,20 @@ export function initFrame(container, outerPois, centerLat, centerLon, onHover, o
 export function _resolveCollisions(pois) {
   const result = pois.map(p => ({ ...p }));
   const MIN_DIFF = 15;
-  for (let i = 1; i < result.length; i++) {
-    for (let j = 0; j < i; j++) {
-      let diff = result[i].bearing_deg - result[j].bearing_deg;
-      if (diff > 180) diff -= 360;
-      if (diff < -180) diff += 360;
-      if (Math.abs(diff) < MIN_DIFF) {
-        result[i].bearing_deg += Math.sign(diff || 1) * (MIN_DIFF - Math.abs(diff) + 2);
+  let changed = true;
+  let iterations = 0;
+  while (changed && iterations < 10) {
+    changed = false;
+    iterations++;
+    for (let i = 1; i < result.length; i++) {
+      for (let j = 0; j < i; j++) {
+        let diff = result[i].bearing_deg - result[j].bearing_deg;
+        if (diff > 180) diff -= 360;
+        if (diff < -180) diff += 360;
+        if (Math.abs(diff) < MIN_DIFF) {
+          result[i].bearing_deg += Math.sign(diff || 1) * (MIN_DIFF - Math.abs(diff) + 2);
+          changed = true;
+        }
       }
     }
   }
@@ -75,15 +83,29 @@ function _createIndicator(poi) {
   const el = document.createElement('div');
   el.className = 'outer-poi-indicator';
   el.dataset.category = poi.category;
-  el.innerHTML = `
-    <div class="outer-poi-pill">
-      <div class="outer-poi-header">
-        <span class="outer-poi-dot" style="background:${color}"></span>
-        <span class="outer-poi-name">${poi.name.slice(0, 22)}</span>
-      </div>
-      <span class="outer-poi-meta">${_formatDistance(poi.distance_m)} · ${_bearingToCardinal(poi.bearing_deg)}</span>
-    </div>
-  `;
+
+  const pill = document.createElement('div');
+  pill.className = 'outer-poi-pill';
+
+  const header = document.createElement('div');
+  header.className = 'outer-poi-header';
+
+  const dot = document.createElement('span');
+  dot.className = 'outer-poi-dot';
+  dot.style.background = color;
+
+  const name = document.createElement('span');
+  name.className = 'outer-poi-name';
+  name.textContent = poi.name.slice(0, 22);
+
+  header.append(dot, name);
+
+  const meta = document.createElement('span');
+  meta.className = 'outer-poi-meta';
+  meta.textContent = `${_formatDistance(poi.distance_m)} · ${_bearingToCardinal(poi.display_bearing ?? poi.bearing_deg)}`;
+
+  pill.append(header, meta);
+  el.appendChild(pill);
   return el;
 }
 
