@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { BUILDING_COLORS, BUILDING_COLOR_DEFAULT, GEO_LAYER_COLORS, ROAD_COLORS, ROAD_COLOR_DEFAULT } from './colors.js';
 import { buildRibbonGeometry, buildDashLineGeometry } from './geometry.js';
-import { addAnimations } from './animations.js';
+import { addAnimations, addShrubs } from './animations.js';
 import { addPOIs } from './poi.js';
 
 let _activeScene = null;
@@ -89,6 +89,7 @@ export function createScene(container, sceneData, mode) {
 
   // Animations (cars, trees, pedestrians, center pin)
   const animatables = addAnimations(scene, sceneData);
+  addShrubs(scene, sceneData);
 
   // POI markers
   if (sceneData.pois.length > 0) {
