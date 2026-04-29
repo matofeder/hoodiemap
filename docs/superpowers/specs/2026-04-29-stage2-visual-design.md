@@ -115,9 +115,24 @@ No changes needed to the scene JSON schema. All additions are purely visual, com
 
 ---
 
+## 5. Layout — Centrovaná karta (demo mode)
+
+**Goal:** Nahradiť full-screen canvas kompaktným centrovaným layoutom v demo mode. Embed a view mode zostanú bez zmeny (iframe ich prirodzene orámi).
+
+- `body` background: `#e8eef4` (svetlošedá)
+- Centrovaný kontajner: `max-width: 960px`, `margin: 0 auto`, `height: 100vh` (flex column)
+- Top bar (pevná výška ~52px): biely panel, search input + tlačidlo Hľadať, border-bottom `#ddd`
+- Map area: flex-grow 1, min-height 0 — Three.js canvas vyplní zvyšok výšky
+- Info card + embed panel: `position: absolute` nad mapou (pravý dolný roh), zachovajú sa
+- Resize handler: volá `onResize()` pri zmene okna rovnako ako doteraz
+
+**Files:** `frontend/index.html`, `frontend/src/ui.js`
+
+---
+
 ## Out of scope
 
-- Full-screen layout (user explicitly declined)
+- Sidebar layout (zvážiť neskôr)
 - Texture maps / image-based materials
 - Shadow-casting shrubs (performance)
 - Animated pedestrians changes (keep as-is)
@@ -128,6 +143,8 @@ No changes needed to the scene JSON schema. All additions are purely visual, com
 
 | File | Changes |
 |---|---|
-| `frontend/src/scene.js` | Lighting, ground, roads (flat), buildings (typed), call `_addShrubs` |
+| `frontend/src/scene.js` | Lighting, ground, roads (flat ribbon), buildings (typed roofs/windows), call `_addShrubs` |
 | `frontend/src/animations.js` | Trees (sphere canopy), new `_addShrubs`, cars lift + count |
 | `frontend/src/colors.js` | No changes expected |
+| `frontend/index.html` | Centrovaný layout kontajner, top bar |
+| `frontend/src/ui.js` | Search bar presun do top bar, responzívny resize |
