@@ -23,6 +23,7 @@ app.add_middleware(
 
 _cfg = None
 _share_store: dict[str, tuple[float, float]] = {}
+_route_cache: dict[str, dict] = {}
 
 
 def _get_cfg():
@@ -77,6 +78,33 @@ async def scene_share(
         "view_url": f"/view/{scene_id}",
         "embed_url": f"/embed?lat={lat}&lon={lon}",
     }
+
+
+@app.get("/api/route")
+async def route_hint(
+    from_lat: Annotated[float, Query(ge=-90, le=90)],
+    from_lon: Annotated[float, Query(ge=-180, le=180)],
+    to_lat: Annotated[float, Query(ge=-90, le=90)],
+    to_lon: Annotated[float, Query(ge=-180, le=180)],
+):
+    cache_key = f"{from_lat:.5f},{from_lon:.5f},{to_lat:.5f},{to_lon:.5f}"
+    if cache_key in _route_cache:
+        return _route_cache[cache_key]
+    url = (
+        f"https://router.project-osrm.org/route/v1/driving/"
+        f"{from_lon:.6f},{from_lat:.6f};{to_lon:.6f},{to_lat:.6f}"
+        f"?overview=full&geometries=geojson"
+    )
+    headers = {"User-Agent": "genmap/1.0 (neighbourhood-map)"}
+    async with httpx.AsyncClient(timeout=10) as client:
+        try:
+            resp = await client.get(url, headers=headers)
+            resp.raise_for_status()
+        except (httpx.HTTPStatusError, httpx.RequestError) as exc:
+            raise HTTPException(status_code=502, detail="Routing upstream error") from exc
+    data = resp.json()
+    _route_cache[cache_key] = data
+    return data
 
 
 @app.get("/view/{scene_id}")

@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock, MagicMock
 from httpx import AsyncClient, ASGITransport
 
 
@@ -102,3 +102,71 @@ async def test_view_unknown_id_returns_404():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/view/deadbeef")
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_route_endpoint_returns_osrm_response():
+    from api import app
+    from unittest.mock import AsyncMock, MagicMock
+    mock_osrm = {
+        "routes": [{
+            "geometry": {"type": "LineString", "coordinates": [[17.272, 48.286], [17.273, 48.287]]},
+            "distance": 1200,
+        }]
+    }
+    with patch("api.httpx.AsyncClient") as mock_cls:
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = mock_osrm
+        mock_resp.raise_for_status = MagicMock()
+        mock_http = AsyncMock()
+        mock_http.get = AsyncMock(return_value=mock_resp)
+        mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_http)
+        mock_cls.return_value.__aexit__ = AsyncMock(return_value=None)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get(
+                "/api/route?from_lat=48.286&from_lon=17.272&to_lat=48.290&to_lon=17.275"
+            )
+    assert response.status_code == 200
+    assert "routes" in response.json()
+
+
+@pytest.mark.asyncio
+async def test_route_endpoint_osrm_failure_returns_502():
+    from api import app, _route_cache
+    import httpx as real_httpx
+    _route_cache.clear()
+    with patch("api.httpx.AsyncClient") as mock_cls:
+        mock_http = AsyncMock()
+        mock_http.get = AsyncMock(side_effect=real_httpx.RequestError("timeout"))
+        mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_http)
+        mock_cls.return_value.__aexit__ = AsyncMock(return_value=None)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get(
+                "/api/route?from_lat=48.286&from_lon=17.272&to_lat=48.290&to_lon=17.275"
+            )
+    assert response.status_code == 502
+
+
+@pytest.mark.asyncio
+async def test_route_endpoint_cached_on_second_call():
+    from api import app, _route_cache
+    _route_cache.clear()
+    mock_osrm = {"routes": [{"geometry": {"type": "LineString", "coordinates": []}, "distance": 500}]}
+    call_count = 0
+    with patch("api.httpx.AsyncClient") as mock_cls:
+        async def fake_get(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            m = MagicMock()
+            m.json.return_value = mock_osrm
+            m.raise_for_status = MagicMock()
+            return m
+        from unittest.mock import MagicMock
+        mock_http = AsyncMock()
+        mock_http.get = fake_get
+        mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_http)
+        mock_cls.return_value.__aexit__ = AsyncMock(return_value=None)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            await client.get("/api/route?from_lat=48.28600&from_lon=17.27200&to_lat=48.29000&to_lon=17.27500")
+            await client.get("/api/route?from_lat=48.28600&from_lon=17.27200&to_lat=48.29000&to_lon=17.27500")
+    assert call_count == 1
