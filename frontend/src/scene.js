@@ -6,6 +6,13 @@ import { buildRibbonGeometry, buildDashLineGeometry } from './geometry.js';
 import { addAnimations, addShrubs } from './animations.js';
 import { addPOIs } from './poi.js';
 
+const HOUSE_TYPES      = new Set(['house', 'detached', 'bungalow']);
+const APARTMENT_TYPES  = new Set(['apartments', 'residential', 'terrace']);
+const CHURCH_TYPES     = new Set(['church', 'cathedral', 'chapel', 'monastery']);
+const COMMERCIAL_TYPES = new Set(['commercial', 'retail', 'supermarket', 'kiosk']);
+const OFFICE_TYPES     = new Set(['office', 'civic', 'public', 'government']);
+const INDUSTRIAL_TYPES = new Set(['industrial', 'warehouse', 'factory']);
+
 let _activeScene = null;
 
 if (import.meta.hot) {
@@ -224,7 +231,6 @@ function _addBuildings(scene, buildings) {
   buildings.forEach(b => {
     const colorHex = BUILDING_COLORS[b.type] || BUILDING_COLOR_DEFAULT;
     const color = new THREE.Color(colorHex);
-    const darkColor = color.clone().multiplyScalar(0.7);
 
     const fp = b.footprint;
     if (!fp || fp.length < 3) return;
@@ -243,16 +249,163 @@ function _addBuildings(scene, buildings) {
       mesh.receiveShadow = true;
       scene.add(mesh);
 
-      // Flat roof cap
-      const roofShape = new THREE.Shape(fp.map(([x, y]) => new THREE.Vector2(x, y)));
-      const roofGeo = new THREE.ShapeGeometry(roofShape);
-      roofGeo.rotateX(-Math.PI / 2);
-      roofGeo.translate(0, b.height, 0);
-      const roofMat = new THREE.MeshLambertMaterial({ color: darkColor });
-      const roof = new THREE.Mesh(roofGeo, roofMat);
-      scene.add(roof);
+      const roofGroup = _buildRoof(b.type || 'yes', fp, b.height, colorHex);
+      scene.add(roofGroup);
     } catch (err) {
       console.warn('_addBuildings: skipped footprint', b, err);
     }
   });
+}
+
+function _buildRoof(type, footprint, height, baseColorHex) {
+  const group = new THREE.Group();
+  const xs = footprint.map(([x]) => x);
+  const ys = footprint.map(([, y]) => y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const w = maxX - minX, d = maxY - minY;
+  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+
+  if (HOUSE_TYPES.has(type)) {
+    const ridgeH = Math.min(w, d) * 0.4;
+    const topY = height + ridgeH;
+    const color = new THREE.Color(baseColorHex).multiplyScalar(0.75);
+    const mat = new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide });
+    let verts;
+    if (w >= d) {
+      const cz = -(minY + maxY) / 2;
+      verts = new Float32Array([
+        minX, height, -minY,  maxX, height, -minY,  minX, topY, cz,
+        maxX, height, -minY,  maxX, topY, cz,        minX, topY, cz,
+        minX, height, -maxY,  minX, topY, cz,        maxX, height, -maxY,
+        maxX, height, -maxY,  minX, topY, cz,        maxX, topY, cz,
+        minX, height, -minY,  minX, topY, cz,        minX, height, -maxY,
+        maxX, height, -minY,  maxX, height, -maxY,  maxX, topY, cz,
+      ]);
+    } else {
+      verts = new Float32Array([
+        minX, height, -minY,  cx, topY, -minY,  minX, height, -maxY,
+        cx,   topY,   -minY,  cx, topY, -maxY,  minX, height, -maxY,
+        maxX, height, -minY,  maxX, height, -maxY,  cx, topY, -minY,
+        maxX, height, -maxY,  cx, topY, -maxY,       cx, topY, -minY,
+        minX, height, -minY,  maxX, height, -minY,  cx, topY, -minY,
+        minX, height, -maxY,  cx, topY, -maxY,       maxX, height, -maxY,
+      ]);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+    geo.computeVertexNormals();
+    group.add(new THREE.Mesh(geo, mat));
+
+  } else if (CHURCH_TYPES.has(type)) {
+    _addFlatRoofCap(group, footprint, height, baseColorHex);
+    const spireGeo = new THREE.ConeGeometry(0.8, 15, 4);
+    const spireMat = new THREE.MeshLambertMaterial({ color: 0x9e8ac0 });
+    const spire = new THREE.Mesh(spireGeo, spireMat);
+    spire.position.set(cx, height + 7.5, -cy);
+    spire.castShadow = true;
+    group.add(spire);
+
+  } else if (COMMERCIAL_TYPES.has(type)) {
+    _addFlatRoofCap(group, footprint, height, baseColorHex);
+    const atticGeo = new THREE.BoxGeometry(w + 1.0, 0.8, d + 1.0);
+    const atticColor = new THREE.Color(baseColorHex).multiplyScalar(0.85);
+    const atticMat = new THREE.MeshLambertMaterial({ color: atticColor });
+    const attic = new THREE.Mesh(atticGeo, atticMat);
+    attic.position.set(cx, height + 0.4, -cy);
+    group.add(attic);
+
+  } else if (APARTMENT_TYPES.has(type) && height > 5) {
+    _addFlatRoofCap(group, footprint, height, baseColorHex);
+    _addWindows(group, footprint, height);
+
+  } else if (OFFICE_TYPES.has(type) && height > 5) {
+    _addFlatRoofCap(group, footprint, height, baseColorHex);
+    _addWindows(group, footprint, height);
+
+  } else if (INDUSTRIAL_TYPES.has(type)) {
+    const ridgeH = Math.min(w, d) * 0.2;
+    const color = new THREE.Color(baseColorHex).multiplyScalar(0.80);
+    const mat = new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide });
+    const verts = new Float32Array([
+      minX, height,          -minY,
+      maxX, height,          -minY,
+      maxX, height + ridgeH, -minY,
+      minX, height,          -minY,
+      maxX, height + ridgeH, -minY,
+      minX, height + ridgeH, -minY,
+      minX, height,          -maxY,
+      minX, height + ridgeH, -minY,
+      maxX, height,          -maxY,
+      maxX, height,          -maxY,
+      minX, height + ridgeH, -minY,
+      maxX, height + ridgeH, -minY,
+    ]);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+    geo.computeVertexNormals();
+    group.add(new THREE.Mesh(geo, mat));
+
+  } else {
+    _addFlatRoofCap(group, footprint, height, baseColorHex);
+  }
+
+  return group;
+}
+
+function _addFlatRoofCap(group, footprint, height, baseColorHex) {
+  const color = new THREE.Color(baseColorHex).multiplyScalar(0.7);
+  try {
+    const shape = new THREE.Shape(footprint.map(([x, y]) => new THREE.Vector2(x, y)));
+    const geo = new THREE.ShapeGeometry(shape);
+    geo.rotateX(-Math.PI / 2);
+    geo.translate(0, height, 0);
+    const mat = new THREE.MeshLambertMaterial({ color });
+    group.add(new THREE.Mesh(geo, mat));
+  } catch (_) {}
+}
+
+function _addWindows(group, footprint, height) {
+  const xs = footprint.map(([x]) => x);
+  const ys = footprint.map(([, y]) => y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+
+  const winMat = new THREE.MeshBasicMaterial({ color: 0xadd8e6 });
+  const WIN_W = 0.8, WIN_H = 0.6, WIN_D = 0.1;
+  const FLOOR_STEP = 2.5, SPACING = 1.8;
+
+  let windowCount = 0;
+  const MAX_WIN = 60;
+
+  for (let floorY = 1.2; floorY < height - 0.5 && windowCount < MAX_WIN; floorY += FLOOR_STEP) {
+    for (let wx = minX + 1; wx < maxX - 0.5 && windowCount < MAX_WIN; wx += SPACING) {
+      const geo = new THREE.BoxGeometry(WIN_W, WIN_H, WIN_D);
+      const mesh = new THREE.Mesh(geo, winMat);
+      mesh.position.set(wx, floorY, -minY - WIN_D / 2);
+      group.add(mesh);
+      windowCount++;
+    }
+    for (let wx = minX + 1; wx < maxX - 0.5 && windowCount < MAX_WIN; wx += SPACING) {
+      const geo = new THREE.BoxGeometry(WIN_W, WIN_H, WIN_D);
+      const mesh = new THREE.Mesh(geo, winMat);
+      mesh.position.set(wx, floorY, -maxY + WIN_D / 2);
+      group.add(mesh);
+      windowCount++;
+    }
+    for (let wy = minY + 1; wy < maxY - 0.5 && windowCount < MAX_WIN; wy += SPACING) {
+      const geo = new THREE.BoxGeometry(WIN_D, WIN_H, WIN_W);
+      const mesh = new THREE.Mesh(geo, winMat);
+      mesh.position.set(minX - WIN_D / 2, floorY, -wy);
+      group.add(mesh);
+      windowCount++;
+    }
+    for (let wy = minY + 1; wy < maxY - 0.5 && windowCount < MAX_WIN; wy += SPACING) {
+      const geo = new THREE.BoxGeometry(WIN_D, WIN_H, WIN_W);
+      const mesh = new THREE.Mesh(geo, winMat);
+      mesh.position.set(maxX + WIN_D / 2, floorY, -wy);
+      group.add(mesh);
+      windowCount++;
+    }
+  }
 }
