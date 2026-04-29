@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
-import { BUILDING_COLORS, BUILDING_COLOR_DEFAULT, GEO_LAYER_COLORS, ROAD_COLORS, ROAD_COLOR_DEFAULT } from './colors.js';
+import { BUILDING_COLORS, BUILDING_COLOR_DEFAULT, GEO_LAYER_COLORS, ROAD_COLORS, ROAD_COLOR_DEFAULT, POI_COLORS } from './colors.js';
 import { buildRibbonGeometry, buildDashLineGeometry } from './geometry.js';
 import { addAnimations, addShrubs, addCyclists } from './animations.js';
 import { addPOIs } from './poi.js';
@@ -52,7 +52,7 @@ export function createScene(container, sceneData, mode) {
     0.1,
     2000,
   );
-  camera.position.set(0, 450, 550);
+  camera.position.set(0, 380, 560);
   camera.lookAt(0, 0, 0);
 
   // Controls
@@ -105,6 +105,11 @@ export function createScene(container, sceneData, mode) {
     addPOIs(scene, labelRenderer, camera, sceneData.pois);
   }
 
+  let needleController = null;
+  if (sceneData.outer_pois && sceneData.outer_pois.length > 0) {
+    needleController = addOuterNeedles(scene, sceneData.outer_pois, sceneData.display_radius_m || 450);
+  }
+
   // Resize handler
   function onResize() {
     const w = container.clientWidth || window.innerWidth;
@@ -135,7 +140,7 @@ export function createScene(container, sceneData, mode) {
   }
 
   _activeScene = { dispose };
-  return { dispose };
+  return { dispose, scene, needleController };
 }
 
 
@@ -406,4 +411,38 @@ function _addWindows(group, footprint, height) {
       windowCount++;
     }
   }
+}
+
+export function addOuterNeedles(scene, outerPois, displayRadiusM) {
+  const needles = [];
+  const needleR = displayRadiusM * 0.93;
+
+  outerPois.forEach(poi => {
+    const colorHex = POI_COLORS[poi.category] || '#888888';
+    const color = new THREE.Color(colorHex);
+    const rad = (poi.bearing_deg * Math.PI) / 180;
+    const x = Math.sin(rad) * needleR;
+    const z = -Math.cos(rad) * needleR;
+
+    const geo = new THREE.ConeGeometry(3, 15, 6);
+    const mat = new THREE.MeshLambertMaterial({
+      color,
+      emissive: color,
+      emissiveIntensity: 0.25,
+    });
+    const needle = new THREE.Mesh(geo, mat);
+    needle.position.set(x, 8, z);
+    needle.castShadow = false;
+    scene.add(needle);
+    needle.userData.poiCategory = poi.category;
+    needles.push({ mesh: needle, mat, poi });
+  });
+
+  return {
+    highlight(activePoi) {
+      needles.forEach(({ mat, poi }) => {
+        mat.emissiveIntensity = poi === activePoi ? 1.0 : 0.25;
+      });
+    },
+  };
 }
