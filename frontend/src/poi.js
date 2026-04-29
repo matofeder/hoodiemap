@@ -32,10 +32,13 @@ export function addPOIs(scene, labelRenderer, camera, pois) {
     const popupDiv = document.createElement('div');
     popupDiv.className = 'poi-popup';
     popupDiv.style.display = 'none';
-    popupDiv.innerHTML = `
-      <div class="poi-name">${poi.name}</div>
-      <div class="poi-meta">${POI_LABELS[poi.category] || poi.category} · ${poi.distance_m} m</div>
-    `;
+    const nameEl = document.createElement('div');
+    nameEl.className = 'poi-name';
+    nameEl.textContent = poi.name;
+    const metaEl = document.createElement('div');
+    metaEl.className = 'poi-meta';
+    metaEl.textContent = `${POI_LABELS[poi.category] || poi.category} · ${poi.distance_m} m`;
+    popupDiv.append(nameEl, metaEl);
     const popup = new CSS2DObject(popupDiv);
     popup.position.set(0, 10, 0);
     sphere.add(popup);

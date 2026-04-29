@@ -22,6 +22,7 @@ export function initDemoUI(onSearch) {
       const best = results[0];
       const lat = parseFloat(best.lat);
       const lon = parseFloat(best.lon);
+      if (isNaN(lat) || isNaN(lon)) throw new Error('Invalid coordinates from geocoder');
       await onSearch(lat, lon, best.display_name);
     } catch (err) {
       alert(`Chyba: ${err.message}`);
