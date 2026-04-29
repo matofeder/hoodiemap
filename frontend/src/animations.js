@@ -106,14 +106,13 @@ function _addCars(scene, roads) {
     const car = _makeCar(CAR_COLORS[i % CAR_COLORS.length]);
     scene.add(car);
 
-    let t = i / NUM_CARS;
-    const speed = 0.012 + Math.random() * 0.008;
-    const curveLen = curve.getLength();
+    const baseT = i / NUM_CARS;
+    const carSpeed = (3 + Math.random() * 2) / curve.getLength();  // 3-5 m/s on normalized curve
 
-    tickers.push(() => {
-      t = (t + speed * (1 / curveLen) * 16) % 1;
-      const pos = curve.getPoint(t);
-      const tangent = curve.getTangent(t);
+    tickers.push((t) => {
+      const tPath = (baseT + t * carSpeed) % 1;
+      const pos = curve.getPoint(tPath);
+      const tangent = curve.getTangent(tPath);
       car.position.copy(pos);
       car.rotation.y = Math.atan2(tangent.x, tangent.z);
     });
@@ -171,14 +170,13 @@ function _addPedestrians(scene, roads) {
     const ped = _makePedestrian(PEDESTRIAN_COLORS[i % PEDESTRIAN_COLORS.length]);
     scene.add(ped);
 
-    let t = i / NUM_PEDESTRIANS;
-    const speed = 0.003 + Math.random() * 0.002;
-    const curveLen = sidewalk.getLength();
+    const baseT = i / NUM_PEDESTRIANS;
+    const pedSpeed = (1.0 + Math.random() * 0.5) / sidewalk.getLength();  // 1.0–1.5 m/s walking speed
 
-    tickers.push(() => {
-      t = (t + speed * (1 / curveLen) * 16) % 1;
-      const pos = sidewalk.getPoint(t);
-      const tangent = sidewalk.getTangent(t);
+    tickers.push((t) => {
+      const tPath = (baseT + t * pedSpeed) % 1;
+      const pos = sidewalk.getPoint(tPath);
+      const tangent = sidewalk.getTangent(tPath);
       ped.position.copy(pos);
       ped.rotation.y = Math.atan2(tangent.x, tangent.z);
     });
@@ -192,6 +190,7 @@ function _addPedestrians(scene, roads) {
 
 function _addCenterPin(scene) {
   const group = new THREE.Group();
+  // SceneJSON coords are UTM-offset from center, so world origin (0,0,0) is the map center.
 
   const haloGeo = new THREE.RingGeometry(6, 8, 32);
   const haloMat = new THREE.MeshBasicMaterial({ color: 0xe05252, side: THREE.DoubleSide, transparent: true, opacity: 0.4 });
