@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { BUILDING_COLORS, BUILDING_COLOR_DEFAULT, GEO_LAYER_COLORS, ROAD_COLORS, ROAD_COLOR_DEFAULT } from './colors.js';
+import { buildRibbonGeometry, buildDashLineGeometry } from './geometry.js';
 import { addAnimations } from './animations.js';
 import { addPOIs } from './poi.js';
 
@@ -164,19 +165,57 @@ function _addGeoLayers(scene, geoLayers) {
 
 
 function _addRoads(scene, roads) {
+  const CENTER_LINE_TYPES = new Set(['primary', 'secondary', 'tertiary']);
+
   roads.forEach(road => {
     const style = ROAD_COLORS[road.type] || ROAD_COLOR_DEFAULT;
-    const radius = style.width * 0.5;
-    const points = road.points.map(([x, y]) => new THREE.Vector3(x, 0.15, -y));
-    if (points.length < 2) return;
-    const curve = new THREE.CatmullRomCurve3(points);
-    const segments = Math.max(points.length * 3, 8);
-    const geo = new THREE.TubeGeometry(curve, segments, radius, 4, false);
-    const mat = new THREE.MeshLambertMaterial({ color: new THREE.Color(style.fill) });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.receiveShadow = true;
-    scene.add(mesh);
+    if (road.points.length < 2) return;
+
+    const pts = road.points.map(([x, y]) => new THREE.Vector3(x, 0, -y));
+    const curve = new THREE.CatmullRomCurve3(pts);
+    const width = style.width;
+
+    // Road surface
+    const surfaceGeo = buildRibbonGeometry(curve, width);
+    const surfaceMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(style.fill) });
+    const surface = new THREE.Mesh(surfaceGeo, surfaceMat);
+    surface.receiveShadow = true;
+    scene.add(surface);
+
+    // White edge strips (y = 0.16, width 0.3m each side)
+    const edgeOffset = width / 2 + 0.15; // centre of 0.3m strip
+    const edgeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 });
+    for (const sign of [-1, 1]) {
+      const offsetPts = _offsetCurvePoints(curve, sign * edgeOffset);
+      const edgeCurve = new THREE.CatmullRomCurve3(offsetPts);
+      const edgeGeo = buildRibbonGeometry(edgeCurve, 0.3, 1.0);
+      const edgeMesh = new THREE.Mesh(edgeGeo, edgeMat);
+      scene.add(edgeMesh);
+    }
+
+    // Dashed centre line for major roads
+    if (CENTER_LINE_TYPES.has(road.type)) {
+      const dashGeo = buildDashLineGeometry(curve, 2, 3, 0.17);
+      const dashMat = new THREE.MeshBasicMaterial({ color: 0xf5d020 }); // yellow
+      scene.add(new THREE.Mesh(dashGeo, dashMat));
+    }
   });
+}
+
+/** Returns N evenly-spaced Vector3 points offset perpendicularly from a curve. */
+function _offsetCurvePoints(curve, offsetM, n = 20) {
+  const pts = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const pos = curve.getPoint(t);
+    const tan = curve.getTangent(t).normalize();
+    pts.push(new THREE.Vector3(
+      pos.x - tan.z * offsetM,
+      pos.y,
+      pos.z + tan.x * offsetM,
+    ));
+  }
+  return pts;
 }
 
 
