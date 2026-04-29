@@ -27,7 +27,6 @@ export function createScene(container, sceneData, mode) {
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x87ceeb);
-  scene.fog = new THREE.Fog(0xc9e8f4, 600, 1200);
 
   // Renderer
   const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -308,12 +307,6 @@ function _buildRoof(type, footprint, height, baseColorHex) {
 
   } else if (COMMERCIAL_TYPES.has(type)) {
     _addFlatRoofCap(group, footprint, height, baseColorHex);
-    const atticGeo = new THREE.BoxGeometry(w + 1.0, 0.8, d + 1.0);
-    const atticColor = new THREE.Color(baseColorHex).multiplyScalar(0.85);
-    const atticMat = new THREE.MeshLambertMaterial({ color: atticColor });
-    const attic = new THREE.Mesh(atticGeo, atticMat);
-    attic.position.set(cx, height + 0.4, -cy);
-    group.add(attic);
 
   } else if (APARTMENT_TYPES.has(type) && height > 5) {
     _addFlatRoofCap(group, footprint, height, baseColorHex);
