@@ -79,18 +79,18 @@ def fetch_street_network(cfg: Config, center_lat: float, center_lon: float, radi
 # ---------------------------------------------------------------------------
 
 _GEO_LAYERS: dict[str, tuple[dict, list[str]]] = {
-    "water":    ({"natural": ["water", "wetland"], "waterway": ["riverbank"]},
-                 ["Polygon", "MultiPolygon"]),
-    "forest":   ({"landuse": ["forest"], "natural": ["wood"]},
-                 ["Polygon", "MultiPolygon"]),
+    "water":       ({"natural": ["water", "wetland"], "waterway": ["riverbank"]},
+                    ["Polygon", "MultiPolygon"]),
+    "forest":      ({"landuse": ["forest"], "natural": ["wood"]},
+                    ["Polygon", "MultiPolygon"]),
     "park":        ({"leisure": ["park", "garden"], "landuse": ["grass", "meadow", "orchard"]},
                     ["Polygon", "MultiPolygon"]),
     "residential": ({"landuse": ["residential"]},
                     ["Polygon", "MultiPolygon"]),
-    "building": ({"building": True},
-                 ["Polygon", "MultiPolygon"]),
-    "railway":  ({"railway": ["rail", "tram"]},
-                 ["LineString", "MultiLineString"]),
+    "building":    ({"building": True},
+                    ["Polygon", "MultiPolygon"]),
+    "railway":     ({"railway": ["rail", "tram"]},
+                    ["LineString", "MultiLineString"]),
 }
 
 

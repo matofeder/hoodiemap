@@ -313,7 +313,6 @@ function _buildRoof(type, footprint, height, baseColorHex) {
 
   } else if (COMMERCIAL_TYPES.has(type)) {
     _addFlatRoofCap(group, footprint, height, baseColorHex);
-
   } else if (APARTMENT_TYPES.has(type) && height > 5) {
     _addFlatRoofCap(group, footprint, height, baseColorHex);
     _addWindows(group, footprint, height);
