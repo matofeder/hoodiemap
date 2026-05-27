@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import json
 from pathlib import Path
 from typing import Annotated
 
@@ -11,6 +12,8 @@ from fastapi.staticfiles import StaticFiles
 
 from config import load_config
 from scene_builder import build_scene
+
+_FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "pezinok-centrum.json"
 
 app = FastAPI(title="genmap API")
 
@@ -43,7 +46,18 @@ async def health():
 async def scene(
     lat: Annotated[float, Query(ge=-90, le=90)],
     lon: Annotated[float, Query(ge=-180, le=180)],
+    fixture: bool = False,
 ):
+    if fixture:
+        if not _FIXTURE_PATH.exists():
+            raise HTTPException(
+                status_code=404,
+                detail="Fixture file not found. Run scripts/capture_fixture.py first.",
+            )
+        try:
+            return json.loads(_FIXTURE_PATH.read_text())
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=500, detail="Fixture JSON is malformed.") from exc
     cfg = _get_cfg()
     try:
         data = await asyncio.to_thread(build_scene, lat, lon, cfg)
