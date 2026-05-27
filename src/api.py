@@ -55,7 +55,7 @@ async def scene(
                 detail="Fixture file not found. Run scripts/capture_fixture.py first.",
             )
         try:
-            return json.loads(_FIXTURE_PATH.read_text())
+            return json.loads(_FIXTURE_PATH.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
             raise HTTPException(status_code=500, detail="Fixture JSON is malformed.") from exc
     cfg = _get_cfg()
