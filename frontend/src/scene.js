@@ -24,8 +24,7 @@ export function createScene(container, sceneData) {
   }
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0d1b2a);
-  scene.fog = new THREE.Fog(0x0d1b2a, 500, 900);
+  scene.background = new THREE.Color(0xF0F4F8);
 
   // Fixed canvas size — infographic layout controls dimensions via CSS
   const W = container.clientWidth || 800;
@@ -40,8 +39,8 @@ export function createScene(container, sceneData) {
   container.appendChild(renderer.domElement);
 
   // Fixed isometric-ish camera — no user control
-  const camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 2000);
-  camera.position.set(-280, 320, 280);
+  const camera = new THREE.PerspectiveCamera(42, W / H, 0.1, 2000);
+  camera.position.set(0, 380, 520);
   camera.lookAt(0, 0, 0);
 
   // Lights
@@ -49,7 +48,7 @@ export function createScene(container, sceneData) {
   scene.add(ambient);
 
   const sun = new THREE.DirectionalLight(0xfff5e0, 1.4);
-  sun.position.set(300, 500, 200);
+  sun.position.set(200, 500, 300);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.camera.near = 10;
