@@ -206,7 +206,7 @@ No changes needed — `/api/scene` endpoint returns the enriched SceneJSON inclu
 }
 ```
 
-`address` field: added to `scene_builder.py` — reverse-geocoded from lat/lon via Nominatim (same `httpx` client already used in `api.py`), cached with scene data.
+`address` field: added in `api.py` — after `build_scene()` returns, the `/api/scene` handler performs a reverse-geocode call via the existing `httpx.AsyncClient` (Nominatim `/reverse` endpoint, `format=jsonv2`), extracts `address.road` + `address.city`, and merges it into the scene dict before returning. Falls back to `"lat, lon"` string if geocoding fails. Not cached separately — the whole scene response is cached at the HTTP layer (future work).
 
 ---
 
