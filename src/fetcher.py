@@ -25,6 +25,13 @@ POI_TAGS: dict[str, str] = {
     "public_office": "office=government",
 }
 
+TRANSPORT_TAGS: dict[str, str] = {
+    "bus_stop":     "highway=bus_stop",
+    "bike_parking": "amenity=bicycle_parking",
+    "parking":      "amenity=parking",
+    "train":        "railway=station",
+}
+
 # ---------------------------------------------------------------------------
 # Cache helpers
 # ---------------------------------------------------------------------------
@@ -271,3 +278,41 @@ def fetch_trees(cfg: Config, bbox: BBox) -> list[dict]:
     _cache_save(key, trees, cfg.cache.dir, cfg.cache.enabled)
     print(f"  trees fetched: {len(trees)}")
     return trees
+
+
+# ---------------------------------------------------------------------------
+# Transport infrastructure
+# ---------------------------------------------------------------------------
+
+
+def fetch_transport(cfg: Config, bbox: BBox, center_lat: float, center_lon: float) -> list[dict]:
+    key = f"transport:{bbox.north:.5f}:{bbox.south:.5f}:{bbox.east:.5f}:{bbox.west:.5f}"
+    cached = _cache_load(key, cfg.cache.dir, cfg.cache.enabled)
+    if cached is not None:
+        return cached
+
+    results: list[dict] = []
+    for category, osm_tag in TRANSPORT_TAGS.items():
+        query = _build_overpass_query(bbox, osm_tag)
+        for endpoint in _OVERPASS_ENDPOINTS:
+            try:
+                result = overpy.Overpass(url=endpoint).query(query)
+                points = _extract_raw_points(result, category)
+                if points:
+                    nearest = min(
+                        points,
+                        key=lambda p: haversine_m(center_lat, center_lon, p[0], p[1]),
+                    )
+                    results.append({
+                        "category": category,
+                        "name": nearest[2],
+                        "lat": nearest[0],
+                        "lon": nearest[1],
+                    })
+                break
+            except Exception as e:
+                print(f"  [warn] transport {category} {endpoint}: {e}")
+                time.sleep(1)
+
+    _cache_save(key, results, cfg.cache.dir, cfg.cache.enabled)
+    return results

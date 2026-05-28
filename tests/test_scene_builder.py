@@ -325,3 +325,50 @@ def test_outer_poi_north_has_bearing_near_zero(default_config):
         result = build_scene(lat, lon, default_config)
     bearing = result["outer_pois"][0]["bearing_deg"]
     assert bearing < 1.0 or bearing > 359.0
+
+
+def test_fetch_transport_returns_list(default_config):
+    from fetcher import fetch_transport
+    from geo import BBox
+    from unittest.mock import patch, MagicMock
+
+    bbox = BBox(north=48.29, south=48.28, east=17.28, west=17.26)
+
+    with patch("fetcher.overpy.Overpass") as mock_overpass:
+        mock_node = MagicMock()
+        mock_node.lat = "48.287"
+        mock_node.lon = "17.273"
+        mock_node.tags = {"name": "Centrum"}
+        mock_result = MagicMock()
+        mock_result.nodes = [mock_node]
+        mock_result.ways = []
+        mock_result.relations = []
+        mock_overpass.return_value.query.return_value = mock_result
+
+        result = fetch_transport(default_config, bbox, 48.286, 17.272)
+
+    assert isinstance(result, list)
+    for item in result:
+        assert "category" in item
+        assert "name" in item
+        assert "lat" in item
+        assert "lon" in item
+
+
+def test_fetch_transport_skips_empty_categories(default_config):
+    from fetcher import fetch_transport
+    from geo import BBox
+    from unittest.mock import patch, MagicMock
+
+    bbox = BBox(north=48.29, south=48.28, east=17.28, west=17.26)
+
+    with patch("fetcher.overpy.Overpass") as mock_overpass:
+        mock_result = MagicMock()
+        mock_result.nodes = []
+        mock_result.ways = []
+        mock_result.relations = []
+        mock_overpass.return_value.query.return_value = mock_result
+
+        result = fetch_transport(default_config, bbox, 48.286, 17.272)
+
+    assert result == []
