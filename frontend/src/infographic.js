@@ -81,7 +81,7 @@ function _buildPoiPanel(pois, displayRadiusM) {
     const color = POI_COLORS[poi.category] || '#888888';
     const emoji = CATEGORY_EMOJI[poi.category] || '📍';
     const fill = Math.min(100, Math.round((poi.distance_m / displayRadiusM) * 100));
-    const cardinal = _bearingToCardinal(poi.bearing_deg ?? poi.distance_m);
+    const cardinal = _bearingToCardinal(poi.bearing_deg ?? 0);
     const distLabel = poi.distance_m >= 1000
       ? `${(poi.distance_m / 1000).toFixed(1)} km`
       : `${poi.distance_m} m`;
