@@ -8,8 +8,8 @@ from shapely.geometry import Point
 from config import Config
 
 logger = logging.getLogger(__name__)
-from fetcher import fetch_geo_layers, fetch_pois, fetch_street_network, fetch_trees
-from geo import compute_bbox, compute_bearing
+from fetcher import fetch_geo_layers, fetch_pois, fetch_street_network, fetch_transport, fetch_trees
+from geo import compute_bbox, compute_bearing, haversine_m
 from styles import BUILDING_TYPE_HEIGHTS, BUILDING_HEIGHTS_DEFAULT_M
 
 
@@ -50,6 +50,7 @@ def build_scene(lat: float, lon: float, cfg: Config) -> dict:
     cx, cy = _center_utm(lat, lon, utm_crs)
 
     display_bbox = compute_bbox(lat, lon, cfg.radii.display_meters)
+    fetch_bbox = compute_bbox(lat, lon, cfg.radii.fetch_meters)
 
     G_raw = fetch_street_network(cfg, lat, lon, cfg.radii.fetch_meters)
     geo_layers = fetch_geo_layers(cfg, display_bbox)
@@ -62,7 +63,7 @@ def build_scene(lat: float, lon: float, cfg: Config) -> dict:
         "pub": show.pub, "bar": show.bar,
         "restaurant": show.restaurant, "public_office": show.public_office,
     }.items() if flag]
-    pois_raw = fetch_pois(cfg, display_bbox, lat, lon, active_cats)
+    pois_raw = fetch_pois(cfg, fetch_bbox, lat, lon, active_cats)
 
     G_proj = ox.project_graph(G_raw, to_crs=utm_crs)
 
@@ -153,6 +154,21 @@ def build_scene(lat: float, lon: float, cfg: Config) -> dict:
             "height": round(tree["height_m"], 2),
         })
 
+    transport_raw = fetch_transport(cfg, display_bbox, lat, lon)
+    transport = []
+    for tr in transport_raw:
+        x, y = _latlon_to_local(tr["lat"], tr["lon"], cx, cy, utm_crs)
+        transport.append({
+            "category": tr["category"],
+            "name": tr["name"],
+            "x": round(x, 2),
+            "y": round(y, 2),
+            "lat": tr["lat"],
+            "lon": tr["lon"],
+            "distance_m": round(haversine_m(lat, lon, tr["lat"], tr["lon"])),
+            "bearing_deg": round(compute_bearing(lat, lon, tr["lat"], tr["lon"]), 1),
+        })
+
     return {
         "center": {"lat": lat, "lon": lon},
         "display_radius_m": cfg.radii.display_meters,
@@ -162,5 +178,6 @@ def build_scene(lat: float, lon: float, cfg: Config) -> dict:
         "pois": inner_pois,
         "outer_pois": outer_pois,
         "trees": trees,
+        "transport": transport,
         "geo_layers": geo_layers_out,
     }
