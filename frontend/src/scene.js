@@ -4,7 +4,7 @@ import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { BUILDING_COLORS, BUILDING_COLOR_DEFAULT, GEO_LAYER_COLORS, ROAD_COLORS, ROAD_COLOR_DEFAULT, POI_COLORS } from './colors.js';
 import { buildRibbonGeometry, buildDashLineGeometry } from './geometry.js';
 import { addAnimations, addShrubs, addCyclists } from './animations.js';
-import { addPOIs } from './poi.js';
+import { addPOIMarkers } from './poi.js';
 
 const HOUSE_TYPES      = new Set(['house', 'detached', 'bungalow']);
 const APARTMENT_TYPES  = new Set(['apartments', 'residential', 'terrace']);
@@ -102,7 +102,7 @@ export function createScene(container, sceneData, mode) {
 
   // POI markers
   if (sceneData.pois.length > 0) {
-    addPOIs(scene, labelRenderer, camera, sceneData.pois);
+    addPOIMarkers(scene, sceneData.pois);
   }
 
   let needleController = null;
