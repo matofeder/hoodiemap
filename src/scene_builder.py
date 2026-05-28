@@ -161,8 +161,8 @@ def build_scene(lat: float, lon: float, cfg: Config) -> dict:
         transport.append({
             "category": tr["category"],
             "name": tr["name"],
-            "x": round(x, 2),
-            "y": round(y, 2),
+            "x": x,
+            "y": y,
             "lat": tr["lat"],
             "lon": tr["lon"],
             "distance_m": round(haversine_m(lat, lon, tr["lat"], tr["lon"])),
