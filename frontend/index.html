@@ -8,7 +8,7 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      background: #060d14;
+      background: #E8EDF2;
       min-height: 100vh;
       display: flex;
       align-items: center;
@@ -20,25 +20,25 @@
     #loading {
       position: fixed;
       inset: 0;
-      background: #060d14;
+      background: #E8EDF2;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #e8c547;
+      color: #1E2D3D;
       font-size: 14px;
       z-index: 100;
     }
 
     /* ── Infographic shell ───────────────────────────────── */
-    #app { width: 1200px; }
+    #app { width: 1340px; }
 
     .infographic-root {
-      width: 1200px;
-      background: #0d1b2a;
-      border: 1px solid rgba(232, 197, 71, 0.2);
+      width: 1340px;
+      background: #F5F7FA;
+      border: 1px solid rgba(0, 0, 0, 0.10);
       border-radius: 10px;
       overflow: hidden;
-      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12);
     }
 
     /* ── Header ─────────────────────────────────────────── */
@@ -48,17 +48,17 @@
       align-items: center;
       justify-content: space-between;
       padding: 0 20px;
-      border-bottom: 1px solid rgba(232, 197, 71, 0.15);
-      background: rgba(0, 0, 0, 0.2);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      background: rgba(255, 255, 255, 0.7);
     }
     .infographic-title {
-      color: #e8c547;
+      color: #1E2D3D;
       font-size: 12px;
       font-weight: 700;
       letter-spacing: 3px;
     }
     .infographic-address {
-      color: rgba(255, 255, 255, 0.45);
+      color: #6B7A8D;
       font-size: 11px;
     }
 
@@ -76,18 +76,18 @@
       flex-direction: column;
       gap: 6px;
       padding: 14px 10px;
-      background: rgba(0, 0, 0, 0.15);
+      background: #FFFFFF;
     }
     .infographic-panel-left {
-      border-right: 1px solid rgba(255, 255, 255, 0.06);
+      border-right: 1px solid rgba(0, 0, 0, 0.07);
     }
     .infographic-panel-right {
-      border-left: 1px solid rgba(255, 255, 255, 0.06);
+      border-left: 1px solid rgba(0, 0, 0, 0.07);
     }
 
     /* ── POI cards ───────────────────────────────────────── */
     .poi-card {
-      background: rgba(255, 255, 255, 0.04);
+      background: #F0F4F8;
       border-left: 3px solid var(--cat-color, #888);
       border-radius: 0 5px 5px 0;
       padding: 8px 10px;
@@ -95,7 +95,7 @@
     .poi-card-emoji-name {
       font-size: 11px;
       font-weight: 600;
-      color: #ffffff;
+      color: #1E2D3D;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -103,12 +103,12 @@
     }
     .poi-card-meta {
       font-size: 10px;
-      color: rgba(255, 255, 255, 0.4);
+      color: #6B7A8D;
       margin-bottom: 6px;
     }
     .poi-card-bar-track {
       height: 3px;
-      background: rgba(255, 255, 255, 0.08);
+      background: rgba(0, 0, 0, 0.08);
       border-radius: 2px;
       overflow: hidden;
     }
@@ -124,7 +124,7 @@
       flex: 1;
       position: relative;
       overflow: hidden;
-      background: #0d1b2a;
+      background: #F0F4F8;
     }
     .infographic-canvas-slot canvas {
       display: block;
@@ -139,19 +139,19 @@
       align-items: center;
       gap: 8px;
       padding: 0 16px;
-      border-top: 1px solid rgba(255, 255, 255, 0.07);
-      background: rgba(0, 0, 0, 0.1);
+      border-top: 1px solid rgba(0, 0, 0, 0.07);
+      background: #F8FAFC;
       overflow-x: auto;
     }
     .infographic-strip::-webkit-scrollbar { display: none; }
     .transport-pill {
       flex-shrink: 0;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: #FFFFFF;
+      border: 1px solid rgba(0, 0, 0, 0.12);
       border-radius: 12px;
       padding: 3px 11px;
       font-size: 10px;
-      color: rgba(255, 255, 255, 0.55);
+      color: #4A5568;
       white-space: nowrap;
     }
 
@@ -163,12 +163,12 @@
       z-index: 10;
     }
     .outer-poi-pill {
-      background: rgba(13, 27, 42, 0.88);
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(0, 0, 0, 0.12);
       border-radius: 10px;
       padding: 3px 8px;
       font-size: 9px;
-      color: rgba(255, 255, 255, 0.75);
+      color: #1E2D3D;
       white-space: nowrap;
       backdrop-filter: blur(4px);
     }
@@ -185,14 +185,14 @@
       flex-shrink: 0;
     }
     .outer-poi-name { font-weight: 600; }
-    .outer-poi-meta { color: rgba(255, 255, 255, 0.45); font-size: 8px; }
+    .outer-poi-meta { color: #6B7A8D; font-size: 8px; }
     .outer-poi-indicator.active .outer-poi-pill {
-      border-color: rgba(255, 255, 255, 0.35);
-      background: rgba(13, 27, 42, 0.96);
+      border-color: rgba(0, 0, 0, 0.25);
+      background: rgba(255, 255, 255, 0.98);
     }
 
     /* ── Scale down on small screens ────────────────────── */
-    @media (max-width: 1260px) {
+    @media (max-width: 1400px) {
       body { align-items: flex-start; padding: 16px; }
       #app {
         transform-origin: top left;
