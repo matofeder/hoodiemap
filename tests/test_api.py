@@ -1,4 +1,5 @@
 import pytest
+import json
 from unittest.mock import patch, AsyncMock, MagicMock
 from httpx import AsyncClient, ASGITransport
 
@@ -27,9 +28,17 @@ async def test_health_endpoint():
 @pytest.mark.asyncio
 async def test_scene_endpoint_returns_scene_json(sample_scene):
     from api import app
-    with patch("api.build_scene", return_value=sample_scene):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.get("/api/scene?lat=48.28646&lon=17.27221")
+    with patch("api.build_scene", return_value=dict(sample_scene)):
+        with patch("api.httpx.AsyncClient") as mock_client_cls:
+            mock_resp = MagicMock()
+            mock_resp.json.return_value = {"address": {"road": "Test", "city": "City"}}
+            mock_resp.raise_for_status = MagicMock()
+            mock_http = AsyncMock()
+            mock_http.get = AsyncMock(return_value=mock_resp)
+            mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_http)
+            mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=None)
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+                response = await client.get("/api/scene?lat=48.28646&lon=17.27221")
     assert response.status_code == 200
     data = response.json()
     assert data["center"]["lat"] == 48.28646
@@ -170,3 +179,69 @@ async def test_route_endpoint_cached_on_second_call():
             await client.get("/api/route?from_lat=48.28600&from_lon=17.27200&to_lat=48.29000&to_lon=17.27500")
             await client.get("/api/route?from_lat=48.28600&from_lon=17.27200&to_lat=48.29000&to_lon=17.27500")
     assert call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_scene_fixture_returns_fixture_json(tmp_path, monkeypatch):
+    from api import app
+    fixture_data = {"center": {"lat": 48.286, "lon": 17.272}, "roads": [], "buildings": [], "pois": [], "trees": []}
+    fixture_file = tmp_path / "pezinok-centrum.json"
+    fixture_file.write_text(json.dumps(fixture_data))
+
+    import api as api_module
+    monkeypatch.setattr(api_module, "_FIXTURE_PATH", fixture_file)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/scene?lat=0&lon=0&fixture=true")
+    assert response.status_code == 200
+    assert response.json()["center"]["lat"] == 48.286
+
+
+@pytest.mark.asyncio
+async def test_scene_fixture_missing_file_returns_404(tmp_path, monkeypatch):
+    from api import app
+    import api as api_module
+    monkeypatch.setattr(api_module, "_FIXTURE_PATH", tmp_path / "does-not-exist.json")
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/scene?lat=48.286&lon=17.272&fixture=true")
+    assert response.status_code == 404
+    assert "capture_fixture" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_scene_endpoint_includes_address(sample_scene):
+    from api import app
+    mock_rg = {"address": {"road": "Hlavná ulica", "city": "Pezinok"}}
+    with patch("api.build_scene", return_value=dict(sample_scene)):
+        with patch("api.httpx.AsyncClient") as mock_client_cls:
+            mock_resp = MagicMock()
+            mock_resp.json.return_value = mock_rg
+            mock_resp.raise_for_status = MagicMock()
+            mock_http = AsyncMock()
+            mock_http.get = AsyncMock(return_value=mock_resp)
+            mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_http)
+            mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=None)
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+                response = await client.get("/api/scene?lat=48.28646&lon=17.27221")
+    assert response.status_code == 200
+    data = response.json()
+    assert "address" in data
+    assert data["address"] == "Hlavná ulica, Pezinok"
+
+
+@pytest.mark.asyncio
+async def test_scene_endpoint_address_fallback_on_geocode_error(sample_scene):
+    from api import app
+    with patch("api.build_scene", return_value=dict(sample_scene)):
+        with patch("api.httpx.AsyncClient") as mock_client_cls:
+            mock_http = AsyncMock()
+            mock_http.get = AsyncMock(side_effect=Exception("network error"))
+            mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_http)
+            mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=None)
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+                response = await client.get("/api/scene?lat=48.28646&lon=17.27221")
+    assert response.status_code == 200
+    data = response.json()
+    assert "address" in data
+    assert "48.2865" in data["address"]

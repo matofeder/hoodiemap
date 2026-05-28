@@ -63,6 +63,23 @@ async def scene(
         data = await asyncio.to_thread(build_scene, lat, lon, cfg)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(
+                "https://nominatim.openstreetmap.org/reverse",
+                params={"lat": lat, "lon": lon, "format": "jsonv2"},
+                headers={"User-Agent": "genmap/1.0 (neighbourhood-map)"},
+            )
+            resp.raise_for_status()
+            rg = resp.json()
+            addr = rg.get("address", {})
+            road = addr.get("road") or addr.get("pedestrian") or addr.get("suburb") or ""
+            city = addr.get("city") or addr.get("town") or addr.get("village") or ""
+            data["address"] = ", ".join(p for p in [road, city] if p) or f"{lat:.4f}, {lon:.4f}"
+    except Exception:
+        data["address"] = f"{lat:.4f}, {lon:.4f}"
+
     return data
 
 
