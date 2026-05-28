@@ -1,6 +1,4 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { BUILDING_COLORS, BUILDING_COLOR_DEFAULT, GEO_LAYER_COLORS, ROAD_COLORS, ROAD_COLOR_DEFAULT, POI_COLORS } from './colors.js';
 import { buildRibbonGeometry, buildDashLineGeometry } from './geometry.js';
 import { addAnimations, addShrubs, addCyclists } from './animations.js';
@@ -19,49 +17,32 @@ if (import.meta.hot) {
   import.meta.hot.dispose(() => { _activeScene?.dispose(); });
 }
 
-export function createScene(container, sceneData, mode) {
+export function createScene(container, sceneData) {
   if (_activeScene) {
     _activeScene.dispose();
     _activeScene = null;
   }
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x87ceeb);
+  scene.background = new THREE.Color(0x0d1b2a);
+  scene.fog = new THREE.Fog(0x0d1b2a, 500, 900);
 
-  // Renderer
+  // Fixed canvas size — infographic layout controls dimensions via CSS
+  const W = container.clientWidth || 800;
+  const H = container.clientHeight || 676;
+
   const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.setSize(container.clientWidth || window.innerWidth, container.clientHeight || window.innerHeight);
+  renderer.setSize(W, H);
   container.innerHTML = '';
   container.appendChild(renderer.domElement);
 
-  // CSS2D renderer for POI labels
-  const labelRenderer = new CSS2DRenderer();
-  labelRenderer.setSize(container.clientWidth || window.innerWidth, container.clientHeight || window.innerHeight);
-  labelRenderer.domElement.style.position = 'absolute';
-  labelRenderer.domElement.style.top = '0';
-  labelRenderer.domElement.style.pointerEvents = 'none';
-  container.appendChild(labelRenderer.domElement);
-
-  // Camera
-  const camera = new THREE.PerspectiveCamera(
-    45,
-    (container.clientWidth || window.innerWidth) / (container.clientHeight || window.innerHeight),
-    0.1,
-    2000,
-  );
-  camera.position.set(0, 380, 560);
+  // Fixed isometric-ish camera — no user control
+  const camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 2000);
+  camera.position.set(-280, 320, 280);
   camera.lookAt(0, 0, 0);
-
-  // Controls
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.08;
-  controls.maxPolarAngle = Math.PI / 2.2;
-  controls.minDistance = 50;
-  controls.maxDistance = 1200;
 
   // Lights
   const ambient = new THREE.AmbientLight(0xffffff, 1.0);
@@ -79,68 +60,45 @@ export function createScene(container, sceneData, mode) {
   sun.shadow.camera.bottom = -700;
   scene.add(sun);
 
-  // Ground
   _addGround(scene, sceneData.bbox_m);
 
-  // Geo layers (water / forest / park) — above ground, below roads and buildings
   if (sceneData.geo_layers) {
     _addGeoLayers(scene, sceneData.geo_layers);
   }
 
-  // Roads
   _addRoads(scene, sceneData.roads);
-
-  // Buildings
   _addBuildings(scene, sceneData.buildings);
 
-  // Animations (cars, trees, pedestrians, center pin)
   const animatables = [
     ...addAnimations(scene, sceneData),
     ...addCyclists(scene, sceneData.roads),
   ];
   addShrubs(scene, sceneData);
 
-  // POI markers
   if (sceneData.pois.length > 0) {
     addPOIMarkers(scene, sceneData.pois);
   }
 
-  let needleController = null;
   if (sceneData.outer_pois && sceneData.outer_pois.length > 0) {
-    needleController = addOuterNeedles(scene, sceneData.outer_pois, sceneData.display_radius_m || 450);
+    addOuterNeedles(scene, sceneData.outer_pois, sceneData.display_radius_m || 600);
   }
 
-  // Resize handler
-  function onResize() {
-    const w = container.clientWidth || window.innerWidth;
-    const h = container.clientHeight || window.innerHeight;
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-    renderer.setSize(w, h);
-    labelRenderer.setSize(w, h);
-  }
-  window.addEventListener('resize', onResize);
-
-  // Animation loop
   let raf;
   function animate(time) {
     raf = requestAnimationFrame(animate);
-    controls.update();
     animatables.forEach(fn => fn(time * 0.001));
     renderer.render(scene, camera);
-    labelRenderer.render(scene, camera);
   }
   animate(0);
 
   function dispose() {
     cancelAnimationFrame(raf);
-    window.removeEventListener('resize', onResize);
     renderer.dispose();
     container.innerHTML = '';
   }
 
   _activeScene = { dispose };
-  return { dispose, scene, needleController };
+  return { dispose, scene };
 }
 
 
