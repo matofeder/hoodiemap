@@ -6,10 +6,11 @@ import * as THREE from 'three';
  */
 export function addAnimations(scene, sceneData) {
   const tickers = [];
+  const maxDist = (sceneData.display_radius_m || 600) * 1.2;
 
   tickers.push(..._addTrees(scene, sceneData.trees));
-  tickers.push(..._addCars(scene, sceneData.roads));
-  tickers.push(..._addPedestrians(scene, sceneData.roads));
+  tickers.push(..._addCars(scene, sceneData.roads, maxDist));
+  tickers.push(..._addPedestrians(scene, sceneData.roads, maxDist));
   tickers.push(_addCenterPin(scene));
 
   return tickers;
@@ -94,9 +95,10 @@ function _makeCar(color) {
   return group;
 }
 
-function _buildRoadCurves(roads) {
+function _buildRoadCurves(roads, maxDist = null) {
   return roads
     .filter(r => MAJOR_ROAD_TYPES.has(r.type) && r.points.length >= 2)
+    .filter(r => maxDist == null || r.points.some(([x, y]) => Math.hypot(x, y) <= maxDist))
     .map(r => {
       const pts = r.points.map(([x, y]) => new THREE.Vector3(x, 0.5, -y));
       return new THREE.CatmullRomCurve3(pts);
@@ -104,8 +106,8 @@ function _buildRoadCurves(roads) {
     .filter(c => c.getLength() > 30);
 }
 
-function _addCars(scene, roads) {
-  const curves = _buildRoadCurves(roads);
+function _addCars(scene, roads, maxDist) {
+  const curves = _buildRoadCurves(roads, maxDist);
   if (curves.length === 0) return [];
 
   const tickers = [];
@@ -167,8 +169,8 @@ function _offsetCurve(curve, offsetM) {
   return new THREE.CatmullRomCurve3(pts);
 }
 
-function _addPedestrians(scene, roads) {
-  const curves = _buildRoadCurves(roads);
+function _addPedestrians(scene, roads, maxDist) {
+  const curves = _buildRoadCurves(roads, maxDist);
   if (curves.length === 0) return [];
 
   const tickers = [];
@@ -328,8 +330,8 @@ function _makeCyclist(color) {
   return group;
 }
 
-export function addCyclists(scene, roads) {
-  const curves = _buildRoadCurves(roads);
+export function addCyclists(scene, roads, maxDist) {
+  const curves = _buildRoadCurves(roads, maxDist);
   if (curves.length === 0) return [];
   const tickers = [];
   for (let i = 0; i < NUM_CYCLISTS; i++) {

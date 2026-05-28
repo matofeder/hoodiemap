@@ -71,7 +71,7 @@ export function createScene(container, sceneData) {
 
   const animatables = [
     ...addAnimations(scene, sceneData),
-    ...addCyclists(scene, sceneData.roads),
+    ...addCyclists(scene, sceneData.roads, (sceneData.display_radius_m || 600) * 1.2),
   ];
   addShrubs(scene, sceneData);
 
