@@ -115,10 +115,12 @@ Unchanged: ±`radii.display_meters` (140 m) around the point; the property is th
 |---|---|---|---|
 | hospital, train, park, supermarket | ✓ | ✓ | ✓ |
 | school, kindergarten, pharmacy, bus_stop | ✓ | ✓ | — |
-| food, post, bank, doctors, playground (map-only icons) | ✓ | ✓ (6 nearest) | — |
+| food, post, bank, doctors, playground (map-only icons) | ✓ | ✓ | — |
 | bus_station (`amenity=bus_station`), mall (`shop=mall`) | — | — | ✓ |
 | landmarks (see below) | — | — | ✓ (up to 3) |
 | 2 nearest other cities | ✓ | ✓ | ✓ |
+
+Map-only icons are already limited to the nearest one per category (5 at most), so no extra cap is needed.
 
 - **Distances:** address tier — from the point; street tier — from the nearest point on the street lines (bearing still from the centre); city tier — from the centre.
 - **Map vs edge:** unchanged rule — inside the square (10 m inset) the POI is on the map, otherwise an edge badge with bearing. Landmarks outside the square are dropped (they are about the centre, not directions).
@@ -155,7 +157,7 @@ A single `detailFor(tier)` function returns these switches; layers read it.
 
 ### Street highlight
 
-The street lines are drawn as a ribbon slightly wider than the road (street width + 3 m) in the property colour at ~35 % opacity under the road surface, plus a gentle pulse; the "Na predaj" tag is anchored at the street midpoint.
+The street lines are drawn as a ribbon 14 m wide (about 4 m of band on each side of a street; tuned visually) in the property colour at ~35 % opacity under the road surface, plus a gentle pulse; the "Na predaj" tag is anchored at the street midpoint.
 
 ### Merged buildings
 
