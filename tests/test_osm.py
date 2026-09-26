@@ -182,3 +182,51 @@ def test_run_query_passes_timeout(monkeypatch):
     monkeypatch.setattr(osm.httpx, "Client", spy)
     run_query("q", None, transport=_transport([(200, {"elements": []})], []), timeout_s=70)
     assert seen["timeout"] == 70
+
+
+@pytest.mark.parametrize("tags,expected", [
+    ({"amenity": "townhall", "wikidata": "Q1"}, (1, "Radnica")),
+    ({"place": "square", "name": "Hlavné námestie"}, (2, "Námestie")),
+    ({"highway": "pedestrian", "area": "yes", "name": "Radničné námestie"}, (2, "Námestie")),
+    ({"highway": "pedestrian", "area": "yes"}, None),
+    ({"historic": "castle"}, (3, "Hrad")),
+    ({"historic": "manor"}, (3, "Kaštieľ")),
+    ({"building": "church"}, (4, "Kostol")),
+    ({"amenity": "place_of_worship"}, (4, "Kostol")),
+    ({"tourism": "museum"}, (5, "Múzeum")),
+    ({"tourism": "attraction"}, (5, "Pamiatka")),
+    ({"shop": "bakery"}, None),
+])
+def test_landmark_kind(tags, expected):
+    from osm import landmark_kind
+    assert landmark_kind(tags) == expected
+
+
+@pytest.mark.parametrize("tags,expected", [
+    ({"amenity": "bus_station"}, "bus_station"),
+    ({"shop": "mall"}, "mall"),
+    ({"amenity": "townhall"}, "landmark"),
+    ({"amenity": "pharmacy", "tourism": "attraction"}, "pharmacy"),  # existing categories win
+])
+def test_categorize_city_tier_tags(tags, expected):
+    assert categorize_poi(tags) == expected
+
+
+def test_poi_query_landmarks_use_the_map_square():
+    q = build_poi_query(48.0, 17.0, ["landmark", "mall"], square_m=450)
+    s, w, n, e = square_bbox(48.0, 17.0, 450)
+    bbox = f"({s:.6f},{w:.6f},{n:.6f},{e:.6f})"
+    for sel in ['["amenity"="townhall"]', '["place"="square"]', '["historic"~"^(castle|manor)$"]',
+                '["building"~"^(church|cathedral)$"]', '["amenity"="place_of_worship"]',
+                '["tourism"~"^(museum|attraction)$"]']:
+        assert f"nwr{sel}{bbox};" in q
+    s, w, n, e = square_bbox(48.0, 17.0, 15_000)
+    assert f'nwr["shop"="mall"]({s:.6f},{w:.6f},{n:.6f},{e:.6f});' in q
+
+
+def test_light_area_query_skips_footways_and_trees():
+    q = build_area_query(48.1, 17.1, 48.2, 17.2, light=True)
+    assert q.startswith("[out:json][timeout:60];")
+    assert 'way["highway"]["highway"!~"^(footway|path|steps|track|cycleway)$"]' in q
+    assert '"natural"="tree"' not in q
+    assert build_area_query(48.1, 17.1, 48.2, 17.2).startswith("[out:json][timeout:25];")

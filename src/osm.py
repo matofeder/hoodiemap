@@ -20,13 +20,24 @@ ENDPOINTS: list[str] = [
 ]
 USER_AGENT = "hoodiemap/1.0 (neighbourhood-map)"
 TIMEOUT_S = 25
+CITY_TIMEOUT_S = 70
 CACHE_TTL_S = 30 * 24 * 3600
 AREA_MARGIN_M = 20
 LOCAL_RADIUS_M = 300
 STREET_SEARCH_M = 1500
 
-# category -> (Overpass tag filter, search radius in metres)
-POI_QUERIES: dict[str, tuple[str, int]] = {
+LANDMARK_SELECTORS = (
+    '["amenity"="townhall"]',
+    '["place"="square"]',
+    '["highway"="pedestrian"]["area"="yes"]["name"]',
+    '["historic"~"^(castle|manor)$"]',
+    '["building"~"^(church|cathedral)$"]',
+    '["amenity"="place_of_worship"]',
+    '["tourism"~"^(museum|attraction)$"]',
+)
+
+# category -> (Overpass tag filter(s), search radius in metres or None = map square)
+POI_QUERIES: dict[str, tuple[str | tuple[str, ...], int | None]] = {
     "hospital":     ('["amenity"="hospital"]', 30_000),
     "supermarket":  ('["shop"="supermarket"]', 5_000),
     "school":       ('["amenity"="school"]', 5_000),
@@ -42,6 +53,9 @@ POI_QUERIES: dict[str, tuple[str, int]] = {
     "bank":         ('["amenity"="bank"]', LOCAL_RADIUS_M),
     "doctors":      ('["amenity"~"^(doctors|clinic|dentist)$"]', LOCAL_RADIUS_M),
     "city":         ('["place"="city"]', 70_000),
+    "bus_station":  ('["amenity"="bus_station"]', 30_000),
+    "mall":         ('["shop"="mall"]', 15_000),
+    "landmark":     (LANDMARK_SELECTORS, None),
 }
 
 _AREA_FILTERS = [
@@ -57,26 +71,53 @@ class OverpassError(RuntimeError):
     """All Overpass endpoints failed for a query."""
 
 
-def build_area_query(south: float, west: float, north: float, east: float) -> str:
+_PATH_KINDS = "footway|path|steps|track|cycleway"
+
+
+def build_area_query(south: float, west: float, north: float, east: float, light: bool = False) -> str:
     b = f"({south:.6f},{west:.6f},{north:.6f},{east:.6f})"
     parts = [f"way{f}{b};relation{f}{b};" for f in _AREA_FILTERS]
-    parts.append(f'way["highway"]{b};')
+    if light:  # city tier: no footways, no single trees — far less data at 450 m
+        parts.append(f'way["highway"]["highway"!~"^({_PATH_KINDS})$"]{b};')
+    else:
+        parts.append(f'way["highway"]{b};')
+        parts.append(f'node["natural"="tree"]{b};')
     parts.append(f'way["place"="square"]{b};relation["place"="square"]{b};')
     parts.append(f'relation["highway"="pedestrian"]{b};')
-    parts.append(f'node["natural"="tree"]{b};')
-    return "[out:json][timeout:25];(" + "".join(parts) + ");out geom;"
+    timeout = 60 if light else 25
+    return f"[out:json][timeout:{timeout}];(" + "".join(parts) + ");out geom;"
 
 
-def build_poi_query(lat: float, lon: float, categories: list[str]) -> str:
+def build_poi_query(lat: float, lon: float, categories: list[str], square_m: float = 0.0) -> str:
     # Square bbox of the category radius instead of around: — bbox filters are index-backed,
     # large around: radii time out on busy servers. Nearest-by-distance is picked later anyway.
     parts = []
     for cat in categories:
-        selector, radius = POI_QUERIES[cat]
-        south, west, north, east = square_bbox(lat, lon, radius)
-        parts.append(f"nwr{selector}({south:.6f},{west:.6f},{north:.6f},{east:.6f});")
+        selectors, radius = POI_QUERIES[cat]
+        south, west, north, east = square_bbox(lat, lon, square_m if radius is None else radius)
+        for sel in (selectors,) if isinstance(selectors, str) else selectors:
+            parts.append(f"nwr{sel}({south:.6f},{west:.6f},{north:.6f},{east:.6f});")
     # bb: the bounding box gives both a centre and a rough size (tiny lawns tagged park).
     return "[out:json][timeout:25];(" + "".join(parts) + ");out bb tags;"
+
+
+def landmark_kind(tags: dict) -> tuple[int, str] | None:
+    if tags.get("amenity") == "townhall":
+        return (1, "Radnica")
+    if tags.get("place") == "square" or (
+            tags.get("highway") == "pedestrian" and tags.get("area") == "yes" and tags.get("name")):
+        return (2, "Námestie")
+    if tags.get("historic") == "castle":
+        return (3, "Hrad")
+    if tags.get("historic") == "manor":
+        return (3, "Kaštieľ")
+    if tags.get("building") in ("church", "cathedral") or tags.get("amenity") == "place_of_worship":
+        return (4, "Kostol")
+    if tags.get("tourism") == "museum":
+        return (5, "Múzeum")
+    if tags.get("tourism") == "attraction":
+        return (5, "Pamiatka")
+    return None
 
 
 def categorize_poi(tags: dict) -> str | None:
@@ -103,6 +144,12 @@ def categorize_poi(tags: dict) -> str | None:
         return "park"
     if tags.get("leisure") == "playground":
         return "playground"
+    if amenity == "bus_station":
+        return "bus_station"
+    if tags.get("shop") == "mall":
+        return "mall"
+    if landmark_kind(tags):
+        return "landmark"
     return None
 
 
@@ -172,12 +219,15 @@ def fetch_street(name: str, lat: float, lon: float, cache_dir: str | None, stats
     return run_query(build_street_query(name, lat, lon), cache_dir, stats=stats)
 
 
-def fetch_area(lat: float, lon: float, half_m: float, cache_dir: str | None) -> dict:
+def fetch_area(lat: float, lon: float, half_m: float, cache_dir: str | None,
+               light: bool = False, stats: list | None = None) -> dict:
     south, west, north, east = square_bbox(lat, lon, half_m + AREA_MARGIN_M)
-    return run_query(build_area_query(south, west, north, east), cache_dir)
+    return run_query(build_area_query(south, west, north, east, light), cache_dir,
+                      timeout_s=CITY_TIMEOUT_S if light else TIMEOUT_S, stats=stats)
 
 
-def fetch_pois(lat: float, lon: float, categories: list[str], cache_dir: str | None) -> dict:
+def fetch_pois(lat: float, lon: float, categories: list[str], cache_dir: str | None,
+               square_m: float = 0.0, stats: list | None = None) -> dict:
     if not categories:
         return {"elements": []}
-    return run_query(build_poi_query(lat, lon, categories), cache_dir)
+    return run_query(build_poi_query(lat, lon, categories, square_m), cache_dir, stats=stats)
