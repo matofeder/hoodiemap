@@ -22,6 +22,7 @@ USER_AGENT = "hoodiemap/1.0 (neighbourhood-map)"
 TIMEOUT_S = 25
 CACHE_TTL_S = 30 * 24 * 3600
 AREA_MARGIN_M = 20
+LOCAL_RADIUS_M = 300
 
 # category -> (Overpass tag filter, search radius in metres)
 POI_QUERIES: dict[str, tuple[str, int]] = {
@@ -32,7 +33,14 @@ POI_QUERIES: dict[str, tuple[str, int]] = {
     "pharmacy":     ('["amenity"="pharmacy"]', 5_000),
     "bus_stop":     ('["highway"="bus_stop"]', 3_000),
     "train":        ('["railway"~"^(station|halt)$"]', 30_000),
-    "park":         ('["leisure"~"^(park|playground)$"]', 3_000),
+    "park":         ('["leisure"="park"]', 3_000),
+    # Local extras: only shown when they are on the map itself, so a small bbox is enough.
+    "playground":   ('["leisure"="playground"]', LOCAL_RADIUS_M),
+    "food":         ('["amenity"~"^(cafe|restaurant)$"]', LOCAL_RADIUS_M),
+    "post":         ('["amenity"="post_office"]', LOCAL_RADIUS_M),
+    "bank":         ('["amenity"="bank"]', LOCAL_RADIUS_M),
+    "doctors":      ('["amenity"~"^(doctors|clinic|dentist)$"]', LOCAL_RADIUS_M),
+    "city":         ('["place"="city"]', 70_000),
 }
 
 _AREA_FILTERS = [
@@ -52,6 +60,8 @@ def build_area_query(south: float, west: float, north: float, east: float) -> st
     b = f"({south:.6f},{west:.6f},{north:.6f},{east:.6f})"
     parts = [f"way{f}{b};relation{f}{b};" for f in _AREA_FILTERS]
     parts.append(f'way["highway"]{b};')
+    parts.append(f'way["place"="square"]{b};relation["place"="square"]{b};')
+    parts.append(f'relation["highway"="pedestrian"]{b};')
     parts.append(f'node["natural"="tree"]{b};')
     return "[out:json][timeout:25];(" + "".join(parts) + ");out geom;"
 
@@ -64,21 +74,34 @@ def build_poi_query(lat: float, lon: float, categories: list[str]) -> str:
         selector, radius = POI_QUERIES[cat]
         south, west, north, east = square_bbox(lat, lon, radius)
         parts.append(f"nwr{selector}({south:.6f},{west:.6f},{north:.6f},{east:.6f});")
-    return "[out:json][timeout:25];(" + "".join(parts) + ");out center tags;"
+    # bb: the bounding box gives both a centre and a rough size (tiny lawns tagged park).
+    return "[out:json][timeout:25];(" + "".join(parts) + ");out bb tags;"
 
 
 def categorize_poi(tags: dict) -> str | None:
     amenity = tags.get("amenity")
     if amenity in ("hospital", "school", "kindergarten", "pharmacy"):
         return amenity
+    if amenity in ("cafe", "restaurant"):
+        return "food"
+    if amenity == "post_office":
+        return "post"
+    if amenity == "bank":
+        return "bank"
+    if amenity in ("doctors", "clinic", "dentist"):
+        return "doctors"
+    if tags.get("place") == "city":
+        return "city"
     if tags.get("shop") == "supermarket":
         return "supermarket"
     if tags.get("highway") == "bus_stop":
         return "bus_stop"
     if tags.get("railway") in ("station", "halt"):
         return "train"
-    if tags.get("leisure") in ("park", "playground"):
+    if tags.get("leisure") == "park":
         return "park"
+    if tags.get("leisure") == "playground":
+        return "playground"
     return None
 
 

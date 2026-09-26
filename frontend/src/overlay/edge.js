@@ -94,3 +94,25 @@ export function resolveOverlaps(boxes, W, H, pad = 10, gap = 6, maxIter = 20) {
   }
   return boxes;
 }
+
+// Nudge movable labels vertically until none overlaps another label or a fixed box (tag, pin).
+// Boxes are centre-based {x, y, w, h}; only y changes, so labels stay above their spot.
+export function separateLabels(boxes, fixed, H, gap = 3, maxIter = 24) {
+  const all = [...fixed, ...boxes];
+  for (let iter = 0; iter < maxIter; iter++) {
+    let moved = false;
+    for (const b of boxes) {
+      for (const o of all) {
+        if (o === b || !collide(o, b, gap)) continue;
+        const need = (o.h + b.h) / 2 + gap - Math.abs(b.y - o.y);
+        const dir = b.y > o.y || (b.y === o.y && boxes.indexOf(b) > boxes.indexOf(o)) ? 1 : -1;
+        if (fixed.includes(o)) b.y += dir * need;
+        else { b.y += (dir * need) / 2; o.y -= (dir * need) / 2; }
+        moved = true;
+      }
+    }
+    for (const b of boxes) b.y = clamp(b.y, b.h / 2 + 2, H - b.h / 2 - 2);
+    if (!moved) break;
+  }
+  return boxes;
+}

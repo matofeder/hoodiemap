@@ -8,7 +8,7 @@ from osm import OverpassError
 SCENE = {
     "center": {"lat": 48.28, "lon": 17.27}, "radius_m": 140, "buildings": [],
     "property": {"building_index": None}, "roads": [],
-    "areas": {"park": [], "water": [], "forest": []}, "trees": [],
+    "areas": {"park": [], "water": [], "forest": [], "plaza": []}, "trees": [],
     "near_pois": [], "far_pois": [], "warnings": [],
 }
 

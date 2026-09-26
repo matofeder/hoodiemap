@@ -2,10 +2,11 @@ from pathlib import Path
 
 from config import PoiConfig, PoiShowConfig, load_config
 
-ALL = ["hospital", "supermarket", "school", "kindergarten", "pharmacy", "bus_stop", "train", "park"]
+ALL = ["hospital", "supermarket", "school", "kindergarten", "pharmacy", "bus_stop", "train", "park",
+       "playground", "food", "post", "bank", "doctors", "city"]
 
 
-def test_default_enables_all_eight_categories():
+def test_default_enables_all_categories():
     assert PoiConfig().enabled() == ALL
 
 

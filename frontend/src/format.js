@@ -13,6 +13,7 @@ const LABEL_ONLY = new Set(['bus_stop', 'train']);
 
 export function poiTitle(poi, maxLen = 14) {
   const name = (poi.name ?? '').trim();
+  if (poi.category === 'city' && name) return name;
   const useName = name && name.length <= maxLen && !LABEL_ONLY.has(poi.category);
   return useName ? name : categoryInfo(poi.category).label;
 }

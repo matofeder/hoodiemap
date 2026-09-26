@@ -36,7 +36,7 @@ def test_poi_query_uses_bbox_per_category_radius():
     assert f'nwr["amenity"="pharmacy"]({s:.6f},{w:.6f},{n:.6f},{e:.6f});' in q
     assert "around" not in q
     assert "supermarket" not in q
-    assert q.rstrip().endswith("out center tags;")
+    assert q.rstrip().endswith("out bb tags;")
 
 
 def test_falls_back_to_next_endpoint_on_406():
@@ -126,7 +126,14 @@ def test_cache_disabled_writes_nothing(tmp_path, monkeypatch):
     ({"railway": "station"}, "train"),
     ({"railway": "halt"}, "train"),
     ({"leisure": "park"}, "park"),
-    ({"leisure": "playground"}, "park"),
+    ({"leisure": "playground"}, "playground"),
+    ({"amenity": "cafe"}, "food"),
+    ({"amenity": "restaurant"}, "food"),
+    ({"amenity": "post_office"}, "post"),
+    ({"amenity": "bank"}, "bank"),
+    ({"amenity": "dentist"}, "doctors"),
+    ({"place": "city"}, "city"),
+    ({"place": "town"}, None),
     ({"amenity": "bar"}, None),
     ({}, None),
 ])

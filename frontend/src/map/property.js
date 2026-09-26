@@ -42,5 +42,5 @@ export function addProperty(world, scene, mat) {
     ringMat.opacity = 0.75 * (1 - p);
   }
   update(0);
-  return { update, anchor: { x, y, h: base + 9 * PIN_SCALE } };
+  return { update, anchor: { x, y, h: base + 9 * PIN_SCALE, base } };
 }

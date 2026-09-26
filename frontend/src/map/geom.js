@@ -19,6 +19,22 @@ export function pointInPolygon([x, y], pts) {
   return inside;
 }
 
+export function closestOnSegment([px, py], [ax, ay], [bx, by]) {
+  const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+  const t = l2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2)) : 0;
+  return [ax + t * dx, ay + t * dy];
+}
+
+export function closestOnPolyline(p, pts) {
+  let best = pts[0], bd = Infinity;
+  for (let i = 1; i < pts.length; i++) {
+    const q = closestOnSegment(p, pts[i - 1], pts[i]);
+    const d = Math.hypot(q[0] - p[0], q[1] - p[1]);
+    if (d < bd) { bd = d; best = q; }
+  }
+  return best;
+}
+
 export function distToSegment([px, py], [ax, ay], [bx, by]) {
   const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
   const t = l2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2)) : 0;

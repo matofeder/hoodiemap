@@ -7,7 +7,8 @@ from scene_builder import assemble_scene, build_scene, find_property, split_pois
 
 LAT0, LON0 = 48.28646, 17.27221
 R = 140
-CATS = ["hospital", "supermarket", "school", "kindergarten", "pharmacy", "bus_stop", "train", "park"]
+CATS = ["hospital", "supermarket", "school", "kindergarten", "pharmacy", "bus_stop", "train", "park",
+        "playground", "food", "post", "bank", "doctors", "city"]
 
 
 def ll(x, y):
@@ -100,11 +101,21 @@ def test_park_is_clipped():
     assert max(xs) == pytest.approx(140, abs=0.1)
 
 
+def test_pedestrian_line_is_own_road_kind_and_area_becomes_plaza():
+    s = scene([
+        way([(-50, 0), (50, 0)], {"highway": "pedestrian"}, closed=False, id=1),
+        way(rect(-30, 20, 30, 60), {"highway": "pedestrian", "area": "yes"}, id=2),
+        way(rect(40, -60, 80, -20), {"place": "square"}, id=3),
+    ])
+    assert [r["kind"] for r in s["roads"]] == ["pedestrian"]
+    assert len(s["areas"]["plaza"]) == 2
+
+
 def test_empty_area_gives_valid_scene():
     s = scene([])
     assert s["buildings"] == [] and s["roads"] == [] and s["trees"] == []
     assert s["property"] == {"building_index": None}
-    assert s["areas"] == {"park": [], "water": [], "forest": []}
+    assert s["areas"] == {"park": [], "water": [], "forest": [], "plaza": []}
     assert s["radius_m"] == R
 
 
@@ -139,6 +150,80 @@ def test_poi_near_edge_goes_to_far():
 def test_disabled_category_is_ignored():
     near, far = split_pois(LAT0, LON0, R, {"elements": [node(10, 10, {"amenity": "pharmacy"})]}, ["hospital"])
     assert near == [] and far == []
+
+
+def test_specialized_hospital_is_skipped():
+    pois = [
+        node(0, 1000, {"amenity": "hospital", "name": "Psychiatrická nemocnica"}, 1),
+        node(0, 2000, {"amenity": "hospital", "name": "Onko", "healthcare:speciality": "oncology"}, 2),
+        node(0, 3000, {"amenity": "hospital", "name": "Nemocnica"}, 3),
+    ]
+    _, far = split_pois(LAT0, LON0, R, {"elements": pois}, CATS)
+    assert [p["name"] for p in far] == ["Nemocnica"]
+
+
+def bounds(x0, y0, x1, y1):
+    a, b = ll(x0, y0), ll(x1, y1)
+    return {"minlat": a["lat"], "minlon": a["lon"], "maxlat": b["lat"], "maxlon": b["lon"]}
+
+
+def test_small_unnamed_park_is_ignored_named_or_big_is_kept():
+    pois = [
+        {"type": "way", "id": 1, "bounds": bounds(-20, -20, 0, 10), "tags": {"leisure": "park"}},
+        {"type": "way", "id": 2, "bounds": bounds(40, 40, 60, 60), "tags": {"leisure": "park", "name": "Sad"}},
+        {"type": "way", "id": 3, "bounds": bounds(-300, 0, -200, 100), "tags": {"leisure": "park"}},
+    ]
+    near, _ = split_pois(LAT0, LON0, R, {"elements": pois}, CATS)
+    assert [p["name"] for p in near] == ["Sad"]
+    assert near[0]["x"] == pytest.approx(50, abs=0.5)
+    _, far = split_pois(LAT0, LON0, R, {"elements": [pois[0], pois[2]]}, CATS)
+    assert far[0]["category"] == "park" and far[0]["distance_m"] == pytest.approx(255, abs=2)
+
+
+def test_playground_is_its_own_local_category():
+    near, far = split_pois(LAT0, LON0, R, {"elements": [node(20, 20, {"leisure": "playground"})]}, CATS)
+    assert [p["category"] for p in near] == ["playground"] and far == []
+
+
+def test_local_categories_only_when_on_map():
+    pois = [node(20, 20, {"amenity": "cafe", "name": "Kaviareň"}, 1), node(0, 250, {"amenity": "bank"}, 2)]
+    near, far = split_pois(LAT0, LON0, R, {"elements": pois}, CATS)
+    assert [p["category"] for p in near] == ["food"]
+    assert far == []
+
+
+def test_two_nearest_cities_are_far_badges_skipping_own_city():
+    pois = [
+        node(0, 2000, {"place": "city", "name": "Domov"}, 1),
+        node(0, 20000, {"place": "city", "name": "Bratislava"}, 2),
+        {"type": "relation", "id": 3, "center": ll(0, 20500), "tags": {"place": "city", "name": "Bratislava"}},
+        node(30000, 0, {"place": "city", "name": "Trnava"}, 4),
+        node(0, -60000, {"place": "city", "name": "Ďaleko"}, 5),
+    ]
+    near, far = split_pois(LAT0, LON0, R, {"elements": pois}, CATS)
+    assert near == []
+    assert [(p["category"], p["name"]) for p in far] == [("city", "Bratislava"), ("city", "Trnava")]
+    assert far[1]["bearing_deg"] == pytest.approx(90, abs=0.5)
+
+
+def test_near_poi_gets_its_building():
+    s = scene(
+        [way(rect(-5, -5, 5, 5), {"building": "house"}, id=1), way(rect(40, 40, 70, 60), {"building": "retail"}, id=2)],
+        [node(50, 50, {"shop": "supermarket", "name": "Billa"}, 3), node(-100, 100, {"leisure": "park", "name": "P"}, 4)],
+    )
+    shop = next(p for p in s["near_pois"] if p["category"] == "supermarket")
+    park = next(p for p in s["near_pois"] if p["category"] == "park")
+    assert shop["building_index"] == 1
+    assert "building_index" not in park
+
+
+def test_poi_building_skips_property_and_far_buildings():
+    from scene_builder import poi_building
+    blds = [{"footprint": [[0, 0], [10, 0], [10, 10], [0, 10]], "kind": "house"},
+            {"footprint": [[30, 0], [40, 0], [40, 10], [30, 10]], "kind": "house"}]
+    assert poi_building({"x": 5, "y": 5}, blds, exclude=0) is None
+    assert poi_building({"x": 43, "y": 5}, blds, exclude=0) == 1
+    assert poi_building({"x": 60, "y": 5}, blds, exclude=None) is None
 
 
 def test_build_scene_poi_failure_adds_warning(monkeypatch, default_config):

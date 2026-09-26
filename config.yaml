@@ -15,6 +15,12 @@ poi:
     bus_stop: true
     train: true
     park: true
+    playground: true     # only when on the map
+    food: true           # cafe / restaurant — only when on the map
+    post: true           # only when on the map
+    bank: true           # only when on the map
+    doctors: true        # doctors / clinic / dentist — only when on the map
+    city: true           # nearest cities (place=city) as edge badges
 
 cache:
   enabled: true

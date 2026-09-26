@@ -33,7 +33,8 @@ radii:
   display_meters: 140      # half-size of the visible square
 poi:
   show: {hospital: true, supermarket: true, school: true, kindergarten: true,
-         pharmacy: true, bus_stop: true, train: true, park: true}
+         pharmacy: true, bus_stop: true, train: true, park: true, playground: true,
+         food: true, post: true, bank: true, doctors: true, city: true}
 cache: {enabled: true, dir: .cache}
 api: {host: "0.0.0.0", port: 8000}
 ```
@@ -50,7 +51,8 @@ src/
 frontend/src/
   main.js           URL params, fetch, loading/error states
   map/stage.js      renderer, ortho iso camera, lights, render loop (pauses off-screen, respects reduced motion)
-  map/ground.js, buildings.js, trees.js, cars.js, property.js   Three.js layers
+  map/ground.js, buildings.js, trees.js, cars.js, people.js, property.js   Three.js layers (people = pedestrians, cyclists, chat groups)
+  map/decor.js, pigeons.js, clouds.js, textures.js               street furniture + café terraces (instanced), pigeon flock, cloud-shadow shader patch
   map/geom.js, lines.js, roofs.js, placement.js                  pure geometry (unit-tested)
   overlay/labels.js, edge.js                                     HTML labels + edge badge placement
   palette.js, icons.js, format.js, random.js, url.js
@@ -58,7 +60,9 @@ frontend/src/
 
 ### Pipeline
 
-`GET /api/scene?lat&lon` → `build_scene()` runs two Overpass queries in parallel: the area (buildings, roads, parks, water, forest, trees in the square + 20 m) and the POIs (bbox per category radius). Geometry is projected to local metres and clipped to the square. Buildings less than 40 % inside are dropped. Each building is classified house/apartment/commercial/civic/other. The property is the building containing the center, or the nearest one within 15 m. Only the nearest POI per category is kept: it goes to `near_pois` when inside the square (10 m inset), otherwise to `far_pois` with `bearing_deg`. If the POI query fails, the scene is still returned with `warnings: ["poi_fetch_failed"]`. If the area query fails, the API returns 502.
+`GET /api/scene?lat&lon` → `build_scene()` runs two Overpass queries in parallel: the area (buildings, roads, parks, water, forest, trees in the square + 20 m) and the POIs (bbox per category radius). Geometry is projected to local metres and clipped to the square. Buildings less than 40 % inside are dropped. Each building is classified house/apartment/commercial/civic/other. The property is the building containing the center, or the nearest one within 15 m. Only the nearest POI per category is kept (cities: two nearest): it goes to `near_pois` when inside the square (10 m inset), otherwise to `far_pois` with `bearing_deg`. If the POI query fails, the scene is still returned with `warnings: ["poi_fetch_failed"]`. If the area query fails, the API returns 502.
+
+Pedestrian zones: `highway=pedestrian` lines are road kind `pedestrian` (10 m paved ribbon); `highway=pedestrian`+`area=yes` and `place=square` become `areas.plaza`. Benches/lamps/planters line both edges, pigeons and chatting groups gather there (fallback: largest park). Cloud shadows are injected into every material via the material cache's `onCreate` hook.
 
 Backend (x, y) maps to Three (x, 0, −y). Houses with a near-rectangular footprint get gable roofs, other houses get hip roofs, and larger buildings get flat roofs with a colored cap.
 
@@ -73,7 +77,15 @@ Backend (x, y) maps to Three (x, 0, −y). Houses with a near-rectangular footpr
 | pharmacy     | `amenity=pharmacy` | 5 km |
 | bus_stop     | `highway=bus_stop` | 3 km |
 | train        | `railway=station|halt` | 30 km |
-| park         | `leisure=park|playground` | 3 km |
+| park         | `leisure=park` (named or ≥ 0.5 ha) | 3 km |
+| playground   | `leisure=playground` | 300 m, map only |
+| food         | `amenity=cafe|restaurant` | 300 m, map only (icon marker) |
+| post         | `amenity=post_office` | 300 m, map only |
+| bank         | `amenity=bank` | 300 m, map only |
+| doctors      | `amenity=doctors|clinic|dentist` | 300 m, map only |
+| city         | `place=city` | 70 km, 2 nearest ≥ 5 km away, edge badges only |
+
+The POI query uses `out bb tags` (bbox centre = position, bbox size = area check). Specialized hospitals (psychiatric, oncology, rehab…) are skipped. A near POI gets `building_index` (the building it sits in, ≤ 6 m) and that building's roof takes the category colour.
 
 ### Known risks
 

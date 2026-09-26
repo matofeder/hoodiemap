@@ -22,6 +22,12 @@ class PoiShowConfig(BaseModel):
     bus_stop: bool = True
     train: bool = True
     park: bool = True
+    playground: bool = True
+    food: bool = True
+    post: bool = True
+    bank: bool = True
+    doctors: bool = True
+    city: bool = True
 
 
 class PoiConfig(BaseModel):

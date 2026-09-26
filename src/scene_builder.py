@@ -25,7 +25,8 @@ MIN_HEIGHT_M, MAX_HEIGHT_M = 2.0, 150.0  # guards against tag typos (height=500,
 ROAD_KINDS: dict[str, str] = {
     **dict.fromkeys(["primary", "secondary", "tertiary", "primary_link", "secondary_link", "tertiary_link"], "main"),
     **dict.fromkeys(["residential", "unclassified", "living_street", "service", "road"], "street"),
-    **dict.fromkeys(["footway", "path", "cycleway", "pedestrian", "steps", "track"], "path"),
+    **dict.fromkeys(["footway", "path", "cycleway", "steps", "track"], "path"),
+    "pedestrian": "pedestrian",
 }
 PARK_LEISURE = frozenset({"park", "garden", "playground"})
 PARK_LANDUSE = frozenset({"grass", "meadow", "recreation_ground", "village_green"})
@@ -69,6 +70,11 @@ def road_kind(highway) -> str | None:
     return ROAD_KINDS.get(str(highway))
 
 
+def _is_plaza(tags: dict) -> bool:
+    """Pedestrian squares mapped as areas (not as lines)."""
+    return (tags.get("highway") == "pedestrian" and tags.get("area") == "yes") or tags.get("place") == "square"
+
+
 def area_layer(tags: dict) -> str | None:
     if tags.get("natural") == "water" or tags.get("waterway") == "riverbank":
         return "water"
@@ -83,6 +89,13 @@ MIN_KEEP_RATIO = 0.4
 MIN_BUILDING_AREA_M2 = 4.0
 PROPERTY_MAX_DIST_M = 15.0
 NEAR_INSET_M = 10.0
+POI_BUILDING_MAX_DIST_M = 6.0
+CITY_COUNT = 2
+CITY_MIN_DIST_M = 5_000  # skip the city the property is in
+LOCAL_ONLY = frozenset({"food", "post", "bank", "doctors", "playground"})
+PARK_MIN_AREA_M2 = 5_000  # unnamed lawns in courtyards are often tagged leisure=park
+# Psychiatric, oncology, rehab… hospitals are not what "nearest hospital" means to a buyer.
+SPECIALIZED_HOSPITAL_WORDS = ("psychiatr", "onkolog", "liečebn", "rehabilit", "geriatr", "hospic")
 
 
 def _r(v: float) -> float:
@@ -156,40 +169,91 @@ def _element_latlon(el: dict) -> tuple[float, float] | None:
     center = el.get("center")
     if center:
         return center["lat"], center["lon"]
+    b = el.get("bounds")
+    if b:
+        return (b["minlat"] + b["maxlat"]) / 2, (b["minlon"] + b["maxlon"]) / 2
     return None
+
+
+def _bounds_area_m2(el: dict) -> float:
+    b = el.get("bounds")
+    if not b:
+        return 0.0
+    mid_lat = (b["minlat"] + b["maxlat"]) / 2
+    h = haversine_m(b["minlat"], b["minlon"], b["maxlat"], b["minlon"])
+    w = haversine_m(mid_lat, b["minlon"], mid_lat, b["maxlon"])
+    return h * w
+
+
+def _is_real_park(el: dict, tags: dict) -> bool:
+    return bool(tags.get("name")) or _bounds_area_m2(el) >= PARK_MIN_AREA_M2
+
+
+def _is_general_hospital(tags: dict) -> bool:
+    speciality = str(tags.get("healthcare:speciality", "")).lower()
+    name = str(tags.get("name", "")).lower()
+    return speciality in ("", "general", "emergency") and not any(w in name for w in SPECIALIZED_HOSPITAL_WORDS)
 
 
 def split_pois(lat: float, lon: float, radius_m: float, pois_raw: dict,
                categories: list[str]) -> tuple[list[dict], list[dict]]:
     wanted = set(categories)
     best: dict[str, tuple[float, dict, tuple[float, float]]] = {}
+    cities: dict[str, tuple[float, dict, tuple[float, float]]] = {}
     for el in pois_raw.get("elements", []):
         tags = el.get("tags") or {}
         cat = categorize_poi(tags)
         pos = _element_latlon(el)
         if cat not in wanted or pos is None:
             continue
+        if cat == "hospital" and not _is_general_hospital(tags):
+            continue
+        if cat == "park" and not _is_real_park(el, tags):
+            continue
         d = haversine_m(lat, lon, *pos)
+        if cat == "city":
+            name = tags.get("name", "")
+            if name and d >= CITY_MIN_DIST_M and (name not in cities or d < cities[name][0]):
+                cities[name] = (d, tags, pos)
+            continue
         if cat not in best or d < best[cat][0]:
             best[cat] = (d, tags, pos)
 
+    nearest_cities = sorted(cities.values(), key=lambda v: v[0])[:CITY_COUNT]
+    candidates = [(cat, v) for cat, v in best.items()] + [("city", v) for v in nearest_cities]
+
     near, far = [], []
     limit = radius_m - NEAR_INSET_M
-    for cat, (d, tags, (plat, plon)) in sorted(best.items(), key=lambda kv: kv[1][0]):
+    for cat, (d, tags, (plat, plon)) in sorted(candidates, key=lambda kv: kv[1][0]):
         entry = {"category": cat, "name": tags.get("name", ""), "distance_m": round(d)}
         x, y = to_local(plat, plon, lat, lon)
-        if abs(x) <= limit and abs(y) <= limit:
+        if abs(x) <= limit and abs(y) <= limit and cat != "city":
             near.append({**entry, "x": _r(x), "y": _r(y)})
-        else:
+        elif cat not in LOCAL_ONLY:
             far.append({**entry, "bearing_deg": round(compute_bearing(lat, lon, plat, plon), 1)})
     return near, far
+
+
+def poi_building(poi: dict, buildings: list[dict], exclude: int | None) -> int | None:
+    """Index of the building the POI sits in (or right next to), so the map can highlight it."""
+    pt = Point(poi["x"], poi["y"])
+    best, best_d = None, POI_BUILDING_MAX_DIST_M
+    for i, b in enumerate(buildings):
+        if i == exclude or b["kind"] == "other":
+            continue
+        d = Polygon(b["footprint"]).distance(pt)
+        if d == 0:
+            return i
+        if d <= best_d:
+            best, best_d = i, d
+    return best
 
 
 def assemble_scene(lat: float, lon: float, radius_m: float, area: dict, pois_raw: dict,
                    categories: list[str]) -> dict:
     square = box(-radius_m, -radius_m, radius_m, radius_m)
     buildings, roads, trees = [], [], []
-    areas: dict[str, list] = {"park": [], "water": [], "forest": []}
+    areas: dict[str, list] = {"park": [], "water": [], "forest": [], "plaza": []}
 
     for el in area.get("elements", []):
         tags = el.get("tags") or {}
@@ -204,6 +268,11 @@ def assemble_scene(lat: float, lon: float, radius_m: float, area: dict, pois_raw
                 b = _building(poly, tags, square)
                 if b:
                     buildings.append(b)
+        elif _is_plaza(tags):
+            for poly in _polygons(el, lat, lon):
+                for part in _parts(poly.intersection(square), "Polygon"):
+                    if part.area >= 1.0:
+                        areas["plaza"].append(_ring(part))
         elif "highway" in tags:
             kind = road_kind(tags["highway"])
             pts = _coords(el.get("geometry"), lat, lon)
@@ -221,11 +290,15 @@ def assemble_scene(lat: float, lon: float, radius_m: float, area: dict, pois_raw
                         areas[layer].append(_ring(part))
 
     near, far = split_pois(lat, lon, radius_m, pois_raw, categories)
+    property_index = find_property(buildings)
+    for poi in near:
+        if poi["category"] not in ("park", "playground"):
+            poi["building_index"] = poi_building(poi, buildings, property_index)
     return {
         "center": {"lat": lat, "lon": lon},
         "radius_m": radius_m,
         "buildings": buildings,
-        "property": {"building_index": find_property(buildings)},
+        "property": {"building_index": property_index},
         "roads": roads,
         "areas": areas,
         "trees": trees,

@@ -34,7 +34,8 @@ function addMesh(world, geo, material) {
   world.add(mesh);
 }
 
-export function addBuildings(world, buildings, propertyIndex, mat) {
+// highlights: building index -> roof colour of the POI category it houses.
+export function addBuildings(world, buildings, propertyIndex, mat, highlights = new Map()) {
   buildings.forEach((b, i) => {
     const fp = b.footprint;
     if (!fp || fp.length < 3) return;
@@ -44,7 +45,8 @@ export function addBuildings(world, buildings, propertyIndex, mat) {
     const wall = isProperty ? PALETTE.propertyWalls
       : b.kind === 'other' ? PALETTE.otherWalls
         : PALETTE.walls[h % PALETTE.walls.length];
-    const roof = isProperty ? PALETTE.property : PALETTE.roofs[(h >>> 4) % PALETTE.roofs.length];
+    const roof = isProperty ? PALETTE.property
+      : highlights.get(i) ?? PALETTE.roofs[(h >>> 4) % PALETTE.roofs.length];
     try {
       const type = roofType(b.kind, fp);
       const wallHeight = type === 'flat' ? Math.max(1, b.height - FLAT_CAP_M) : b.height;

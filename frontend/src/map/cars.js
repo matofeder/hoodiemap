@@ -8,9 +8,9 @@ export function addCars(world, roads, mat, rng) {
   const cabin = new THREE.BoxGeometry(2.3, 1.2, 1.9);
   const groups = cars.map((car) => {
     const g = new THREE.Group();
-    const b = new THREE.Mesh(body, mat(car.color));
+    const b = new THREE.Mesh(body, mat(car.color, { clip: true }));
     b.position.y = 1.15;
-    const c = new THREE.Mesh(cabin, mat(PALETTE.carCabin));
+    const c = new THREE.Mesh(cabin, mat(PALETTE.carCabin, { clip: true }));
     c.position.set(-0.3, 2.4, 0);
     g.add(b, c);
     g.traverse((o) => { o.castShadow = true; });

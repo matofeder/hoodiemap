@@ -34,6 +34,18 @@ export function dashSegments(pts, on, off) {
   return out;
 }
 
+// Two copies of the polyline shifted sideways by ±d (per-vertex normals averaged at joints).
+export function offsetLines(pts, d) {
+  if (pts.length < 2) return [];
+  const normals = pts.map((_, i) => {
+    const [ax, ay] = pts[Math.max(0, i - 1)], [bx, by] = pts[Math.min(pts.length - 1, i + 1)];
+    const len = Math.hypot(bx - ax, by - ay) || 1;
+    return [-(by - ay) / len, (bx - ax) / len];
+  });
+  const side = (s) => pts.map(([x, y], i) => [x + normals[i][0] * d * s, y + normals[i][1] * d * s]);
+  return [side(1), side(-1)];
+}
+
 const DISC_SEGMENTS = 12;
 
 export function ribbonTriangles(polylines, width) {

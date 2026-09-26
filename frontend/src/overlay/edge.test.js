@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { edgePoint, resolveOverlaps } from './edge.js';
+import { edgePoint, resolveOverlaps, separateLabels } from './edge.js';
 
 const C = { x: 400, y: 300 };
 
@@ -48,5 +48,30 @@ describe('resolveOverlaps in a crowded narrow widget', () => {
       expect(boxes[i].x - 50).toBeGreaterThanOrEqual(10 - 1e-6);
       expect(boxes[i].x + 50).toBeLessThanOrEqual(310 + 1e-6);
     }
+  });
+});
+
+describe('separateLabels', () => {
+  const overlaps = (a, b) => Math.abs(a.x - b.x) < (a.w + b.w) / 2 && Math.abs(a.y - b.y) < (a.h + b.h) / 2;
+
+  it('pushes overlapping labels apart vertically', () => {
+    const boxes = [{ x: 100, y: 100, w: 80, h: 20 }, { x: 110, y: 105, w: 80, h: 20 }];
+    separateLabels(boxes, [], 600);
+    expect(overlaps(boxes[0], boxes[1])).toBe(false);
+    expect(boxes.map((b) => b.x)).toEqual([100, 110]);
+  });
+
+  it('moves a label off a fixed box without moving the fixed box', () => {
+    const tag = { x: 200, y: 200, w: 60, h: 40 };
+    const boxes = [{ x: 200, y: 210, w: 80, h: 20 }];
+    separateLabels(boxes, [tag], 600);
+    expect(tag.y).toBe(200);
+    expect(overlaps(tag, boxes[0])).toBe(false);
+  });
+
+  it('leaves separate labels alone', () => {
+    const boxes = [{ x: 100, y: 100, w: 50, h: 20 }, { x: 300, y: 100, w: 50, h: 20 }];
+    separateLabels(boxes, [], 600);
+    expect(boxes.map((b) => b.y)).toEqual([100, 100]);
   });
 });
