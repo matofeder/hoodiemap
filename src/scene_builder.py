@@ -1,5 +1,6 @@
 """Turn raw Overpass JSON into the compact scene consumed by the frontend."""
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 from shapely.geometry import LineString, Point, Polygon, box
 from shapely.ops import polygonize
@@ -238,10 +239,13 @@ def build_scene(lat: float, lon: float, cfg: Config) -> dict:
     cache_dir = cfg.cache.dir if cfg.cache.enabled else None
     radius = cfg.radii.display_meters
     categories = cfg.poi.enabled()
-    area = fetch_area(lat, lon, radius, cache_dir)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        area_job = pool.submit(fetch_area, lat, lon, radius, cache_dir)
+        poi_job = pool.submit(fetch_pois, lat, lon, categories, cache_dir)
+        area = area_job.result()
     warnings = []
     try:
-        pois_raw = fetch_pois(lat, lon, categories, cache_dir)
+        pois_raw = poi_job.result()
     except OverpassError as exc:
         logger.warning("POI fetch failed: %s", exc)
         pois_raw = {"elements": []}

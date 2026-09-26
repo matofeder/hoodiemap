@@ -55,10 +55,13 @@ def build_area_query(south: float, west: float, north: float, east: float) -> st
 
 
 def build_poi_query(lat: float, lon: float, categories: list[str]) -> str:
+    # Square bbox of the category radius instead of around: — bbox filters are index-backed,
+    # large around: radii time out on busy servers. Nearest-by-distance is picked later anyway.
     parts = []
     for cat in categories:
         selector, radius = POI_QUERIES[cat]
-        parts.append(f"nwr{selector}(around:{radius},{lat:.6f},{lon:.6f});")
+        south, west, north, east = square_bbox(lat, lon, radius)
+        parts.append(f"nwr{selector}({south:.6f},{west:.6f},{north:.6f},{east:.6f});")
     return "[out:json][timeout:25];(" + "".join(parts) + ");out center tags;"
 
 

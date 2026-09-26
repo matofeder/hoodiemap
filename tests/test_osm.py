@@ -4,6 +4,7 @@ import httpx
 import pytest
 
 import osm
+from geo import square_bbox
 from osm import OverpassError, build_area_query, build_poi_query, categorize_poi, run_query
 
 
@@ -26,10 +27,14 @@ def test_area_query_contains_bbox_and_layers():
     assert q.rstrip().endswith("out geom;")
 
 
-def test_poi_query_only_enabled_categories_with_radii():
+def test_poi_query_uses_bbox_per_category_radius():
+    # bbox filters are index-backed; large around: filters time out on busy Overpass servers
     q = build_poi_query(48.0, 17.0, ["hospital", "pharmacy"])
-    assert 'nwr["amenity"="hospital"](around:30000,48.000000,17.000000);' in q
-    assert 'nwr["amenity"="pharmacy"](around:5000,48.000000,17.000000);' in q
+    s, w, n, e = square_bbox(48.0, 17.0, 30_000)
+    assert f'nwr["amenity"="hospital"]({s:.6f},{w:.6f},{n:.6f},{e:.6f});' in q
+    s, w, n, e = square_bbox(48.0, 17.0, 5_000)
+    assert f'nwr["amenity"="pharmacy"]({s:.6f},{w:.6f},{n:.6f},{e:.6f});' in q
+    assert "around" not in q
     assert "supermarket" not in q
     assert q.rstrip().endswith("out center tags;")
 

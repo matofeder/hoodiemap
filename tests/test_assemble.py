@@ -158,5 +158,24 @@ def test_build_scene_area_failure_raises(monkeypatch, default_config):
         raise OverpassError("down")
 
     monkeypatch.setattr(scene_builder, "fetch_area", boom)
+    monkeypatch.setattr(scene_builder, "fetch_pois", lambda *a: {"elements": []})
     with pytest.raises(OverpassError):
         build_scene(LAT0, LON0, default_config)
+
+
+def test_build_scene_fetches_area_and_pois_concurrently(monkeypatch, default_config):
+    import time
+
+    def slow_area(*a):
+        time.sleep(0.3)
+        return {"elements": []}
+
+    def slow_pois(*a):
+        time.sleep(0.3)
+        return {"elements": []}
+
+    monkeypatch.setattr(scene_builder, "fetch_area", slow_area)
+    monkeypatch.setattr(scene_builder, "fetch_pois", slow_pois)
+    t0 = time.perf_counter()
+    build_scene(LAT0, LON0, default_config)
+    assert time.perf_counter() - t0 < 0.5
