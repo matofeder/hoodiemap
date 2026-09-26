@@ -3,7 +3,10 @@ location:
   lon: 17.27221245956356
 
 radii:
-  display_meters: 140      # half-size of the visible square around the property
+  display_meters: 140      # address tier: half-size of the square around the property
+  street_min: 160          # street tier: clamp(street length / 2 + 60 m, min, max)
+  street_max: 300
+  city_meters: 450         # city tier: half-size around the town centre
 
 poi:
   show:
@@ -21,6 +24,9 @@ poi:
     bank: true           # only when on the map
     doctors: true        # doctors / clinic / dentist — only when on the map
     city: true           # nearest cities (place=city) as edge badges
+    bus_station: true    # city tier
+    mall: true           # city tier (shop=mall)
+    landmark: true       # city tier: town hall, square, castle, church, museum (with Wikipedia/Wikidata)
 
 cache:
   enabled: true
@@ -29,3 +35,6 @@ cache:
 api:
   host: "0.0.0.0"
   port: 8000
+
+geocode:
+  countrycodes: "sk,cz"    # Nominatim search is limited to these countries
