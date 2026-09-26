@@ -191,7 +191,7 @@ Each layer sits slightly above the previous one to avoid z-fighting:
 - Roofs (`roofs.js`) use the footprint's minimum-area oriented rectangle (OBR):
   - `house` whose area / OBR area ≥ 0.8 → **gable** roof on the OBR, ridge along the long side, height 0.45 × short side, 0.6 m overhang.
   - `house` otherwise → **hip** (pyramid) roof on the OBR, height 0.3 × short side.
-  - `apartment`, `commercial`, `civic` → **flat** roof: a 1 m parapet cap in the roof color, inset 0.4 m.
+  - `apartment`, `commercial`, `civic` → **flat** roof: the top 1 m of the footprint extrusion is drawn in the roof color as a cap.
   - `other` → flat with no cap; walls `#E9E4DA`.
 - All building meshes cast and receive shadows.
 
@@ -218,7 +218,7 @@ Each layer sits slightly above the previous one to avoid z-fighting:
   - Title is the POI name when present and ≤ 14 characters, otherwise the category label.
   - Screen direction: project `center` and `center + 80 m in bearing direction`, then normalize the difference.
   - Placement: intersect the ray from the projected center with the container rectangle inset by the badge half-size + 10 px.
-  - Overlap resolution: badges are sorted by angle. Any two overlapping badges are pushed apart along the edge until no overlap remains, at most 20 iterations, clamped to the inset rectangle.
+  - Overlap resolution: any two overlapping badges are pushed apart along their axis of least overlap until no overlap remains, at most 20 iterations, clamped to the inset rectangle.
 - **Address chip:** "📍 Záhradná, Pezinok" in the bottom-left corner.
 
 Category labels (Slovak) and colors:
@@ -242,7 +242,7 @@ Category labels (Slovak) and colors:
 ### 2.7 Motion
 
 - **Cars:** 1 per 60 m of main + street road length, max 6. Each drives along a road polyline at 8–14 m/s, offset 2 m to the right lane, and loops. Colors: `#FF7B7B #5CA8FF #FFC94D #9C7CF4`.
-- **Other motion:** pin bob (±1.6 m), ring pulse, tree crown sway (±0.04 rad).
+- **Other motion:** pin bob (±1.6 m), ring pulse, tree crown sway (sideways offset of 4 % of crown height).
 - **Pausing:** the render loop stops when an `IntersectionObserver` reports the widget off-screen, and when the tab is hidden.
 - **Reduced motion:** with `prefers-reduced-motion: reduce`, one frame is rendered, plus a re-render on resize.
 
