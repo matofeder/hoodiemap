@@ -8,7 +8,11 @@ export function formatDistance(meters) {
   return `${km.toFixed(1).replace('.', ',')} km`;
 }
 
+// Stop and station names are usually just the town or square, which says less than the label.
+const LABEL_ONLY = new Set(['bus_stop', 'train']);
+
 export function poiTitle(poi, maxLen = 14) {
   const name = (poi.name ?? '').trim();
-  return name && name.length <= maxLen ? name : categoryInfo(poi.category).label;
+  const useName = name && name.length <= maxLen && !LABEL_ONLY.has(poi.category);
+  return useName ? name : categoryInfo(poi.category).label;
 }

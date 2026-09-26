@@ -4,6 +4,7 @@ import { centroid } from './geom.js';
 import { orientedRect } from './roofs.js';
 
 const PIN_CLEARANCE = 12;
+const PIN_SCALE = 1.7;
 
 export function addProperty(world, scene, mat) {
   const idx = scene.property?.building_index;
@@ -22,6 +23,7 @@ export function addProperty(world, scene, mat) {
   const dot = new THREE.Mesh(new THREE.SphereGeometry(1.3, 12, 8), mat('#FFFFFF'));
   dot.position.set(0, 5, 2.6);
   pin.add(head, tip, dot);
+  pin.scale.setScalar(PIN_SCALE);
   pin.traverse((o) => { o.castShadow = true; });
   world.add(pin);
 
@@ -40,5 +42,5 @@ export function addProperty(world, scene, mat) {
     ringMat.opacity = 0.75 * (1 - p);
   }
   update(0);
-  return { update, anchor: { x, y, h: base + 9 } };
+  return { update, anchor: { x, y, h: base + 9 * PIN_SCALE } };
 }

@@ -13,5 +13,7 @@ describe('poiTitle', () => {
   it('falls back to label for long names', () =>
     expect(poiTitle({ category: 'hospital', name: 'Fakultná nemocnica Trnava' })).toBe('Nemocnica'));
   it('falls back to label for missing names', () => expect(poiTitle({ category: 'pharmacy', name: '' })).toBe('Lekáreň'));
+  it('uses the label for transit, where a short name is just the town', () =>
+    expect(poiTitle({ category: 'train', name: 'Pezinok' })).toBe('Stanica'));
   it('handles unknown categories', () => expect(poiTitle({ category: 'zoo' })).toBe('zoo'));
 });

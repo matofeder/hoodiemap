@@ -39,7 +39,7 @@ export function createOverlay(container, scene, project, anchor) {
   const nears = scene.near_pois.map((p) => {
     const node = el('div', 'gm-near', root);
     node.append(icon(p.category), text('b', p.name || categoryInfo(p.category).label), text('em', formatDistance(p.distance_m)));
-    return { p, node };
+    return { p, node, w: 0 };
   });
 
   const fars = scene.far_pois.map((p) => {
@@ -66,6 +66,7 @@ export function createOverlay(container, scene, project, anchor) {
   north.append(text('b', 'S'));
 
   function measure() {
+    for (const n of nears) n.w = n.node.offsetWidth;
     for (const f of fars) {
       f.w = f.node.offsetWidth;
       f.h = f.node.offsetHeight;
@@ -79,7 +80,8 @@ export function createOverlay(container, scene, project, anchor) {
 
     for (const n of nears) {
       const q = project(n.p.x, n.p.y, NEAR_LABEL_HEIGHT_M);
-      place(n.node, q.x, q.y, 'translate(-11px, -50%)');
+      const x = Math.min(Math.max(q.x, 15), W - n.w - 4 + 11);
+      place(n.node, x, q.y, 'translate(-11px, -50%)');
     }
 
     const c = project(anchor.x, anchor.y, 0);
