@@ -23,6 +23,7 @@ TIMEOUT_S = 25
 CACHE_TTL_S = 30 * 24 * 3600
 AREA_MARGIN_M = 20
 LOCAL_RADIUS_M = 300
+STREET_SEARCH_M = 1500
 
 # category -> (Overpass tag filter, search radius in metres)
 POI_QUERIES: dict[str, tuple[str, int]] = {
@@ -127,13 +128,16 @@ def _cache_write(query: str, data: dict, cache_dir: str) -> None:
     os.replace(tmp, path)
 
 
-def run_query(query: str, cache_dir: str | None, transport: httpx.BaseTransport | None = None) -> dict:
+def run_query(query: str, cache_dir: str | None, transport: httpx.BaseTransport | None = None,
+              timeout_s: float = TIMEOUT_S, stats: list | None = None) -> dict:
     if cache_dir:
         cached = _cache_read(query, cache_dir)
         if cached is not None:
+            if stats is not None:
+                stats.append(True)
             return cached
     errors = []
-    with httpx.Client(timeout=TIMEOUT_S, headers={"User-Agent": USER_AGENT}, transport=transport) as client:
+    with httpx.Client(timeout=timeout_s, headers={"User-Agent": USER_AGENT}, transport=transport) as client:
         for url in ENDPOINTS:
             try:
                 resp = client.post(url, data={"data": query})
@@ -152,8 +156,20 @@ def run_query(query: str, cache_dir: str | None, transport: httpx.BaseTransport 
                     _cache_write(query, data, cache_dir)
                 except OSError as exc:
                     logger.warning("Could not write Overpass cache: %s", exc)
+            if stats is not None:
+                stats.append(False)
             return data
     raise OverpassError("; ".join(errors))
+
+
+def build_street_query(name: str, lat: float, lon: float) -> str:
+    safe = name.replace("\\", "\\\\").replace('"', '\\"')
+    return (f'[out:json][timeout:25];way["highway"]["name"="{safe}"]'
+            f"(around:{STREET_SEARCH_M},{lat:.6f},{lon:.6f});out geom;")
+
+
+def fetch_street(name: str, lat: float, lon: float, cache_dir: str | None, stats: list | None = None) -> dict:
+    return run_query(build_street_query(name, lat, lon), cache_dir, stats=stats)
 
 
 def fetch_area(lat: float, lon: float, half_m: float, cache_dir: str | None) -> dict:

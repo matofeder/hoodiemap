@@ -153,3 +153,32 @@ def test_cache_write_failure_still_returns_data(tmp_path, monkeypatch):
 def test_cache_write_is_atomic(tmp_path):
     osm._cache_write("q", {"elements": [9]}, str(tmp_path))
     assert [p.name for p in osm._cache_file("q", str(tmp_path)).parent.iterdir()] == [osm._cache_file("q", str(tmp_path)).name]
+
+
+def test_street_query_escapes_name_and_uses_around():
+    from osm import build_street_query
+    q = build_street_query('Nám. "SNP" \\ 1', 48.1, 17.1)
+    assert '["name"="Nám. \\"SNP\\" \\\\ 1"]' in q
+    assert "(around:1500,48.100000,17.100000)" in q
+    assert q.startswith("[out:json][timeout:25];way[\"highway\"]") and q.rstrip().endswith("out geom;")
+
+
+def test_run_query_reports_cache_hits_in_stats(tmp_path):
+    stats = []
+    t = _transport([(200, {"elements": [1]})], [])
+    run_query("q", str(tmp_path), transport=t, stats=stats)
+    run_query("q", str(tmp_path), transport=t, stats=stats)
+    assert stats == [False, True]
+
+
+def test_run_query_passes_timeout(monkeypatch):
+    seen = {}
+    real = httpx.Client
+
+    def spy(*a, **kw):
+        seen["timeout"] = kw.get("timeout")
+        return real(*a, **kw)
+
+    monkeypatch.setattr(osm.httpx, "Client", spy)
+    run_query("q", None, transport=_transport([(200, {"elements": []})], []), timeout_s=70)
+    assert seen["timeout"] == 70
