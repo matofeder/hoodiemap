@@ -1,43 +1,28 @@
 import * as THREE from 'three';
+import { buildingIndexAt, glowGeometry } from './buildings.js';
 
-const GLOW = '#FFFFFF';
-const GLOW_INTENSITY = 0.22;
 const LABEL_SELECTOR = '.gm-near, .gm-far, .gm-tag';
 
-// Hover (and tap) picking of buildings: the building under the pointer glows softly and the
-// tooltip describes it. Labels report their own hover via onLabel, which shares the same state.
-export function createHover({ container, camera, meshes, tooltip, describe, requestRender }) {
-  const byIndex = new Map();
-  for (const m of meshes) {
-    const list = byIndex.get(m.userData.buildingIndex) ?? [];
-    list.push(m);
-    byIndex.set(m.userData.buildingIndex, list);
-  }
-
-  const glowCache = new Map();
-  const glowing = (material) => {
-    if (!glowCache.has(material)) {
-      const m = material.clone();
-      m.emissive = new THREE.Color(GLOW);
-      m.emissiveIntensity = GLOW_INTENSITY;
-      m.onBeforeCompile = material.onBeforeCompile;
-      m.customProgramCacheKey = material.customProgramCacheKey;
-      glowCache.set(material, m);
-    }
-    return glowCache.get(material);
-  };
-
+// Hover (and tap) picking of buildings: a soft white shell appears over the building under
+// the pointer and the tooltip describes it. Labels report their own hover via onLabel.
+export function createHover({ container, camera, meshes, world, buildings, tooltip, describe, requestRender }) {
+  const glowMat = new THREE.MeshBasicMaterial({ color: '#FFFFFF', transparent: true, opacity: 0.28, depthWrite: false });
   let lit = null; // building index currently glowing
+  let glow = null;
   let pinned = false; // touch: keep the tooltip until the next tap
-  const originals = new Map();
 
   function light(index) {
     if (index === lit) return;
-    for (const m of byIndex.get(lit) ?? []) m.material = originals.get(m);
+    if (glow) {
+      world.remove(glow);
+      glow.geometry.dispose();
+      glow = null;
+    }
     lit = index;
-    for (const m of byIndex.get(lit) ?? []) {
-      originals.set(m, m.material);
-      m.material = glowing(m.material);
+    if (lit != null && buildings[lit]) {
+      glow = new THREE.Mesh(glowGeometry(buildings[lit]), glowMat);
+      glow.renderOrder = 2;
+      world.add(glow);
     }
     requestRender();
   }
@@ -47,8 +32,7 @@ export function createHover({ container, camera, meshes, tooltip, describe, requ
     const rect = container.getBoundingClientRect();
     ndc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
-    const hit = raycaster.intersectObjects(meshes, false)[0];
-    return { index: hit ? hit.object.userData.buildingIndex : null, x: clientX - rect.left, y: clientY - rect.top };
+    return { index: buildingIndexAt(raycaster.intersectObjects(meshes, false)[0]), x: clientX - rect.left, y: clientY - rect.top };
   }
 
   function showBuilding(clientX, clientY) {
@@ -99,5 +83,17 @@ export function createHover({ container, camera, meshes, tooltip, describe, requ
     pinned = !!touch;
   }
 
-  return { onLabel, clear, dispose() { container.removeEventListener('pointermove', onMove); container.removeEventListener('pointerdown', onDown); } };
+  return {
+    onLabel,
+    clear,
+    dispose() {
+      container.removeEventListener('pointermove', onMove);
+      container.removeEventListener('pointerdown', onDown);
+      if (glow) {
+        world.remove(glow);
+        glow.geometry.dispose(); // no light(null): it would render one more frame while tearing down
+      }
+      glowMat.dispose();
+    },
+  };
 }

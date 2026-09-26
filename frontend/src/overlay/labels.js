@@ -140,5 +140,5 @@ export function createOverlay(container, scene, project, anchor, onLabel = () =>
   }
 
   measure();
-  return { update, measure };
+  return { update, measure, dispose: () => root.remove() };
 }

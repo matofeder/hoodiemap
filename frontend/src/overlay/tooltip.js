@@ -32,5 +32,5 @@ export function createTooltip(container) {
     tip.hidden = true;
   }
 
-  return { show, hide };
+  return { show, hide, dispose: () => tip.remove() };
 }

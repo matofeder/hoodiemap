@@ -71,8 +71,9 @@ export function createStage(container, scene) {
   };
   const propertyIndex = scene.property?.building_index ?? null;
   const poiByBuilding = new Map(scene.near_pois.filter((p) => p.building_index != null).map((p) => [p.building_index, p]));
+  const tooltip = createTooltip(container);
   const hover = createHover({
-    container, camera, meshes: buildingMeshes, tooltip: createTooltip(container),
+    container, camera, meshes: buildingMeshes, world, buildings: scene.buildings, tooltip,
     describe: (i) => buildingInfo(scene.buildings[i], { isProperty: i === propertyIndex, poi: poiByBuilding.get(i) }),
     requestRender: () => { if (!raf) frame(performance.now()); },
   });
@@ -128,11 +129,24 @@ export function createStage(container, scene) {
   return {
     dispose() {
       cancelAnimationFrame(raf);
+      raf = 0;
+      visible = false;
       hover.dispose();
+      overlay.dispose();
+      tooltip.dispose();
       ro.disconnect();
       io.disconnect();
       document.removeEventListener('visibilitychange', start);
+      world.traverse((o) => {
+        o.geometry?.dispose();
+        for (const m of [o.material].flat()) {
+          m?.map?.dispose();
+          m?.dispose();
+        }
+      });
       renderer.dispose();
+      renderer.forceContextLoss();
+      renderer.domElement.remove();
     },
   };
 }
