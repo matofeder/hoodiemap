@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { PALETTE } from '../palette.js';
 import { carPose, planCars } from './placement.js';
 
-export function addCars(world, roads, mat, rng) {
-  const cars = planCars(roads, rng);
+export function addCars(world, roads, mat, rng, max) {
+  const cars = planCars(roads, rng, max);
   const body = new THREE.BoxGeometry(4.4, 1.5, 2.2);
   const cabin = new THREE.BoxGeometry(2.3, 1.2, 1.9);
   const groups = cars.map((car) => {

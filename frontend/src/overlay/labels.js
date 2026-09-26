@@ -45,14 +45,17 @@ function place(node, x, y, anchor) {
   node.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) ${anchor}`;
 }
 
-export function createOverlay(container, scene, project, anchor, onLabel = () => {}) {
+export function createOverlay(container, scene, project, anchor, onLabel = () => {}, tagInfo = null) {
   const root = el('div', 'gm-overlay', container);
 
-  const tag = el('div', 'gm-tag', root);
-  tag.textContent = 'Na predaj';
-  const propertyIndex = scene.property?.building_index ?? null;
-  if (propertyIndex != null) {
-    interactive(tag, buildingInfo(scene.buildings[propertyIndex], { isProperty: true }), propertyIndex, onLabel);
+  const tag = anchor ? el('div', 'gm-tag', root) : null;
+  if (tag) {
+    tag.textContent = 'Na predaj';
+    const propertyIndex = scene.property?.building_index ?? null;
+    const info = propertyIndex != null
+      ? buildingInfo(scene.buildings[propertyIndex], { isProperty: true })
+      : tagInfo;
+    if (info) interactive(tag, info, propertyIndex, onLabel);
   }
 
   const nears = scene.near_pois.map((p) => {
@@ -97,8 +100,7 @@ export function createOverlay(container, scene, project, anchor, onLabel = () =>
       n.w = n.node.offsetWidth;
       n.h = n.node.offsetHeight;
     }
-    tag.w = tag.offsetWidth;
-    tag.h = tag.offsetHeight;
+    if (tag) { tag.w = tag.offsetWidth; tag.h = tag.offsetHeight; }
     for (const f of fars) {
       f.w = f.node.offsetWidth;
       f.h = f.node.offsetHeight;
@@ -107,13 +109,12 @@ export function createOverlay(container, scene, project, anchor, onLabel = () =>
 
   function update() {
     const W = container.clientWidth, H = container.clientHeight;
-    const top = project(anchor.x, anchor.y, anchor.h);
-    place(tag, top.x, top.y, 'translate(-50%, -100%)');
+    const centre = anchor ?? { x: 0, y: 0, h: 0, base: 0 };
 
-    const c = project(anchor.x, anchor.y, 0);
+    const c = project(centre.x, centre.y, 0);
     const boxes = fars.map((f) => {
       const b = (f.p.bearing_deg * Math.PI) / 180;
-      const q = project(anchor.x + Math.sin(b) * BEARING_PROBE_M, anchor.y + Math.cos(b) * BEARING_PROBE_M, 0);
+      const q = project(centre.x + Math.sin(b) * BEARING_PROBE_M, centre.y + Math.cos(b) * BEARING_PROBE_M, 0);
       let dx = q.x - c.x, dy = q.y - c.y;
       const len = Math.hypot(dx, dy) || 1;
       dx /= len; dy /= len;
@@ -125,8 +126,13 @@ export function createOverlay(container, scene, project, anchor, onLabel = () =>
     boxes.forEach((b, i) => place(fars[i].node, b.x, b.y, 'translate(-50%, -50%)'));
 
     // The tag, the pin and the property below it are fixed; near labels step aside vertically.
-    const pinBottom = project(anchor.x, anchor.y, 0).y;
-    const fixed = [{ x: top.x, y: (top.y - tag.h + pinBottom) / 2, w: Math.max(tag.w, 44), h: pinBottom - top.y + tag.h }];
+    const fixed = [];
+    if (tag) {
+      const top = project(anchor.x, anchor.y, anchor.h);
+      place(tag, top.x, top.y, 'translate(-50%, -100%)');
+      const pinBottom = project(anchor.x, anchor.y, 0).y;
+      fixed.push({ x: top.x, y: (top.y - tag.h + pinBottom) / 2, w: Math.max(tag.w, 44), h: pinBottom - top.y + tag.h });
+    }
     const nearBoxes = nears.map((n) => {
       const q = project(n.p.x, n.p.y, n.lift);
       const left = Math.min(Math.max(q.x, 15), W - n.w - 4 + LABEL_NUDGE_PX) - LABEL_NUDGE_PX;

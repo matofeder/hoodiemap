@@ -16,6 +16,9 @@ import { addPigeons } from './pigeons.js';
 import { gatheringSpots } from './placement.js';
 import { addProperty } from './property.js';
 import { addTrees } from './trees.js';
+import { detailFor } from './detail.js';
+import { addStreetFocus } from './focus.js';
+import { tierLabel } from '../format.js';
 
 const CAMERA_DIR = new THREE.Vector3(190, 215, 250).normalize();
 const SUN_DIR = new THREE.Vector3(90, 160, 60).normalize();
@@ -23,6 +26,7 @@ const FRAME_MS = 1000 / 30; // gentle idle animation — 30 fps is plenty and ha
 
 export function createStage(container, scene) {
   const r = scene.radius_m;
+  const detail = detailFor(scene.tier);
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -37,7 +41,7 @@ export function createStage(container, scene) {
   const sun = new THREE.DirectionalLight('#FFF6E8', 0.7 * Math.PI);
   sun.position.copy(SUN_DIR).multiplyScalar(r * 2.5);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.mapSize.set(detail.shadowMap, detail.shadowMap);
   Object.assign(sun.shadow.camera, { left: -r * 1.3, right: r * 1.3, top: r * 1.3, bottom: -r * 1.3, near: 1, far: r * 6 });
   sun.shadow.bias = -0.0005;
   world.add(sun);
@@ -45,20 +49,26 @@ export function createStage(container, scene) {
   const seed = seedFromCoords(scene.center.lat, scene.center.lon);
   const clouds = createClouds(r, mulberry32(seed + 4));
   const mat = createMaterialCache(squareClippingPlanes(r), clouds.patch);
-  addGround(world, scene, mat);
+  addGround(world, scene, mat, { lanes: detail.lanes });
   const highlights = new Map(scene.near_pois
     .filter((p) => p.building_index != null)
     .map((p) => [p.building_index, categoryInfo(p.category).color]));
   const buildingMeshes = addBuildings(world, scene.buildings, scene.property?.building_index ?? null, mat, highlights);
-  const trees = addTrees(world, scene, mat);
-  const cars = addCars(world, scene.roads, mat, mulberry32(seedFromCoords(scene.center.lat, scene.center.lon) + 1));
-  addDecor(world, scene, mat);
+  const trees = addTrees(world, scene, mat, { seeded: detail.seededTrees });
+  const cars = addCars(world, scene.roads, mat, mulberry32(seed + 1), detail.maxCars);
+  if (detail.decor) addDecor(world, scene, mat);
   const spots = gatheringSpots(scene);
-  const people = addPedestrians(world, scene.roads, mat, mulberry32(seed + 2));
-  const bikes = addCyclists(world, scene.roads, mat, mulberry32(seed + 3));
-  const groups = addChatGroups(world, spots.slice(1), mat, mulberry32(seed + 5));
-  const pigeons = addPigeons(world, spots[0] ?? null, r, mat, mulberry32(seed + 6));
-  const property = addProperty(world, scene, mat);
+  const people = addPedestrians(world, scene.roads, mat, mulberry32(seed + 2), detail.people);
+  const bikes = addCyclists(world, scene.roads, mat, mulberry32(seed + 3), detail.people);
+  const idle = { update() {} };
+  const groups = detail.pigeons ? addChatGroups(world, spots.slice(1), mat, mulberry32(seed + 5)) : idle;
+  const pigeons = detail.pigeons ? addPigeons(world, spots[0] ?? null, r, mat, mulberry32(seed + 6)) : idle;
+  const focus = detail.property ? addProperty(world, scene, mat)
+    : detail.streetFocus ? addStreetFocus(world, scene.focus, mat)
+      : { update() {}, anchor: null };
+  const tagInfo = detail.streetFocus
+    ? { title: `Na predaj · ${tierLabel('street')} ${scene.focus?.name ?? ''}`.trim(), lines: ['Presná adresa nie je uvedená'] }
+    : null;
 
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -r * 10, r * 10);
   camera.position.copy(CAMERA_DIR).multiplyScalar(r * 3);
@@ -77,7 +87,7 @@ export function createStage(container, scene) {
     describe: (i) => buildingInfo(scene.buildings[i], { isProperty: i === propertyIndex, poi: poiByBuilding.get(i) }),
     requestRender: () => { if (!raf) frame(performance.now()); },
   });
-  const overlay = createOverlay(container, scene, project, property.anchor, hover.onLabel);
+  const overlay = createOverlay(container, scene, project, focus.anchor, hover.onLabel, tagInfo);
 
   function fit() {
     const W = container.clientWidth, H = container.clientHeight, aspect = W / H;
@@ -90,7 +100,7 @@ export function createStage(container, scene) {
 
   function frame(ms) {
     const t = ms / 1000;
-    property.update(t);
+    focus.update(t);
     trees.update(t);
     cars.update(t);
     people.update(t);

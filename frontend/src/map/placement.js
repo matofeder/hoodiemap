@@ -61,9 +61,9 @@ function planMovers(roads, rng, { kinds, max, metersPer, speed: [s0, s1], lane, 
   });
 }
 
-export function planCars(roads, rng) {
+export function planCars(roads, rng, max = MAX_CARS) {
   return planMovers(roads, rng, {
-    kinds: ['main', 'street'], max: MAX_CARS, metersPer: METERS_PER_CAR, speed: [8, 14],
+    kinds: ['main', 'street'], max, metersPer: METERS_PER_CAR, speed: [8, 14],
     lane: () => LANE_OFFSET_M, colors: PALETTE.cars,
   });
 }

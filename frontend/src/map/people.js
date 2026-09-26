@@ -47,9 +47,9 @@ const walkBob = (g, m, t) => {
   g.children[0].position.y = Math.abs(Math.sin((t * STEP_HZ + m.phase) * Math.PI)) * 0.1;
 };
 
-export function addPedestrians(world, roads, mat, rng) {
-  const plan = [...planPedestrians(roads, rng), ...planZoneWalkers(roads, rng)];
-  return addMovers(world, plan, (m) => makePerson(mat, m.color), walkBob);
+export function addPedestrians(world, roads, mat, rng, share = 1) {
+  const all = [...planPedestrians(roads, rng), ...planZoneWalkers(roads, rng)];
+  return addMovers(world, all.slice(0, Math.round(all.length * share)), (m) => makePerson(mat, m.color), walkBob);
 }
 
 const GROUP_RADIUS_M = 2.2;
@@ -78,12 +78,13 @@ export function addChatGroups(world, spots, mat, rng) {
   };
 }
 
-export function addCyclists(world, roads, mat, rng) {
+export function addCyclists(world, roads, mat, rng, share = 1) {
   const wheel = new THREE.TorusGeometry(0.42, 0.07, 6, 16);
   const frame = new THREE.BoxGeometry(1.0, 0.08, 0.08);
   const body = new THREE.CylinderGeometry(0.24, 0.3, 0.75, 8);
   const head = new THREE.SphereGeometry(0.25, 10, 8);
-  return addMovers(world, planCyclists(roads, rng), (m) => {
+  const plan = planCyclists(roads, rng);
+  return addMovers(world, plan.slice(0, Math.round(plan.length * share)), (m) => {
     const g = new THREE.Group();
     const dark = mat(PALETTE.bike, { clip: true });
     for (const x of [-0.55, 0.55]) {

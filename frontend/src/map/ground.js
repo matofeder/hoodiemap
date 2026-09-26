@@ -10,7 +10,7 @@ const LEVEL = { forest: 0.02, park: 0.03, water: 0.04, plaza: 0.045, path: 0.05,
 const CENTRE_LINE = { main: [0.5, 3, 3], street: [0.35, 1.8, 2.6] };
 const EDGE_LINE_W = 0.35;
 
-function flatGeometry(flat, y) {
+export function flatGeometry(flat, y) {
   const n = flat.length / 2;
   const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2);
   for (let i = 0; i < n; i++) {
@@ -35,7 +35,7 @@ function addFlat(world, flat, y, material) {
   world.add(mesh);
 }
 
-export function addGround(world, scene, mat) {
+export function addGround(world, scene, mat, { lanes = true } = {}) {
   const r = scene.radius_m;
   const side = mat(PALETTE.slabSide), top = mat(PALETTE.slabTop);
   // Only the top receives shadows — building shadows falling over the slab sides look like dirt.
@@ -80,14 +80,16 @@ export function addGround(world, scene, mat) {
     if (!lines.length) continue;
     const src = kind === 'path' ? lines.flatMap((l) => dashSegments(l, 2, 1.5)) : lines;
     addFlat(world, ribbonTriangles(src, ROAD_WIDTH[kind]), LEVEL[kind], flatMat(kind === 'path' ? PALETTE.path : PALETTE.road));
-    const centre = CENTRE_LINE[kind];
-    if (!centre) continue;
-    const [w, on, off] = centre;
-    const mark = flatMat(PALETTE.laneMark);
-    addFlat(world, ribbonTriangles(lines.flatMap((l) => dashSegments(l, on, off)), w), LEVEL.mark, mark);
-    if (kind === 'main') {
-      const edges = lines.flatMap((l) => offsetLines(l, ROAD_WIDTH.main / 2 - 0.9));
-      addFlat(world, ribbonTriangles(edges, EDGE_LINE_W), LEVEL.mark, mark);
+    if (lanes) {
+      const centre = CENTRE_LINE[kind];
+      if (!centre) continue;
+      const [w, on, off] = centre;
+      const mark = flatMat(PALETTE.laneMark);
+      addFlat(world, ribbonTriangles(lines.flatMap((l) => dashSegments(l, on, off)), w), LEVEL.mark, mark);
+      if (kind === 'main') {
+        const edges = lines.flatMap((l) => offsetLines(l, ROAD_WIDTH.main / 2 - 0.9));
+        addFlat(world, ribbonTriangles(edges, EDGE_LINE_W), LEVEL.mark, mark);
+      }
     }
   }
 }

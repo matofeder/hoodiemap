@@ -29,6 +29,12 @@ describe('cars', () => {
     expect(planCars(roads, mulberry32(1))).toHaveLength(4);
     expect(planCars([], mulberry32(1))).toEqual([]);
   });
+  it('respects a custom car cap', () => {
+    const long = [{ kind: 'main', points: [[-2000, 0], [2000, 0]] }];
+    expect(planCars(long, mulberry32(1))).toHaveLength(6);
+    expect(planCars(long, mulberry32(1), 10)).toHaveLength(10);
+  });
+
   it('drives on the right lane and turns around at the end', () => {
     const car = { ...planCars(roads, mulberry32(1))[0], offset: 0, speed: 10 };
     const a = carPose(car, 1);
