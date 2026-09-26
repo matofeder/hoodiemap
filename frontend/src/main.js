@@ -23,6 +23,11 @@ const gate = createRequestGate();
 let controller = null;
 let stage = null;
 let current = null;
+// The view actually rendered in `stage` right now (or null before any scene has ever loaded).
+// Kept separate from `current` so a search that fails *after* interrupting an in-flight scene
+// load can put `current` back on solid ground instead of leaving it pointed at whatever view
+// never finished loading.
+let displayed = null;
 
 function defaultView() {
   return { ...DEFAULT_COORDS, tier: 'address', name: null, label: null };
@@ -41,6 +46,25 @@ function showStatus(text, isError) {
   retryBtn.hidden = !isError;
 }
 
+// Called when a search interrupts an in-flight scene load and then itself fails (geocode
+// 404/503/network error), so the loading overlay that load left behind would otherwise be
+// stuck forever. Falls back to the previous map when there is one, or a retryable error when
+// there isn't, and stops `current` from pointing at a view that never actually loaded.
+function recoverOverlay() {
+  if (stage) {
+    statusEl.hidden = true;
+    statusEl.classList.remove('is-error');
+  } else {
+    showStatus(LOAD_FAILED, true);
+  }
+  // Only touch current/URL when a newer, never-finished view actually got in between —
+  // leave a plain failed search (nothing was interrupted) alone.
+  if (displayed && current !== displayed) {
+    history.replaceState(null, '', viewToSearch(displayed));
+    current = displayed;
+  }
+}
+
 async function showView(view, startedAt = performance.now()) {
   current = view;
   const { token, signal } = beginRequest();
@@ -53,6 +77,7 @@ async function showView(view, startedAt = performance.now()) {
     if (view.label) scene.address = `${view.label} · ${tierLabel(view.tier)}`;
     stage?.dispose();
     stage = createStage(mapEl, scene);
+    displayed = view;
     statusEl.hidden = true;
     timingEl.textContent = formatLoadTime(performance.now() - startedAt, scene.cached === true);
     timingEl.hidden = false;
@@ -78,11 +103,14 @@ async function search(q) {
     if (!gate.isCurrent(token)) return;
     if (!res.ok) {
       showSearchMsg(res.status === 404 ? NOT_FOUND(q) : GEOCODE_DOWN);
+      recoverOverlay();
       return;
     }
     hit = await res.json();
   } catch (err) {
-    if (err.name !== 'AbortError' && gate.isCurrent(token)) showSearchMsg(GEOCODE_DOWN);
+    if (err.name === 'AbortError' || !gate.isCurrent(token)) return;
+    showSearchMsg(GEOCODE_DOWN);
+    recoverOverlay();
     return;
   }
   const view = { lat: hit.lat, lon: hit.lon, tier: hit.tier, name: hit.name || null, label: hit.label || null };
