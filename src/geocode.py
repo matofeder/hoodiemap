@@ -114,12 +114,15 @@ class Geocoder:
         if not hits:
             return None
         hit = hits[0]
-        rank = int(hit.get("place_rank", 30))
-        tier = tier_for_rank(rank)
-        result = {
-            "lat": float(hit["lat"]), "lon": float(hit["lon"]), "tier": tier,
-            "name": _street_name(hit) if tier != "city" else (hit.get("name") or ""),
-            "label": short_label(hit), "place_rank": rank,
-        }
+        try:
+            rank = int(hit.get("place_rank", 30))
+            tier = tier_for_rank(rank)
+            result = {
+                "lat": float(hit["lat"]), "lon": float(hit["lon"]), "tier": tier,
+                "name": _street_name(hit) if tier != "city" else (hit.get("name") or ""),
+                "label": short_label(hit), "place_rank": rank,
+            }
+        except (KeyError, ValueError, TypeError) as exc:
+            raise GeocodeUnavailable(f"Malformed Nominatim result: {exc}") from exc
         self._cache_write(key, result)
         return result

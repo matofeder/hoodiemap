@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import httpx
 import pytest
 
@@ -100,3 +102,19 @@ def test_network_error_raises_unavailable(tmp_path):
     g = Geocoder("sk", None, transport=_transport([httpx.ConnectError("offline")], []))
     with pytest.raises(GeocodeUnavailable):
         g.search("Pezinok")
+
+
+def test_malformed_hit_missing_lat_lon_raises_unavailable_and_is_not_cached(tmp_path):
+    bad = {"place_rank": 26, "name": "Záhradná", "address": {"road": "Záhradná", "town": "Pezinok"}}
+    g = Geocoder("sk", str(tmp_path), transport=_transport([[bad]], []))
+    with pytest.raises(GeocodeUnavailable):
+        g.search("Záhradná Pezinok")
+    assert not (Path(tmp_path) / "geocode").exists() or not list((Path(tmp_path) / "geocode").iterdir())
+
+
+def test_malformed_hit_non_numeric_lat_raises_unavailable_and_is_not_cached(tmp_path):
+    bad = {**HIT, "lat": "not-a-number"}
+    g = Geocoder("sk", str(tmp_path), transport=_transport([[bad]], []))
+    with pytest.raises(GeocodeUnavailable):
+        g.search("Záhradná Pezinok")
+    assert not (Path(tmp_path) / "geocode").exists() or not list((Path(tmp_path) / "geocode").iterdir())
