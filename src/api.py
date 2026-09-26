@@ -76,6 +76,7 @@ async def scene(
     fixture: bool = False,
     tier: Literal["address", "street", "city"] = "address",
     name: Annotated[str | None, Query(max_length=200)] = None,
+    reverse: bool = True,
 ):
     if fixture:
         if not _FIXTURE_PATH.exists():
@@ -89,7 +90,7 @@ async def scene(
         data = await asyncio.to_thread(build_scene, lat, lon, _get_cfg(), tier, name)
     except OverpassError as exc:
         raise HTTPException(status_code=502, detail=AREA_FAILED_DETAIL) from exc
-    data["address"] = await _reverse_geocode(lat, lon) if tier == "address" else None
+    data["address"] = await _reverse_geocode(lat, lon) if tier == "address" and reverse else None
     return data
 
 

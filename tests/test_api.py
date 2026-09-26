@@ -106,3 +106,11 @@ async def test_scene_passes_tier_and_name_and_skips_reverse_geocode():
 
 async def test_scene_rejects_unknown_tier():
     assert (await _get("/api/scene?lat=48.28&lon=17.27&tier=planet")).status_code == 422
+
+
+async def test_scene_reverse_false_skips_reverse_geocode_at_address_tier():
+    rev = AsyncMock(return_value="x")
+    with patch("api.build_scene", return_value=dict(SCENE)), patch("api._reverse_geocode", rev):
+        r = await _get("/api/scene?lat=48.28&lon=17.27&reverse=false")
+    assert r.status_code == 200 and r.json()["address"] is None
+    rev.assert_not_called()

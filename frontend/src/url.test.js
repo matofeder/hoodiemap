@@ -24,7 +24,13 @@ describe('view URL', () => {
   it('round-trips and builds the scene URL', () => {
     const v = { lat: 48.1, lon: 17.1, tier: 'street', name: 'Nám. SNP', label: 'Nám. SNP, Pezinok' };
     expect(getViewFromURL(viewToSearch(v))).toEqual(v);
-    expect(sceneUrl(v, false)).toBe('/api/scene?lat=48.1&lon=17.1&tier=street&name=N%C3%A1m.+SNP');
-    expect(sceneUrl({ ...v, tier: 'city', name: 'Pezinok' }, true)).toBe('/api/scene?lat=48.1&lon=17.1&tier=city&fixture=true');
+    expect(sceneUrl(v, false)).toBe('/api/scene?lat=48.1&lon=17.1&tier=street&name=N%C3%A1m.+SNP&reverse=false');
+    expect(sceneUrl({ ...v, tier: 'city', name: 'Pezinok' }, true))
+      .toBe('/api/scene?lat=48.1&lon=17.1&tier=city&reverse=false&fixture=true');
+  });
+  it('adds reverse=false only when the view carries a label', () => {
+    const noLabel = { lat: 48.1, lon: 17.1, tier: 'address', name: null, label: null };
+    expect(sceneUrl(noLabel, false)).toBe('/api/scene?lat=48.1&lon=17.1&tier=address');
+    expect(sceneUrl({ ...noLabel, label: 'Pezinok' }, false)).toBe('/api/scene?lat=48.1&lon=17.1&tier=address&reverse=false');
   });
 });

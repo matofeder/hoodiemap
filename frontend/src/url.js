@@ -32,6 +32,9 @@ export function viewToSearch(view) {
 export function sceneUrl(view, fixture) {
   const p = new URLSearchParams({ lat: String(view.lat), lon: String(view.lon), tier: view.tier });
   if (view.tier === 'street' && view.name) p.set('name', view.name);
+  // The label already came from a geocode result, so a fresh reverse-geocode
+  // request (outside the Nominatim throttle) would only be thrown away.
+  if (view.label) p.set('reverse', 'false');
   if (fixture) p.set('fixture', 'true');
   return `/api/scene?${p}`;
 }
