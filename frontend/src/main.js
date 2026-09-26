@@ -1,39 +1,36 @@
-import { initInfographic } from './infographic.js';
-import { createScene } from './scene.js';
+import './style.css';
+import { createStage } from './map/stage.js';
+import { DEFAULT_COORDS, getCoordsFromURL, isFixture } from './url.js';
 
-const DEFAULT_LAT = 48.28646434486518;
-const DEFAULT_LON = 17.27221245956356;
+const mapEl = document.getElementById('map');
+const statusEl = document.getElementById('status');
+const statusText = document.getElementById('status-text');
+const retryBtn = document.getElementById('retry');
 
-export function getCoordsFromURL(search = window.location.search) {
-  const params = new URLSearchParams(search);
-  const lat = parseFloat(params.get('lat'));
-  const lon = parseFloat(params.get('lon'));
-  if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
-  return null;
+function sceneUrl({ lat, lon }, fixture) {
+  return `/api/scene?lat=${lat}&lon=${lon}${fixture ? '&fixture=true' : ''}`;
 }
 
-async function fetchScene(lat, lon) {
-  const useFixture = new URLSearchParams(window.location.search).get('fixture') === 'true';
-  const url = useFixture
-    ? `/api/scene?lat=${lat}&lon=${lon}&fixture=true`
-    : `/api/scene?lat=${lat}&lon=${lon}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Scene fetch failed: ${res.status}`);
-  return res.json();
-}
-
-async function init() {
-  const coords = getCoordsFromURL() || { lat: DEFAULT_LAT, lon: DEFAULT_LON };
-  const appEl = document.getElementById('app');
-
+async function load() {
+  statusEl.hidden = false;
+  statusEl.classList.remove('is-error');
+  statusText.textContent = 'Načítavam okolie…';
+  retryBtn.hidden = true;
+  const search = window.location.search;
+  const coords = getCoordsFromURL(search) ?? DEFAULT_COORDS;
   try {
-    const sceneData = await fetchScene(coords.lat, coords.lon);
-    const { canvasSlot } = initInfographic(appEl, sceneData);
-    createScene(canvasSlot, sceneData);
-    document.getElementById('loading').style.display = 'none';
+    const res = await fetch(sceneUrl(coords, isFixture(search)));
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const scene = await res.json();
+    createStage(mapEl, scene);
+    statusEl.hidden = true;
   } catch (err) {
-    document.getElementById('loading').textContent = `Chyba: ${err.message}`;
+    console.error('genmap: scene load failed', err);
+    statusEl.classList.add('is-error');
+    statusText.textContent = 'Mapu sa nepodarilo načítať. Skúste to znova o chvíľu.';
+    retryBtn.hidden = false;
   }
 }
 
-init();
+retryBtn.addEventListener('click', load);
+load();
