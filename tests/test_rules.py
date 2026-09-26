@@ -55,3 +55,8 @@ def test_road_kind(highway, kind):
 ])
 def test_area_layer(tags, layer):
     assert area_layer(tags) == layer
+
+
+@pytest.mark.parametrize("tags", [{"height": "inf"}, {"height": "500"}, {"building:levels": "200"}])
+def test_building_height_is_clamped(tags):
+    assert building_height(tags, "apartment") == 150.0

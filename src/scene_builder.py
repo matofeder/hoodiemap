@@ -20,6 +20,7 @@ HOUSE_MAX_AREA_M2 = 250
 HOUSE_MAX_LEVELS = 2
 DEFAULT_HEIGHT = {"house": 6.0, "apartment": 12.0, "commercial": 8.0, "civic": 10.0, "other": 3.0}
 METERS_PER_LEVEL = 3.0
+MIN_HEIGHT_M, MAX_HEIGHT_M = 2.0, 150.0  # guards against tag typos (height=500, inf)
 
 ROAD_KINDS: dict[str, str] = {
     **dict.fromkeys(["primary", "secondary", "tertiary", "primary_link", "secondary_link", "tertiary_link"], "main"),
@@ -58,12 +59,10 @@ def classify_building(tags: dict, area_m2: float) -> str:
 
 def building_height(tags: dict, kind: str) -> float:
     height = _num(tags.get("height"))
-    if height is not None and height > 0:
-        return max(2.0, height)
-    levels = _num(tags.get("building:levels"))
-    if levels is not None and levels > 0:
-        return levels * METERS_PER_LEVEL
-    return DEFAULT_HEIGHT[kind]
+    if height is None or not height > 0:
+        levels = _num(tags.get("building:levels"))
+        height = levels * METERS_PER_LEVEL if levels is not None and levels > 0 else DEFAULT_HEIGHT[kind]
+    return min(MAX_HEIGHT_M, max(MIN_HEIGHT_M, height))
 
 
 def road_kind(highway) -> str | None:

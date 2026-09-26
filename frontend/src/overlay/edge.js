@@ -1,5 +1,18 @@
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 const EDGE_EPS = 0.5;
+const PERIMETER_STEP = 4;
+
+const collide = (a, b, gap) =>
+  Math.abs(a.x - b.x) < (a.w + b.w) / 2 + gap - 1e-6 && Math.abs(a.y - b.y) < (a.h + b.h) / 2 + gap - 1e-6;
+
+// Centre positions a box can take along the inset rectangle, nearest to where it is now first.
+function perimeterSpots(b, W, H, pad) {
+  const x0 = b.w / 2 + pad, x1 = W - b.w / 2 - pad, y0 = b.h / 2 + pad, y1 = H - b.h / 2 - pad;
+  const spots = [];
+  for (let x = x0; x <= x1; x += PERIMETER_STEP) spots.push({ x, y: y0 }, { x, y: y1 });
+  for (let y = y0; y <= y1; y += PERIMETER_STEP) spots.push({ x: x0, y }, { x: x1, y });
+  return spots.sort((p, q) => Math.hypot(p.x - b.x, p.y - b.y) - Math.hypot(q.x - b.x, q.y - b.y));
+}
 
 export function edgePoint(center, dir, halfW, halfH, W, H, pad = 10) {
   const mx = halfW + pad, my = halfH + pad;
@@ -68,6 +81,16 @@ export function resolveOverlaps(boxes, W, H, pad = 10, gap = 6, maxIter = 20) {
       b.y = clamp(b.y, minY(b), maxY(b));
     }
     if (!moved) break;
+  }
+
+  // Last resort for crowded corners: move any badge still overlapping to the nearest free edge spot.
+  const placed = [];
+  for (const b of boxes) {
+    if (placed.some((p) => collide(p, b, gap))) {
+      const free = perimeterSpots(b, W, H, pad).find((s) => !placed.some((p) => collide(p, { ...b, ...s }, gap)));
+      if (free) Object.assign(b, free);
+    }
+    placed.push(b);
   }
   return boxes;
 }

@@ -132,3 +132,17 @@ def test_cache_disabled_writes_nothing(tmp_path, monkeypatch):
 ])
 def test_categorize_poi(tags, expected):
     assert categorize_poi(tags) == expected
+
+
+def test_cache_write_failure_still_returns_data(tmp_path, monkeypatch):
+    def broken(*a):
+        raise OSError("read-only file system")
+
+    monkeypatch.setattr(osm, "_cache_write", broken)
+    t = _transport([(200, {"elements": [8]})], [])
+    assert run_query("q", str(tmp_path), transport=t) == {"elements": [8]}
+
+
+def test_cache_write_is_atomic(tmp_path):
+    osm._cache_write("q", {"elements": [9]}, str(tmp_path))
+    assert [p.name for p in osm._cache_file("q", str(tmp_path)).parent.iterdir()] == [osm._cache_file("q", str(tmp_path)).name]

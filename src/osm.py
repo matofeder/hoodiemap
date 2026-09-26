@@ -2,6 +2,8 @@
 import hashlib
 import json
 import logging
+import os
+import threading
 import time
 from pathlib import Path
 
@@ -97,7 +99,9 @@ def _cache_read(query: str, cache_dir: str) -> dict | None:
 def _cache_write(query: str, data: dict, cache_dir: str) -> None:
     path = _cache_file(query, cache_dir)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"fetched_at": time.time(), "data": data}), encoding="utf-8")
+    tmp = path.with_suffix(f".{os.getpid()}.{threading.get_ident()}.tmp")
+    tmp.write_text(json.dumps({"fetched_at": time.time(), "data": data}), encoding="utf-8")
+    os.replace(tmp, path)
 
 
 def run_query(query: str, cache_dir: str | None, transport: httpx.BaseTransport | None = None) -> dict:
@@ -121,7 +125,10 @@ def run_query(query: str, cache_dir: str | None, transport: httpx.BaseTransport 
                 errors.append(f"{url}: {data['remark']}")
                 continue
             if cache_dir:
-                _cache_write(query, data, cache_dir)
+                try:
+                    _cache_write(query, data, cache_dir)
+                except OSError as exc:
+                    logger.warning("Could not write Overpass cache: %s", exc)
             return data
     raise OverpassError("; ".join(errors))
 

@@ -32,3 +32,21 @@ describe('resolveOverlaps', () => {
     }
   });
 });
+
+describe('resolveOverlaps in a crowded narrow widget', () => {
+  const overlap = (a, b) => Math.abs(a.x - b.x) < (a.w + b.w) / 2 && Math.abs(a.y - b.y) < (a.h + b.h) / 2;
+  it.each([[[40, 42, 44, 46, 48, 50]], [[350, 355, 0, 5, 10]]])('bearings %j leave no overlapping pair', (bearings) => {
+    const W = 320, H = 240, c = { x: 160, y: 120 };
+    const boxes = bearings.map((deg) => {
+      const b = (deg * Math.PI) / 180;
+      const p = edgePoint(c, { x: Math.sin(b), y: -Math.cos(b) }, 50, 13, W, H);
+      return { ...p, w: 100, h: 26 };
+    });
+    resolveOverlaps(boxes, W, H);
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) expect(overlap(boxes[i], boxes[j])).toBe(false);
+      expect(boxes[i].x - 50).toBeGreaterThanOrEqual(10 - 1e-6);
+      expect(boxes[i].x + 50).toBeLessThanOrEqual(310 + 1e-6);
+    }
+  });
+});
