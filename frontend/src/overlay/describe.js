@@ -40,7 +40,8 @@ const KIND_LABEL = {
 };
 
 export function poiInfo(poi) {
-  const { label, color } = categoryInfo(poi.category);
+  const { label: categoryLabel, color } = categoryInfo(poi.category);
+  const label = poi.kind ?? categoryLabel;
   const where = `${formatDistance(poi.distance_m)} · ${travelTime(poi.distance_m)}`;
   const lines = [poi.category === 'city' ? where : `${label} · ${where}`];
   const hours = openingHours(poi.opening_hours);

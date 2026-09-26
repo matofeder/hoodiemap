@@ -44,6 +44,9 @@ describe('poiInfo', () => {
     expect(poiInfo({ category: 'bank', name: '', distance_m: 103 }).title).toBe('Banka');
     expect(poiInfo({ category: 'city', name: 'Trnava', distance_m: 24825 }).lines).toEqual(['25 km · ≈ 37 min autom']);
   });
+  it('landmarks use their kind as the label', () =>
+    expect(poiInfo({ category: 'landmark', kind: 'Radnica', name: 'Stará radnica', distance_m: 40 }).lines[0])
+      .toBe('Radnica · 40 m · ≈ 1 min pešo'));
 });
 
 describe('buildingInfo', () => {

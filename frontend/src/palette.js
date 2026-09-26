@@ -44,6 +44,9 @@ export const CATEGORIES = {
   bank: { label: 'Banka', color: '#3D6FB6' },
   doctors: { label: 'Lekár', color: '#D9577A' },
   city: { label: 'Mesto', color: '#56657A' },
+  landmark: { label: 'Pamiatka', color: '#B5838D' },
+  bus_station: { label: 'Autobusová stanica', color: '#7B5EA7' },
+  mall: { label: 'Nákupné centrum', color: '#2F9C8F' },
 };
 
 export function categoryInfo(category) {

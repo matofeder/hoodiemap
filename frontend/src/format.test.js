@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDistance, poiTitle } from './format.js';
+import { formatDistance, formatLoadTime, poiTitle, tierLabel } from './format.js';
 
 describe('formatDistance', () => {
   it.each([
@@ -18,4 +18,10 @@ describe('poiTitle', () => {
   it('always uses the city name', () =>
     expect(poiTitle({ category: 'city', name: 'Banská Bystrica' })).toBe('Banská Bystrica'));
   it('handles unknown categories', () => expect(poiTitle({ category: 'zoo' })).toBe('zoo'));
+});
+
+describe('formatLoadTime', () => {
+  it.each([[12400, false, 'Načítané za 12,4 s · nové dáta'], [95, true, 'Načítané za 0,1 s · z cache'],
+    [0, true, 'Načítané za 0,0 s · z cache']])('%i ms cached=%s', (ms, c, s) => expect(formatLoadTime(ms, c)).toBe(s));
+  it('tier labels', () => expect(['address', 'street', 'city'].map(tierLabel)).toEqual(['adresa', 'ulica', 'mesto']));
 });

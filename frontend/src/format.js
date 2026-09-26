@@ -17,3 +17,14 @@ export function poiTitle(poi, maxLen = 14) {
   const useName = name && name.length <= maxLen && !LABEL_ONLY.has(poi.category);
   return useName ? name : categoryInfo(poi.category).label;
 }
+
+export function formatLoadTime(ms, cached) {
+  const s = (Math.round(ms / 100) / 10).toFixed(1).replace('.', ',');
+  return `Načítané za ${s} s · ${cached ? 'z cache' : 'nové dáta'}`;
+}
+
+const TIER_LABELS = { address: 'adresa', street: 'ulica', city: 'mesto' };
+
+export function tierLabel(tier) {
+  return TIER_LABELS[tier] ?? tier;
+}
