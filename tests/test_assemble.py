@@ -382,3 +382,17 @@ def test_build_scene_city_tier_is_light_and_street_failure_is_a_warning(monkeypa
     monkeypatch.setattr(scene_builder, "fetch_street", boom)
     s = build_scene(LAT0, LON0, default_config, tier="street", name="X")
     assert s["warnings"] == ["street_fetch_failed"] and s["radius_m"] == 160
+
+
+def test_street_distances_use_street_clipped_to_square():
+    # The street run far past the visible square; a POI near the far end must not
+    # win "nearest" just because it is close to the unclipped line.
+    street = [[(-1000, 0), (1000, 0)]]
+    pois = [
+        node(800, 5, {"amenity": "pharmacy", "name": "Dr. Max"}, 1),
+        node(60, 60, {"amenity": "pharmacy", "name": "Blizka"}, 2),
+    ]
+    near, far = split_pois(LAT0, LON0, R, {"elements": pois}, CATS, street=street)
+    assert [p["name"] for p in near] == ["Blizka"]
+    assert near[0]["distance_m"] == pytest.approx(60, abs=1)
+    assert all(p["distance_m"] >= 10 for p in far)

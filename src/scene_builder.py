@@ -211,7 +211,14 @@ def _is_general_hospital(tags: dict) -> bool:
 def split_pois(lat: float, lon: float, radius_m: float, pois_raw: dict,
                categories: list[str], street=None) -> tuple[list[dict], list[dict]]:
     wanted = set(categories) - {"landmark"}
-    street_geom = MultiLineString(street) if street else None
+    street_geom = None
+    if street:
+        square = box(-radius_m, -radius_m, radius_m, radius_m)
+        clipped = [part for line in street for part in _parts(LineString(line).intersection(square), "LineString")]
+        # A POI near the far end of a long, unclipped street must not win "nearest" just
+        # because it is close to a stretch of street far outside the visible map.
+        if clipped:
+            street_geom = MultiLineString(clipped)
 
     def distance(plat: float, plon: float) -> float:
         if street_geom is None:
