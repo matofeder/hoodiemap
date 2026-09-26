@@ -9,13 +9,22 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Figtree:wght@500;600;700&display=swap" />
 </head>
 <body>
-  <div id="map" class="gm-map">
-    <div id="status" class="gm-status" role="status">
-      <div class="gm-slab"></div>
-      <p id="status-text">Načítavam okolie…</p>
-      <button id="retry" type="button" hidden>Skúsiť znova</button>
+  <main class="gm-page">
+    <form id="search" class="gm-search" role="search">
+      <input id="q" name="q" type="search" autocomplete="off" required minlength="2"
+             placeholder="Zadajte mesto, ulicu alebo adresu" aria-label="Hľadať miesto" />
+      <button type="submit">Hľadať</button>
+    </form>
+    <p id="search-msg" class="gm-search-msg" role="alert" hidden></p>
+    <div id="map" class="gm-map">
+      <div id="status" class="gm-status" role="status">
+        <div class="gm-slab"></div>
+        <p id="status-text">Načítavam okolie…</p>
+        <button id="retry" type="button" hidden>Skúsiť znova</button>
+      </div>
     </div>
-  </div>
+    <p id="timing" class="gm-timing" hidden></p>
+  </main>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

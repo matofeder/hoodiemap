@@ -8,12 +8,28 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.gm-page { width: 100%; max-width: 874px; display: grid; gap: 10px; }
+
+.gm-search { display: flex; gap: 8px; }
+.gm-search input {
+  flex: 1; min-width: 0; font: inherit; font-size: 15px; color: #1E2A2F;
+  padding: 10px 16px; border: 1px solid #D5DEE3; border-radius: 999px; background: #fff;
+  box-shadow: 0 2px 8px rgba(30, 42, 47, 0.06);
+}
+.gm-search input:focus-visible { outline: 3px solid rgba(255, 90, 95, 0.35); border-color: #FF5A5F; }
+.gm-search button {
+  font: inherit; font-weight: 600; color: #fff; background: #FF5A5F;
+  border: 0; border-radius: 999px; padding: 10px 20px; cursor: pointer;
+}
+.gm-search button:focus-visible { outline: 3px solid #1E2A2F; outline-offset: 2px; }
+.gm-search-msg { margin: 0; font-size: 13px; color: #B23A3E; }
+.gm-timing { margin: 0; text-align: right; font-size: 12px; color: #7A868C; font-variant-numeric: tabular-nums; }
+
 .gm-map {
   position: relative;
   width: 100%;
-  max-width: 874px;
+  max-width: none;
   min-width: 300px;
-  margin-inline: auto;
   aspect-ratio: 4 / 3;
   overflow: hidden;
   border-radius: 16px;
