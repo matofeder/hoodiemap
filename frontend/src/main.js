@@ -76,6 +76,7 @@ async function showView(view, startedAt = performance.now()) {
     if (!gate.isCurrent(token)) return;
     if (view.label) scene.address = `${view.label} · ${tierLabel(view.tier)}`;
     stage?.dispose();
+    stage = null;
     stage = createStage(mapEl, scene);
     displayed = view;
     statusEl.hidden = true;
