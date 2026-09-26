@@ -226,6 +226,8 @@ def split_pois(lat: float, lon: float, radius_m: float, pois_raw: dict,
     limit = radius_m - NEAR_INSET_M
     for cat, (d, tags, (plat, plon)) in sorted(candidates, key=lambda kv: kv[1][0]):
         entry = {"category": cat, "name": tags.get("name", ""), "distance_m": round(d)}
+        if tags.get("opening_hours"):
+            entry["opening_hours"] = tags["opening_hours"]
         x, y = to_local(plat, plon, lat, lon)
         if abs(x) <= limit and abs(y) <= limit and cat != "city":
             near.append({**entry, "x": _r(x), "y": _r(y)})

@@ -27,15 +27,19 @@ function roofGeometry(tris, y0) {
   return geo;
 }
 
-function addMesh(world, geo, material) {
+function addMesh(world, geo, material, index, out) {
   const mesh = new THREE.Mesh(geo, material);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
+  mesh.userData.buildingIndex = index;
   world.add(mesh);
+  out.push(mesh);
 }
 
 // highlights: building index -> roof colour of the POI category it houses.
+// Returns every building mesh (walls and roofs) tagged with userData.buildingIndex, for hover picking.
 export function addBuildings(world, buildings, propertyIndex, mat, highlights = new Map()) {
+  const meshes = [];
   buildings.forEach((b, i) => {
     const fp = b.footprint;
     if (!fp || fp.length < 3) return;
@@ -50,15 +54,16 @@ export function addBuildings(world, buildings, propertyIndex, mat, highlights = 
     try {
       const type = roofType(b.kind, fp);
       const wallHeight = type === 'flat' ? Math.max(1, b.height - FLAT_CAP_M) : b.height;
-      addMesh(world, extrude(fp, wallHeight, 0), mat(wall));
+      addMesh(world, extrude(fp, wallHeight, 0), mat(wall), i, meshes);
       if (type === 'flat') {
-        addMesh(world, extrude(fp, FLAT_CAP_M, wallHeight), mat(roof));
+        addMesh(world, extrude(fp, FLAT_CAP_M, wallHeight), mat(roof), i, meshes);
       } else if (type !== 'none') {
         const tris = roofTriangles(orientedRect(fp), type);
-        addMesh(world, roofGeometry(tris, b.height), mat(roof, { flatShading: true, side: THREE.DoubleSide }));
+        addMesh(world, roofGeometry(tris, b.height), mat(roof, { flatShading: true, side: THREE.DoubleSide }), i, meshes);
       }
     } catch (err) {
       console.warn('hoodiemap: skipped building', b, err);
     }
   });
+  return meshes;
 }

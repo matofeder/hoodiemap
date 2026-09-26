@@ -44,6 +44,22 @@ body {
 /* overlay */
 .gm-overlay { position: absolute; inset: 0; pointer-events: none; }
 .gm-overlay > div { position: absolute; left: 0; top: 0; white-space: nowrap; will-change: transform; }
+.gm-near, .gm-far, .gm-tag { pointer-events: auto; cursor: default; transition: box-shadow 0.15s; }
+.gm-near:hover, .gm-near:focus-visible, .gm-far:hover, .gm-far:focus-visible {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(30, 42, 47, 0.25), 0 6px 16px rgba(30, 42, 47, 0.2); outline: none;
+}
+.gm-tag:hover, .gm-tag:focus-visible { box-shadow: 0 0 0 3px rgba(255, 90, 95, 0.3), 0 4px 12px rgba(255, 90, 95, 0.35); outline: none; }
+
+/* hover / tap info bubble */
+.gm-tip {
+  position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none;
+  display: grid; gap: 2px; max-width: 240px;
+  padding: 8px 12px 9px; border-radius: 12px; border-top: 3px solid var(--c, #1E2A2F);
+  background: rgba(255, 255, 255, 0.97); box-shadow: 0 8px 24px rgba(30, 42, 47, 0.22);
+  font-size: 12px; line-height: 1.35; color: #4A5A60;
+}
+.gm-tip b { font-size: 13px; color: #1E2A2F; }
+.gm-tip span { white-space: nowrap; }
 .gm-icon {
   display: inline-grid; place-items: center; flex: none;
   width: 22px; height: 22px; border-radius: 50%; background: var(--c);

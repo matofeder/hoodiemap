@@ -152,6 +152,15 @@ def test_disabled_category_is_ignored():
     assert near == [] and far == []
 
 
+def test_opening_hours_are_passed_through():
+    pois = [node(20, 20, {"amenity": "pharmacy", "name": "L", "opening_hours": "Mo-Fr 08:00-18:00"}, 1),
+            node(-20, 20, {"shop": "supermarket"}, 2)]
+    near, _ = split_pois(LAT0, LON0, R, {"elements": pois}, CATS)
+    by_cat = {p["category"]: p for p in near}
+    assert by_cat["pharmacy"]["opening_hours"] == "Mo-Fr 08:00-18:00"
+    assert "opening_hours" not in by_cat["supermarket"]
+
+
 def test_specialized_hospital_is_skipped():
     pois = [
         node(0, 1000, {"amenity": "hospital", "name": "Psychiatrická nemocnica"}, 1),

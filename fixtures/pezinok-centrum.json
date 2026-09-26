@@ -9238,6 +9238,7 @@
    "category": "food",
    "name": "Preš",
    "distance_m": 54,
+   "opening_hours": "Mo-Sa 11:00-23:00; Su 11:00-20:00",
    "x": -43.7,
    "y": -31.3,
    "building_index": 27
@@ -9246,6 +9247,7 @@
    "category": "supermarket",
    "name": "Billa",
    "distance_m": 69,
+   "opening_hours": "Mo-Sa 07:00-20:00; Su 08:00-18:00",
    "x": -68.6,
    "y": 6.5,
    "building_index": 48

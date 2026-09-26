@@ -1,5 +1,7 @@
 import * as THREE from 'three';
+import { buildingInfo } from '../overlay/describe.js';
 import { createOverlay } from '../overlay/labels.js';
+import { createTooltip } from '../overlay/tooltip.js';
 import { mulberry32, seedFromCoords } from '../random.js';
 import { categoryInfo } from '../palette.js';
 import { addBuildings } from './buildings.js';
@@ -7,6 +9,7 @@ import { addCars } from './cars.js';
 import { addGround } from './ground.js';
 import { createMaterialCache, squareClippingPlanes } from './materials.js';
 import { createClouds } from './clouds.js';
+import { createHover } from './hover.js';
 import { addDecor } from './decor.js';
 import { addChatGroups, addCyclists, addPedestrians } from './people.js';
 import { addPigeons } from './pigeons.js';
@@ -46,7 +49,7 @@ export function createStage(container, scene) {
   const highlights = new Map(scene.near_pois
     .filter((p) => p.building_index != null)
     .map((p) => [p.building_index, categoryInfo(p.category).color]));
-  addBuildings(world, scene.buildings, scene.property?.building_index ?? null, mat, highlights);
+  const buildingMeshes = addBuildings(world, scene.buildings, scene.property?.building_index ?? null, mat, highlights);
   const trees = addTrees(world, scene, mat);
   const cars = addCars(world, scene.roads, mat, mulberry32(seedFromCoords(scene.center.lat, scene.center.lon) + 1));
   addDecor(world, scene, mat);
@@ -66,7 +69,14 @@ export function createStage(container, scene) {
     v.set(x, h, -y).project(camera);
     return { x: ((v.x + 1) / 2) * container.clientWidth, y: ((1 - v.y) / 2) * container.clientHeight };
   };
-  const overlay = createOverlay(container, scene, project, property.anchor);
+  const propertyIndex = scene.property?.building_index ?? null;
+  const poiByBuilding = new Map(scene.near_pois.filter((p) => p.building_index != null).map((p) => [p.building_index, p]));
+  const hover = createHover({
+    container, camera, meshes: buildingMeshes, tooltip: createTooltip(container),
+    describe: (i) => buildingInfo(scene.buildings[i], { isProperty: i === propertyIndex, poi: poiByBuilding.get(i) }),
+    requestRender: () => { if (!raf) frame(performance.now()); },
+  });
+  const overlay = createOverlay(container, scene, project, property.anchor, hover.onLabel);
 
   function fit() {
     const W = container.clientWidth, H = container.clientHeight, aspect = W / H;
@@ -118,6 +128,7 @@ export function createStage(container, scene) {
   return {
     dispose() {
       cancelAnimationFrame(raf);
+      hover.dispose();
       ro.disconnect();
       io.disconnect();
       document.removeEventListener('visibilitychange', start);

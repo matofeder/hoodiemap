@@ -1,6 +1,7 @@
 import { formatDistance, poiTitle } from '../format.js';
 import { iconSvg } from '../icons.js';
 import { categoryInfo } from '../palette.js';
+import { buildingInfo, poiInfo } from './describe.js';
 import { edgePoint, resolveOverlaps, separateLabels } from './edge.js';
 
 const NEAR_LABEL_HEIGHT_M = 6;
@@ -30,25 +31,40 @@ function icon(category) {
   return node;
 }
 
+// Hover, tap and keyboard focus all report to onLabel(info, buildingIndex, node, pinned).
+function interactive(node, info, buildingIndex, onLabel) {
+  node.tabIndex = 0;
+  node.addEventListener('pointerenter', (e) => { if (e.pointerType !== 'touch') onLabel(info, buildingIndex, node, false); });
+  node.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch') onLabel(null); });
+  node.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') onLabel(info, buildingIndex, node, true); });
+  node.addEventListener('focus', () => onLabel(info, buildingIndex, node, false));
+  node.addEventListener('blur', () => onLabel(null));
+}
+
 function place(node, x, y, anchor) {
   node.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) ${anchor}`;
 }
 
-export function createOverlay(container, scene, project, anchor) {
+export function createOverlay(container, scene, project, anchor, onLabel = () => {}) {
   const root = el('div', 'gm-overlay', container);
 
   const tag = el('div', 'gm-tag', root);
   tag.textContent = 'Na predaj';
+  const propertyIndex = scene.property?.building_index ?? null;
+  if (propertyIndex != null) {
+    interactive(tag, buildingInfo(scene.buildings[propertyIndex], { isProperty: true }), propertyIndex, onLabel);
+  }
 
   const nears = scene.near_pois.map((p) => {
     const title = p.name || categoryInfo(p.category).label;
     const node = el('div', MINI.has(p.category) ? 'gm-near is-mini' : 'gm-near', root);
     if (MINI.has(p.category)) {
-      node.title = `${title} · ${formatDistance(p.distance_m)}`;
+      node.setAttribute('aria-label', title);
       node.append(icon(p.category));
     } else {
       node.append(icon(p.category), text('b', title), text('em', formatDistance(p.distance_m)));
     }
+    interactive(node, poiInfo(p), p.building_index ?? null, onLabel);
     const b = p.building_index != null ? scene.buildings[p.building_index] : null;
     return { p, node, w: 0, h: 0, lift: b ? b.height + ROOF_CLEARANCE_M : NEAR_LABEL_HEIGHT_M };
   });
@@ -59,8 +75,8 @@ export function createOverlay(container, scene, project, anchor) {
     label.append(text('b', poiTitle(p)), text('em', formatDistance(p.distance_m)));
     const arrow = el('span', 'gm-arrow');
     arrow.innerHTML = iconSvg('arrow');
-    node.title = p.name || categoryInfo(p.category).label;
     node.append(icon(p.category), label, arrow);
+    interactive(node, poiInfo(p), null, onLabel);
     return { p, node, arrow, w: 0, h: 0 };
   });
 

@@ -55,6 +55,7 @@ frontend/src/
   map/decor.js, pigeons.js, clouds.js, textures.js               street furniture + café terraces (instanced), pigeon flock, cloud-shadow shader patch
   map/geom.js, lines.js, roofs.js, placement.js                  pure geometry (unit-tested)
   overlay/labels.js, edge.js                                     HTML labels + edge badge placement
+  overlay/tooltip.js, describe.js, map/hover.js                 hover/tap/focus info bubbles (walk/drive time, opening hours), building glow via raycast
   palette.js, icons.js, format.js, random.js, url.js
 ```
 
