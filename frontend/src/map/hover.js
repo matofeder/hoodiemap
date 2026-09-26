@@ -10,9 +10,10 @@ export function createHover({ container, camera, meshes, world, buildings, toolt
   let lit = null; // building index currently glowing
   let glow = null;
   let pinned = false; // touch: keep the tooltip until the next tap
+  let disposed = false; // a queued rAF or a stale label event can still fire after teardown
 
   function light(index) {
-    if (index === lit) return;
+    if (disposed || index === lit) return;
     if (glow) {
       world.remove(glow);
       glow.geometry.dispose();
@@ -36,6 +37,7 @@ export function createHover({ container, camera, meshes, world, buildings, toolt
   }
 
   function showBuilding(clientX, clientY) {
+    if (disposed) return;
     const { index, x, y } = pick(clientX, clientY);
     light(index);
     if (index == null) tooltip.hide();
@@ -67,9 +69,11 @@ export function createHover({ container, camera, meshes, world, buildings, toolt
     pinned = lit != null;
   }
 
+  function onLeave() { if (!pinned) clear(); }
+
   container.addEventListener('pointermove', onMove);
   container.addEventListener('pointerdown', onDown);
-  container.addEventListener('pointerleave', () => { if (!pinned) clear(); });
+  container.addEventListener('pointerleave', onLeave);
 
   // Labels: info bubble above the label, and the building they sit on glows too.
   function onLabel(info, buildingIndex, node, touch) {
@@ -87,12 +91,16 @@ export function createHover({ container, camera, meshes, world, buildings, toolt
     onLabel,
     clear,
     dispose() {
+      disposed = true;
       container.removeEventListener('pointermove', onMove);
       container.removeEventListener('pointerdown', onDown);
+      container.removeEventListener('pointerleave', onLeave);
       if (glow) {
         world.remove(glow);
         glow.geometry.dispose(); // no light(null): it would render one more frame while tearing down
       }
+      glow = null;
+      lit = null;
       glowMat.dispose();
     },
   };
