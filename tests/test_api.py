@@ -62,3 +62,28 @@ async def test_reverse_geocode_falls_back_to_coordinates():
     from api import _reverse_geocode
     with patch("api.httpx.AsyncClient", side_effect=httpx.ConnectError("offline")):
         assert await _reverse_geocode(48.28, 17.27) == "48.2800, 17.2700"
+
+
+async def test_geocode_returns_best_match():
+    hit = {"lat": 48.29, "lon": 17.27, "tier": "street", "name": "Záhradná", "label": "Záhradná, Pezinok", "place_rank": 26}
+    with patch("api._get_geocoder") as g:
+        g.return_value.search.return_value = hit
+        r = await _get("/api/geocode?q=Záhradná%20Pezinok")
+    assert r.status_code == 200 and r.json() == hit
+
+
+async def test_geocode_404_and_503():
+    from api import GEOCODE_DOWN, GEOCODE_NOT_FOUND
+    from geocode import GeocodeUnavailable
+    with patch("api._get_geocoder") as g:
+        g.return_value.search.return_value = None
+        r = await _get("/api/geocode?q=xyzxyz")
+    assert r.status_code == 404 and r.json()["detail"] == GEOCODE_NOT_FOUND
+    with patch("api._get_geocoder") as g:
+        g.return_value.search.side_effect = GeocodeUnavailable("down")
+        r = await _get("/api/geocode?q=Pezinok")
+    assert r.status_code == 503 and r.json()["detail"] == GEOCODE_DOWN
+
+
+async def test_geocode_rejects_too_short_query():
+    assert (await _get("/api/geocode?q=a")).status_code == 422

@@ -9,11 +9,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from config import load_config
+from geocode import GeocodeUnavailable, Geocoder
 from osm import USER_AGENT, OverpassError
 from scene_builder import build_scene
 
 _FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "pezinok-centrum.json"
 AREA_FAILED_DETAIL = "Could not load map data from OpenStreetMap. Try again in a minute."
+GEOCODE_NOT_FOUND = "No place matches the query."
+GEOCODE_DOWN = "Geocoding is temporarily unavailable."
 
 app = FastAPI(title="HoodieMap API")
 
@@ -25,6 +28,7 @@ app.add_middleware(
 )
 
 _cfg = None
+_geocoder = None
 
 
 def _get_cfg():
@@ -32,6 +36,14 @@ def _get_cfg():
     if _cfg is None:
         _cfg = load_config(Path(__file__).parent.parent / "config.yaml")
     return _cfg
+
+
+def _get_geocoder() -> Geocoder:
+    global _geocoder
+    if _geocoder is None:
+        cfg = _get_cfg()
+        _geocoder = Geocoder(cfg.geocode.countrycodes, cfg.cache.dir if cfg.cache.enabled else None)
+    return _geocoder
 
 
 async def _reverse_geocode(lat: float, lon: float) -> str:
@@ -80,18 +92,14 @@ async def scene(
 
 
 @app.get("/api/geocode")
-async def geocode(q: str):
-    async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.get(
-            "https://nominatim.openstreetmap.org/search",
-            params={"q": q, "format": "json", "limit": 5, "addressdetails": 0},
-            headers={"User-Agent": USER_AGENT},
-        )
-        try:
-            resp.raise_for_status()
-        except httpx.HTTPStatusError as exc:
-            raise HTTPException(status_code=exc.response.status_code, detail="Geocode upstream error") from exc
-    return resp.json()
+async def geocode(q: Annotated[str, Query(min_length=2, max_length=200)]):
+    try:
+        result = await asyncio.to_thread(_get_geocoder().search, q)
+    except GeocodeUnavailable as exc:
+        raise HTTPException(status_code=503, detail=GEOCODE_DOWN) from exc
+    if result is None:
+        raise HTTPException(status_code=404, detail=GEOCODE_NOT_FOUND)
+    return result
 
 
 # Serve frontend build if it exists (production mode)
