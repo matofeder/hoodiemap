@@ -87,3 +87,22 @@ async def test_geocode_404_and_503():
 
 async def test_geocode_rejects_too_short_query():
     assert (await _get("/api/geocode?q=a")).status_code == 422
+
+
+async def test_scene_passes_tier_and_name_and_skips_reverse_geocode():
+    calls = {}
+
+    def fake_build(lat, lon, cfg, tier, name):
+        calls.update(tier=tier, name=name)
+        return dict(SCENE)
+
+    rev = AsyncMock(return_value="x")
+    with patch("api.build_scene", side_effect=fake_build), patch("api._reverse_geocode", rev):
+        r = await _get("/api/scene?lat=48.28&lon=17.27&tier=street&name=Z%C3%A1hradn%C3%A1")
+    assert r.status_code == 200 and r.json()["address"] is None
+    assert calls == {"tier": "street", "name": "Záhradná"}
+    rev.assert_not_called()
+
+
+async def test_scene_rejects_unknown_tier():
+    assert (await _get("/api/scene?lat=48.28&lon=17.27&tier=planet")).status_code == 422

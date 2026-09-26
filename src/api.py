@@ -1,7 +1,7 @@
 import asyncio
 import json
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query
@@ -74,6 +74,8 @@ async def scene(
     lat: Annotated[float, Query(ge=-90, le=90)],
     lon: Annotated[float, Query(ge=-180, le=180)],
     fixture: bool = False,
+    tier: Literal["address", "street", "city"] = "address",
+    name: Annotated[str | None, Query(max_length=200)] = None,
 ):
     if fixture:
         if not _FIXTURE_PATH.exists():
@@ -84,10 +86,10 @@ async def scene(
             raise HTTPException(status_code=500, detail="Fixture JSON is malformed.") from exc
 
     try:
-        data = await asyncio.to_thread(build_scene, lat, lon, _get_cfg())
+        data = await asyncio.to_thread(build_scene, lat, lon, _get_cfg(), tier, name)
     except OverpassError as exc:
         raise HTTPException(status_code=502, detail=AREA_FAILED_DETAIL) from exc
-    data["address"] = await _reverse_geocode(lat, lon)
+    data["address"] = await _reverse_geocode(lat, lon) if tier == "address" else None
     return data
 
 
