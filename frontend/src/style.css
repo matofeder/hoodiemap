@@ -38,24 +38,71 @@ body {
 }
 .gm-map canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
-/* loading / error */
+/* loading / error — an opaque panel over the whole widget with a little "building the map" loop */
 .gm-status {
-  position: absolute; inset: 0; z-index: 2;
-  display: grid; place-content: center; justify-items: center; gap: 14px;
+  position: absolute; inset: 0; z-index: 5;
+  display: grid; place-content: center; justify-items: center; gap: 10px;
   padding-inline: 16px; text-align: center; font-size: 14px; color: #4A5A60;
+  background: radial-gradient(120% 90% at 50% 40%, #F7FBFF 0%, #DCEBF5 100%);
+  animation: gm-fade-in 0.2s ease-out;
 }
-.gm-slab {
-  width: min(46%, 320px); aspect-ratio: 2 / 1; background: #CFE8B9;
-  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
-  animation: gm-breathe 1.6s ease-in-out infinite;
-}
-.gm-status.is-error .gm-slab { animation: none; filter: grayscale(0.6); opacity: 0.6; }
+.gm-status p { margin: 0; }
+.gm-status-hint { font-size: 12px; color: #7A868C; }
 .gm-status button {
   font: inherit; font-weight: 600; color: #fff; background: #FF5A5F;
   border: 0; border-radius: 999px; padding: 8px 18px; cursor: pointer;
 }
 .gm-status button:focus-visible { outline: 3px solid #1E2A2F; outline-offset: 2px; }
-@keyframes gm-breathe { 50% { transform: scale(0.94); opacity: 0.7; } }
+@keyframes gm-fade-in { from { opacity: 0; } }
+
+.gm-build { position: relative; width: 150px; height: 118px; margin-bottom: 6px; }
+.gm-build i { position: absolute; display: block; }
+.gm-build-tile, .gm-build-side {
+  left: 10px; width: 130px; height: 65px; bottom: 6px;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  background: #C6E3AE; animation: gm-tile 3.2s ease-in-out infinite;
+}
+.gm-build-side { bottom: 0; background: #8CBA7C; }
+.gm-build-house {
+  width: 18px; height: 24px; border-radius: 3px 3px 2px 2px;
+  transform-origin: 50% 100%; transform: scaleY(0);
+  animation: gm-rise 3.2s cubic-bezier(0.3, 1.6, 0.5, 1) infinite;
+}
+.gm-build-house::before { /* roof */
+  content: ""; position: absolute; left: -2px; right: -2px; top: -7px; height: 9px;
+  border-radius: 3px 3px 1px 1px; background: var(--roof);
+}
+.gm-build-house.h1 { left: 44px; bottom: 44px; background: #FFF4E6; --roof: #F4A38C; animation-delay: 0.25s; }
+.gm-build-house.h2 { left: 70px; bottom: 54px; height: 32px; background: #E3F1EC; --roof: #8DB5A5; animation-delay: 0.4s; }
+.gm-build-house.h3 { left: 94px; bottom: 42px; background: #E2E8FD; --roof: #97A3BB; animation-delay: 0.55s; }
+.gm-build-house.h4 { left: 64px; bottom: 30px; height: 20px; background: #FFF6CC; --roof: #F6C46E; animation-delay: 0.7s; }
+.gm-build-pin {
+  left: 68px; top: 0; width: 16px; height: 16px; border-radius: 50% 50% 50% 0;
+  background: #FF5A5F; transform: rotate(-45deg); opacity: 0;
+  box-shadow: 0 4px 10px rgba(255, 90, 95, 0.35);
+  animation: gm-drop 3.2s ease-in infinite;
+}
+@keyframes gm-tile {
+  0% { transform: translateY(-14px); opacity: 0; }
+  10%, 88% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(0); opacity: 0; }
+}
+@keyframes gm-rise {
+  0%, 8% { transform: scaleY(0); }
+  20% { transform: scaleY(1.12); }
+  27%, 84% { transform: scaleY(1); opacity: 1; }
+  96%, 100% { transform: scaleY(1); opacity: 0; }
+}
+@keyframes gm-drop {
+  0%, 38% { transform: translateY(-26px) rotate(-45deg); opacity: 0; }
+  48% { transform: translateY(0) rotate(-45deg); opacity: 1; }
+  53% { transform: translateY(-5px) rotate(-45deg); }
+  58%, 86% { transform: translateY(0) rotate(-45deg); opacity: 1; }
+  96%, 100% { opacity: 0; }
+}
+.gm-status.is-error .gm-build { filter: grayscale(0.7); opacity: 0.6; }
+.gm-status.is-error .gm-build i { animation: none; transform: none; opacity: 1; }
+.gm-status.is-error .gm-build-pin { transform: rotate(-45deg); }
 
 /* overlay */
 .gm-overlay { position: absolute; inset: 0; pointer-events: none; }
@@ -148,4 +195,8 @@ body {
   .gm-north { right: 8px; bottom: 8px; }
 }
 
-@media (prefers-reduced-motion: reduce) { .gm-slab { animation: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .gm-status { animation: none; }
+  .gm-build i { animation: none; transform: none; opacity: 1; }
+  .gm-build-pin { transform: rotate(-45deg); }
+}

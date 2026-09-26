@@ -18,8 +18,14 @@
     <p id="search-msg" class="gm-search-msg" role="alert" hidden></p>
     <div id="map" class="gm-map">
       <div id="status" class="gm-status" role="status">
-        <div class="gm-slab"></div>
+        <div class="gm-build" aria-hidden="true">
+          <i class="gm-build-side"></i><i class="gm-build-tile"></i>
+          <i class="gm-build-house h1"></i><i class="gm-build-house h2"></i>
+          <i class="gm-build-house h3"></i><i class="gm-build-house h4"></i>
+          <i class="gm-build-pin"></i>
+        </div>
         <p id="status-text">Načítavam okolie…</p>
+        <p id="status-hint" class="gm-status-hint" hidden>Prvé načítanie môže trvať do minúty.</p>
         <button id="retry" type="button" hidden>Skúsiť znova</button>
       </div>
     </div>

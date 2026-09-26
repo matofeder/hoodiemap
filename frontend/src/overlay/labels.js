@@ -2,7 +2,8 @@ import { formatDistance, poiTitle } from '../format.js';
 import { iconSvg } from '../icons.js';
 import { categoryInfo } from '../palette.js';
 import { buildingInfo, poiInfo } from './describe.js';
-import { edgePoint, resolveOverlaps, separateLabels } from './edge.js';
+import { convexHull } from '../map/geom.js';
+import { edgePoint, placeOutside, resolveOverlaps, separateLabels, spreadAround } from './edge.js';
 
 const NEAR_LABEL_HEIGHT_M = 6;
 const ROOF_CLEARANCE_M = 3;
@@ -10,6 +11,11 @@ const LABEL_NUDGE_PX = 11; // label is anchored on its icon centre
 // Extra local categories: an icon marker on the roof is enough, full labels would crowd the map.
 const MINI = new Set(['food', 'post', 'bank', 'doctors', 'playground']);
 const BEARING_PROBE_M = 80;
+// Places within this distance hug the map tile; cities and farther places sit on the widget edge.
+const RING_MAX_M = 5000;
+const RING_GAP_PX = 12;
+const SLAB_DEPTH_M = 10; // the slab's side faces are part of the map's silhouette
+const BOTTOM_RESERVED_PX = 44; // address chip and compass live in the bottom band
 
 function el(tag, className, parent) {
   const node = document.createElement(tag);
@@ -112,6 +118,11 @@ export function createOverlay(container, scene, project, anchor, onLabel = () =>
     const centre = anchor ?? { x: 0, y: 0, h: 0, base: 0 };
 
     const c = project(centre.x, centre.y, 0);
+    const r = scene.radius_m, Hb = H - BOTTOM_RESERVED_PX;
+    const silhouette = convexHull([-r, r].flatMap((x) => [-r, r].flatMap((y) =>
+      [0, -SLAB_DEPTH_M].map((h) => { const q = project(x, y, h); return [q.x, q.y]; }))))
+      .map(([x, y]) => ({ x, y }));
+    const outer = [], ring = [];
     const boxes = fars.map((f) => {
       const b = (f.p.bearing_deg * Math.PI) / 180;
       const q = project(centre.x + Math.sin(b) * BEARING_PROBE_M, centre.y + Math.cos(b) * BEARING_PROBE_M, 0);
@@ -119,10 +130,17 @@ export function createOverlay(container, scene, project, anchor, onLabel = () =>
       const len = Math.hypot(dx, dy) || 1;
       dx /= len; dy /= len;
       f.arrow.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
-      const pt = edgePoint(c, { x: dx, y: dy }, f.w / 2, f.h / 2, W, H);
-      return { x: pt.x, y: pt.y, w: f.w, h: f.h };
+      const dir = { x: dx, y: dy };
+      const onRing = f.p.category !== 'city' && f.p.distance_m < RING_MAX_M;
+      const pt = onRing
+        ? placeOutside(c, dir, f.w / 2, f.h / 2, silhouette, RING_GAP_PX)
+        : edgePoint(c, dir, f.w / 2, f.h / 2, W, Hb);
+      const box = { x: pt.x, y: pt.y, w: f.w, h: f.h, dir };
+      (onRing ? ring : outer).push(box);
+      return box;
     });
-    resolveOverlaps(boxes, W, H);
+    resolveOverlaps(outer, W, Hb);
+    spreadAround(ring, silhouette, W, Hb, outer);
     boxes.forEach((b, i) => place(fars[i].node, b.x, b.y, 'translate(-50%, -50%)'));
 
     // The tag, the pin and the property below it are fixed; near labels step aside vertically.

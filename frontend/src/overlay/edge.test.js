@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { edgePoint, resolveOverlaps, separateLabels } from './edge.js';
+import { boxHitsPoly, edgePoint, placeOutside, rayExit, resolveOverlaps, separateLabels, spreadAround } from './edge.js';
 
 const C = { x: 400, y: 300 };
 
@@ -73,5 +73,46 @@ describe('separateLabels', () => {
     const boxes = [{ x: 100, y: 100, w: 50, h: 20 }, { x: 300, y: 100, w: 50, h: 20 }];
     separateLabels(boxes, [], 600);
     expect(boxes.map((b) => b.y)).toEqual([100, 100]);
+  });
+});
+
+describe('badges around the map diamond', () => {
+  // Iso diamond ~ what the slab projects to: centre (400, 300), 600 x 300.
+  const diamond = [{ x: 100, y: 300 }, { x: 400, y: 150 }, { x: 700, y: 300 }, { x: 400, y: 450 }];
+  const C = { x: 400, y: 300 };
+  const box = (p, w = 90, h = 34) => ({ x: p.x, y: p.y, w, h });
+
+  it('rayExit finds where a ray from the centre leaves the polygon', () => {
+    expect(rayExit(C, { x: 1, y: 0 }, diamond)).toBeCloseTo(300);
+    expect(rayExit(C, { x: 0, y: -1 }, diamond)).toBeCloseTo(150);
+  });
+
+  it('boxHitsPoly detects overlap and clearance', () => {
+    expect(boxHitsPoly(box({ x: 700, y: 300 }), diamond)).toBe(true);
+    expect(boxHitsPoly(box({ x: 800, y: 300 }), diamond)).toBe(false);
+    expect(boxHitsPoly({ x: 400, y: 300, w: 2000, h: 2000 }, diamond)).toBe(true); // box swallows the polygon
+  });
+
+  it('placeOutside puts the badge just outside the diamond, in its direction', () => {
+    for (const d of [{ x: 1, y: 0 }, { x: 0, y: -1 }, { x: Math.SQRT1_2, y: Math.SQRT1_2 }, { x: -0.8, y: 0.6 }]) {
+      const p = placeOutside(C, d, 45, 17, diamond, 12);
+      expect(boxHitsPoly(box(p), diamond)).toBe(false);
+      // close to the edge: nudging it 20 px back towards the centre would hit the map
+      expect(boxHitsPoly(box({ x: p.x - d.x * 20, y: p.y - d.y * 20 }), diamond)).toBe(true);
+    }
+  });
+
+  it('spreadAround separates colliding badges, keeps them off the map and inside the bounds', () => {
+    const d = { x: 1, y: 0 };
+    const boxes = [0, 1, 2].map(() => ({ ...box(placeOutside(C, d, 45, 17, diamond, 12)), dir: d }));
+    const address = { x: 80, y: 580, w: 150, h: 30 };
+    spreadAround(boxes, diamond, 800, 600, [address]);
+    const overlaps = (a, b) => Math.abs(a.x - b.x) < (a.w + b.w) / 2 && Math.abs(a.y - b.y) < (a.h + b.h) / 2;
+    for (let i = 0; i < boxes.length; i++) {
+      expect(boxHitsPoly(boxes[i], diamond)).toBe(false);
+      expect(overlaps(boxes[i], address)).toBe(false);
+      expect(boxes[i].x + boxes[i].w / 2).toBeLessThanOrEqual(800);
+      for (let j = i + 1; j < boxes.length; j++) expect(overlaps(boxes[i], boxes[j])).toBe(false);
+    }
   });
 });

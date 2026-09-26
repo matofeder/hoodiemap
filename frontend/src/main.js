@@ -8,6 +8,7 @@ const mapEl = document.getElementById('map');
 const statusEl = document.getElementById('status');
 const statusText = document.getElementById('status-text');
 const retryBtn = document.getElementById('retry');
+const statusHint = document.getElementById('status-hint');
 const form = document.getElementById('search');
 const input = document.getElementById('q');
 const searchMsg = document.getElementById('search-msg');
@@ -18,6 +19,8 @@ const GEOCODE_DOWN = 'Vyhľadávanie je dočasne nedostupné, skúste o chvíľu
 const LOAD_FAILED = 'Mapu sa nepodarilo načítať. Skúste to znova o chvíľu.';
 const CITY_HINT = ' Mestská úroveň je náročnejšia – skúste konkrétnu ulicu.';
 const LOADING = { address: 'Načítavam okolie', street: 'Načítavam ulicu', city: 'Načítavam mesto' };
+const FADE_MS = 200; // matches the .gm-status opacity transition
+const SLOW_HINT_MS = 8000;
 
 const gate = createRequestGate();
 let controller = null;
@@ -43,7 +46,27 @@ function showStatus(text, isError) {
   statusEl.hidden = false;
   statusEl.classList.toggle('is-error', isError);
   statusText.textContent = text;
+  statusHint.hidden = true;
   retryBtn.hidden = !isError;
+}
+
+function hideStatus() {
+  statusEl.hidden = true;
+  statusEl.classList.remove('is-error');
+}
+
+// The loading panel is opaque, so once it has faded in the old map is invisible: drop it then
+// (frees the WebGL context early and avoids two maps showing through each other).
+// Only the stage on screen when loading started is retired: a fast (cached) load may already
+// have replaced it with the new map before the timer fires.
+function retireStageAfterFade(token) {
+  const old = stage;
+  if (!old) return;
+  setTimeout(() => {
+    if (!gate.isCurrent(token) || stage !== old) return;
+    old.dispose();
+    stage = null;
+  }, FADE_MS);
 }
 
 // Called when a search interrupts an in-flight scene load and then itself fails (geocode
@@ -52,8 +75,7 @@ function showStatus(text, isError) {
 // there isn't, and stops `current` from pointing at a view that never actually loaded.
 function recoverOverlay() {
   if (stage) {
-    statusEl.hidden = true;
-    statusEl.classList.remove('is-error');
+    hideStatus();
   } else {
     showStatus(LOAD_FAILED, true);
   }
@@ -69,6 +91,9 @@ async function showView(view, startedAt = performance.now()) {
   current = view;
   const { token, signal } = beginRequest();
   showStatus(`${LOADING[view.tier]}${view.label ? ` ${view.label}` : ''}…`, false);
+  timingEl.hidden = true;
+  retireStageAfterFade(token);
+  const hintTimer = setTimeout(() => { if (gate.isCurrent(token)) statusHint.hidden = false; }, SLOW_HINT_MS);
   try {
     const res = await fetch(sceneUrl(view, isFixture(window.location.search)), { signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -79,13 +104,15 @@ async function showView(view, startedAt = performance.now()) {
     stage = null;
     stage = createStage(mapEl, scene);
     displayed = view;
-    statusEl.hidden = true;
+    hideStatus();
     timingEl.textContent = formatLoadTime(performance.now() - startedAt, scene.cached === true);
     timingEl.hidden = false;
   } catch (err) {
     if (err.name === 'AbortError' || !gate.isCurrent(token)) return;
     console.error('hoodiemap: scene load failed', err);
     showStatus(LOAD_FAILED + (view.tier === 'city' ? CITY_HINT : ''), true);
+  } finally {
+    clearTimeout(hintTimer);
   }
 }
 
