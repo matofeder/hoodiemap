@@ -3,27 +3,22 @@ location:
   lon: 17.27221245956356
 
 radii:
-  fetch_meters: 3000
-  display_meters: 1000
+  display_meters: 140      # half-size of the visible square around the property
 
 poi:
-  max_per_category: 3
   show:
     hospital: true
-    grocery: true
+    supermarket: true
     school: true
+    kindergarten: true
     pharmacy: true
-    pub: true
-    bar: true
-    restaurant: true
-    public_office: true
+    bus_stop: true
+    train: true
+    park: true
 
 cache:
   enabled: true
   dir: .cache
-
-output:
-  path: output/map.png
 
 api:
   host: "0.0.0.0"
