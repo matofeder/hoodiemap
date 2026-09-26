@@ -108,6 +108,11 @@ def landmark_kind(tags: dict) -> tuple[int, str] | None:
             tags.get("highway") == "pedestrian" and tags.get("area") == "yes" and tags.get("name")):
         return (2, "Námestie")
     if tags.get("historic") == "castle":
+        castle_type = tags.get("castle_type")
+        if castle_type in ("palace", "stately"):
+            return (3, "Palác")
+        if castle_type == "manor":
+            return (3, "Kaštieľ")
         return (3, "Hrad")
     if tags.get("historic") == "manor":
         return (3, "Kaštieľ")
