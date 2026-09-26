@@ -4,11 +4,16 @@ import scene_builder
 from geo import from_local
 from osm import OverpassError
 from scene_builder import assemble_scene, build_scene, find_property, split_pois
+from scene_builder import TIER_CATEGORIES, select_landmarks
 
 LAT0, LON0 = 48.28646, 17.27221
 R = 140
 CATS = ["hospital", "supermarket", "school", "kindergarten", "pharmacy", "bus_stop", "train", "park",
         "playground", "food", "post", "bank", "doctors", "city"]
+
+
+def cats(tier):
+    return [c for c in CATS + ["bus_station", "mall", "landmark"] if c in TIER_CATEGORIES[tier]]
 
 
 def ll(x, y):
@@ -236,9 +241,9 @@ def test_poi_building_skips_property_and_far_buildings():
 
 
 def test_build_scene_poi_failure_adds_warning(monkeypatch, default_config):
-    monkeypatch.setattr(scene_builder, "fetch_area", lambda *a: {"elements": []})
+    monkeypatch.setattr(scene_builder, "fetch_area", lambda *a, **k: {"elements": []})
 
-    def boom(*a):
+    def boom(*a, **k):
         raise OverpassError("down")
 
     monkeypatch.setattr(scene_builder, "fetch_pois", boom)
@@ -248,11 +253,11 @@ def test_build_scene_poi_failure_adds_warning(monkeypatch, default_config):
 
 
 def test_build_scene_area_failure_raises(monkeypatch, default_config):
-    def boom(*a):
+    def boom(*a, **k):
         raise OverpassError("down")
 
     monkeypatch.setattr(scene_builder, "fetch_area", boom)
-    monkeypatch.setattr(scene_builder, "fetch_pois", lambda *a: {"elements": []})
+    monkeypatch.setattr(scene_builder, "fetch_pois", lambda *a, **k: {"elements": []})
     with pytest.raises(OverpassError):
         build_scene(LAT0, LON0, default_config)
 
@@ -260,11 +265,11 @@ def test_build_scene_area_failure_raises(monkeypatch, default_config):
 def test_build_scene_fetches_area_and_pois_concurrently(monkeypatch, default_config):
     import time
 
-    def slow_area(*a):
+    def slow_area(*a, **k):
         time.sleep(0.3)
         return {"elements": []}
 
-    def slow_pois(*a):
+    def slow_pois(*a, **k):
         time.sleep(0.3)
         return {"elements": []}
 
@@ -273,3 +278,107 @@ def test_build_scene_fetches_area_and_pois_concurrently(monkeypatch, default_con
     t0 = time.perf_counter()
     build_scene(LAT0, LON0, default_config)
     assert time.perf_counter() - t0 < 0.5
+
+
+def test_tier_categories():
+    assert "school" in TIER_CATEGORIES["street"] and "food" in TIER_CATEGORIES["street"]
+    assert TIER_CATEGORIES["city"] == frozenset(
+        {"hospital", "train", "park", "supermarket", "bus_station", "mall", "landmark", "city"})
+
+
+def test_street_distances_are_measured_to_the_street():
+    street = [[(-100, 50), (100, 50)]]
+    pois = [node(0, 60, {"amenity": "school", "name": "ZŠ"}, 1)]
+    near, _ = split_pois(LAT0, LON0, R, {"elements": pois}, CATS, street=street)
+    assert near[0]["distance_m"] == 10           # 10 m from the street, 60 m from the centre
+
+
+def test_landmarks_need_wiki_are_capped_and_one_per_kind():
+    wiki = {"wikidata": "Q1"}
+    pois = [
+        node(10, 10, {"amenity": "townhall", "name": "Radnica", **wiki}, 1),
+        node(20, 0, {"amenity": "townhall", "name": "Druhá radnica", **wiki}, 2),   # same kind -> dropped
+        node(-30, 0, {"building": "church", "name": "Kostol sv. Martina", **wiki}, 3),
+        node(0, -40, {"tourism": "museum", "name": "Múzeum", "wikipedia": "sk:Múzeum"}, 4),
+        node(5, 5, {"historic": "castle", "name": "Bez wiki"}, 5),                  # no wiki -> dropped
+        node(0, 60, {"historic": "castle", "name": "Hrad", **wiki}, 6),
+        node(0, 500, {"place": "square", "name": "Ďaleko", **wiki}, 7),             # outside the square
+    ]
+    picked = select_landmarks(LAT0, LON0, R, {"elements": pois})
+    assert [(p["kind"], p["name"]) for p in picked] == [("Radnica", "Radnica"), ("Hrad", "Hrad"), ("Kostol", "Kostol sv. Martina")]
+    assert all(p["category"] == "landmark" and "x" in p for p in picked)
+
+
+def test_city_scene_has_no_property_and_landmarks_near():
+    s = assemble_scene(LAT0, LON0, R, {"elements": [way(rect(-5, -5, 5, 5), {"building": "house"})]},
+                       {"elements": [node(10, 10, {"amenity": "townhall", "name": "Radnica", "wikidata": "Q1"}, 1),
+                                     node(0, 5000, {"amenity": "school"}, 2)]},
+                       cats("city"), tier="city")
+    assert s["tier"] == "city" and s["focus"] == {"kind": "centre"}
+    assert s["property"] == {"building_index": None}
+    assert [p["category"] for p in s["near_pois"]] == ["landmark"]
+    assert s["far_pois"] == []                   # school is not a city-tier category
+
+
+def test_street_scene_focus_lines_clipped_and_anchor():
+    street = [[(-300, 20), (300, 20)]]
+    s = assemble_scene(LAT0, LON0, R, {"elements": []}, {"elements": []}, cats("street"), tier="street", street=street)
+    assert s["focus"]["kind"] == "street"
+    xs = [x for line in s["focus"]["lines"] for x, _ in line]
+    assert min(xs) == pytest.approx(-R) and max(xs) == pytest.approx(R)
+    assert s["focus"]["anchor"] == pytest.approx([0, 20])
+    assert s["property"] == {"building_index": None}
+
+
+def test_address_scene_focus_is_building():
+    s = scene([way(rect(-5, -5, 5, 5), {"building": "house"})])
+    assert s["tier"] == "address" and s["focus"] == {"kind": "building"}
+    assert s["property"] == {"building_index": 0}
+
+
+def test_build_scene_street_tier_recentres_and_reports_timing(monkeypatch, default_config):
+    street_raw = {"elements": [way([(0, 0), (200, 0)], {"highway": "residential", "name": "Záhradná"}, closed=False)]}
+    seen = {}
+    monkeypatch.setattr(scene_builder, "fetch_street", lambda *a, **k: street_raw)
+
+    def fake_area(lat, lon, half_m, cache_dir, light=False, stats=None):
+        seen.update(lat=lat, lon=lon, half=half_m, light=light)
+        stats.append(True)
+        return {"elements": []}
+
+    def fake_pois(lat, lon, categories, cache_dir, square_m=0.0, stats=None):
+        seen["categories"] = categories
+        stats.append(True)
+        return {"elements": []}
+
+    monkeypatch.setattr(scene_builder, "fetch_area", fake_area)
+    monkeypatch.setattr(scene_builder, "fetch_pois", fake_pois)
+    s = build_scene(LAT0, LON0, default_config, tier="street", name="Záhradná")
+    expect_lat, expect_lon = from_local(100, 0, LAT0, LON0)
+    assert (seen["lat"], seen["lon"]) == pytest.approx((expect_lat, expect_lon))
+    assert seen["half"] == pytest.approx(160) and seen["light"] is False
+    assert "school" in seen["categories"]
+    assert s["focus"]["name"] == "Záhradná" and s["focus"]["anchor"] == pytest.approx([0, 0], abs=0.2)
+    assert s["cached"] is True and isinstance(s["timing_ms"], int)
+
+
+def test_build_scene_city_tier_is_light_and_street_failure_is_a_warning(monkeypatch, default_config):
+    seen = {}
+
+    def fake_area(lat, lon, half_m, cache_dir, light=False, stats=None):
+        seen.update(half=half_m, light=light)
+        stats.append(False)
+        return {"elements": []}
+
+    monkeypatch.setattr(scene_builder, "fetch_area", fake_area)
+    monkeypatch.setattr(scene_builder, "fetch_pois", lambda *a, **k: {"elements": []})
+    s = build_scene(LAT0, LON0, default_config, tier="city")
+    assert seen == {"half": 450, "light": True}
+    assert s["cached"] is False
+
+    def boom(*a, **k):
+        raise OverpassError("down")
+
+    monkeypatch.setattr(scene_builder, "fetch_street", boom)
+    s = build_scene(LAT0, LON0, default_config, tier="street", name="X")
+    assert s["warnings"] == ["street_fetch_failed"] and s["radius_m"] == 160

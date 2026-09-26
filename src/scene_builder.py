@@ -1,13 +1,15 @@
 """Turn raw Overpass JSON into the compact scene consumed by the frontend."""
 import logging
+import time
 from concurrent.futures import ThreadPoolExecutor
 
-from shapely.geometry import LineString, Point, Polygon, box
+from shapely.geometry import LineString, MultiLineString, Point, Polygon, box
 from shapely.ops import polygonize
 
 from config import Config
-from geo import compute_bearing, haversine_m, to_local
-from osm import OverpassError, categorize_poi, fetch_area, fetch_pois
+from geo import compute_bearing, from_local, haversine_m, to_local
+from osm import OverpassError, categorize_poi, fetch_area, fetch_pois, fetch_street, landmark_kind
+from street import street_anchor, street_frame, street_lines
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +98,17 @@ LOCAL_ONLY = frozenset({"food", "post", "bank", "doctors", "playground"})
 PARK_MIN_AREA_M2 = 5_000  # unnamed lawns in courtyards are often tagged leisure=park
 # Psychiatric, oncology, rehab… hospitals are not what "nearest hospital" means to a buyer.
 SPECIALIZED_HOSPITAL_WORDS = ("psychiatr", "onkolog", "liečebn", "rehabilit", "geriatr", "hospic")
+
+_BUYER = frozenset({"hospital", "supermarket", "school", "kindergarten", "pharmacy", "bus_stop", "train", "park",
+                    "playground", "food", "post", "bank", "doctors", "city"})
+TIER_CATEGORIES = {
+    "address": _BUYER,
+    "street": _BUYER,
+    # A city has dozens of schools and pharmacies — "the one nearest the square" means nothing.
+    "city": frozenset({"hospital", "train", "park", "supermarket", "bus_station", "mall", "landmark", "city"}),
+}
+MAX_LANDMARKS = 3
+NO_BUILDING = frozenset({"park", "playground"})
 
 
 def _r(v: float) -> float:
@@ -196,8 +209,15 @@ def _is_general_hospital(tags: dict) -> bool:
 
 
 def split_pois(lat: float, lon: float, radius_m: float, pois_raw: dict,
-               categories: list[str]) -> tuple[list[dict], list[dict]]:
-    wanted = set(categories)
+               categories: list[str], street=None) -> tuple[list[dict], list[dict]]:
+    wanted = set(categories) - {"landmark"}
+    street_geom = MultiLineString(street) if street else None
+
+    def distance(plat: float, plon: float) -> float:
+        if street_geom is None:
+            return haversine_m(lat, lon, plat, plon)
+        return street_geom.distance(Point(*to_local(plat, plon, lat, lon)))
+
     best: dict[str, tuple[float, dict, tuple[float, float]]] = {}
     cities: dict[str, tuple[float, dict, tuple[float, float]]] = {}
     for el in pois_raw.get("elements", []):
@@ -210,7 +230,7 @@ def split_pois(lat: float, lon: float, radius_m: float, pois_raw: dict,
             continue
         if cat == "park" and not _is_real_park(el, tags):
             continue
-        d = haversine_m(lat, lon, *pos)
+        d = distance(*pos)
         if cat == "city":
             name = tags.get("name", "")
             if name and d >= CITY_MIN_DIST_M and (name not in cities or d < cities[name][0]):
@@ -236,6 +256,33 @@ def split_pois(lat: float, lon: float, radius_m: float, pois_raw: dict,
     return near, far
 
 
+def select_landmarks(lat: float, lon: float, radius_m: float, pois_raw: dict) -> list[dict]:
+    """Up to MAX_LANDMARKS notable places inside the square: best kind first, then nearest; one per kind."""
+    limit = radius_m - NEAR_INSET_M
+    found = []
+    for el in pois_raw.get("elements", []):
+        tags = el.get("tags") or {}
+        kind = landmark_kind(tags)
+        pos = _element_latlon(el)
+        if kind is None or pos is None or not (tags.get("wikipedia") or tags.get("wikidata")):
+            continue
+        x, y = to_local(*pos, lat, lon)
+        if abs(x) > limit or abs(y) > limit:
+            continue  # landmarks describe the centre, not a direction
+        found.append((kind[0], haversine_m(lat, lon, *pos), kind[1], tags, x, y))
+    found.sort(key=lambda f: (f[0], f[1]))
+    picked, seen = [], set()
+    for prio, d, label, tags, x, y in found:
+        if prio in seen:
+            continue
+        seen.add(prio)
+        picked.append({"category": "landmark", "kind": label, "name": tags.get("name", ""),
+                       "distance_m": round(d), "x": _r(x), "y": _r(y)})
+        if len(picked) == MAX_LANDMARKS:
+            break
+    return picked
+
+
 def poi_building(poi: dict, buildings: list[dict], exclude: int | None) -> int | None:
     """Index of the building the POI sits in (or right next to), so the map can highlight it."""
     pt = Point(poi["x"], poi["y"])
@@ -252,7 +299,7 @@ def poi_building(poi: dict, buildings: list[dict], exclude: int | None) -> int |
 
 
 def assemble_scene(lat: float, lon: float, radius_m: float, area: dict, pois_raw: dict,
-                   categories: list[str]) -> dict:
+                   categories: list[str], tier: str = "address", street=None) -> dict:
     square = box(-radius_m, -radius_m, radius_m, radius_m)
     buildings, roads, trees = [], [], []
     areas: dict[str, list] = {"park": [], "water": [], "forest": [], "plaza": []}
@@ -291,14 +338,18 @@ def assemble_scene(lat: float, lon: float, radius_m: float, area: dict, pois_raw
                     if part.area >= 1.0:
                         areas[layer].append(_ring(part))
 
-    near, far = split_pois(lat, lon, radius_m, pois_raw, categories)
-    property_index = find_property(buildings)
+    near, far = split_pois(lat, lon, radius_m, pois_raw, categories, street=street if tier == "street" else None)
+    if "landmark" in categories:
+        near += select_landmarks(lat, lon, radius_m, pois_raw)
+    property_index = find_property(buildings) if tier == "address" else None
     for poi in near:
-        if poi["category"] not in ("park", "playground"):
+        if poi["category"] not in NO_BUILDING and poi.get("kind") != "Námestie":
             poi["building_index"] = poi_building(poi, buildings, property_index)
     return {
         "center": {"lat": lat, "lon": lon},
         "radius_m": radius_m,
+        "tier": tier,
+        "focus": _focus(tier, street, square),
         "buildings": buildings,
         "property": {"building_index": property_index},
         "roads": roads,
@@ -309,21 +360,54 @@ def assemble_scene(lat: float, lon: float, radius_m: float, area: dict, pois_raw
     }
 
 
-def build_scene(lat: float, lon: float, cfg: Config) -> dict:
+def _focus(tier: str, street, square) -> dict:
+    if tier == "address":
+        return {"kind": "building"}
+    if tier == "city":
+        return {"kind": "centre"}
+    lines = []
+    for line in street or []:
+        for part in _parts(LineString(line).intersection(square), "LineString"):
+            lines.append([[_r(x), _r(y)] for x, y in part.coords])
+    ax, ay = street_anchor(street or [])
+    return {"kind": "street", "lines": lines, "anchor": [_r(ax), _r(ay)]}
+
+
+def build_scene(lat: float, lon: float, cfg: Config, tier: str = "address", name: str | None = None) -> dict:
+    t0 = time.perf_counter()
     cache_dir = cfg.cache.dir if cfg.cache.enabled else None
-    radius = cfg.radii.display_meters
-    categories = cfg.poi.enabled()
+    stats: list[bool] = []  # one entry per Overpass query: True = served from cache
+    warnings: list[str] = []
+    lines = None
+    radius = {"address": cfg.radii.display_meters, "city": cfg.radii.city_meters}.get(tier, cfg.radii.street_min)
+    if tier == "street":
+        lines = []
+        if name:
+            try:
+                lines = street_lines(fetch_street(name, lat, lon, cache_dir, stats), lat, lon)
+            except OverpassError as exc:
+                logger.warning("Street fetch failed: %s", exc)
+                warnings.append("street_fetch_failed")
+        frame = street_frame(lines, cfg.radii.street_min, cfg.radii.street_max)
+        radius = frame["radius_m"]
+        lat, lon = from_local(frame["x"], frame["y"], lat, lon)
+        # Shifting local metres is exact enough for a few hundred metres (equirectangular projection).
+        lines = [[(x - frame["x"], y - frame["y"]) for x, y in line] for line in lines]
+    categories = [c for c in cfg.poi.enabled() if c in TIER_CATEGORIES[tier]]
     with ThreadPoolExecutor(max_workers=2) as pool:
-        area_job = pool.submit(fetch_area, lat, lon, radius, cache_dir)
-        poi_job = pool.submit(fetch_pois, lat, lon, categories, cache_dir)
+        area_job = pool.submit(fetch_area, lat, lon, radius, cache_dir, tier == "city", stats)
+        poi_job = pool.submit(fetch_pois, lat, lon, categories, cache_dir, radius, stats)
         area = area_job.result()
-    warnings = []
     try:
         pois_raw = poi_job.result()
     except OverpassError as exc:
         logger.warning("POI fetch failed: %s", exc)
         pois_raw = {"elements": []}
         warnings.append("poi_fetch_failed")
-    scene = assemble_scene(lat, lon, radius, area, pois_raw, categories)
+    scene = assemble_scene(lat, lon, radius, area, pois_raw, categories, tier=tier, street=lines)
+    if tier == "street":
+        scene["focus"]["name"] = name or ""
     scene["warnings"] = warnings
+    scene["timing_ms"] = round((time.perf_counter() - t0) * 1000)
+    scene["cached"] = all(stats)
     return scene
