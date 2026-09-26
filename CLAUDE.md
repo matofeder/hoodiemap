@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Purpose
 
-**genmap** — generates playful neighbourhood infographics for real estate listings. A FastAPI backend turns OpenStreetMap data into a compact scene JSON; a Three.js frontend renders it as a pastel isometric widget showing only ±140 m around the property. Nearby POIs are marked on the map, farther ones are hinted as badges on the widget edge in their direction ("Nemocnica · 3,6 km →").
+**HoodieMap** — generates playful neighbourhood infographics for real estate listings. A FastAPI backend turns OpenStreetMap data into a compact scene JSON; a Three.js frontend renders it as a pastel isometric widget showing only ±140 m around the property. Nearby POIs are marked on the map, farther ones are hinted as badges on the widget edge in their direction ("Nemocnica · 3,6 km →").
 
 Design: `docs/superpowers/specs/2026-09-26-playful-iso-map-design.md`. Default center: Pezinok, Slovakia (`config.yaml`).
 

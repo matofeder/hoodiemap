@@ -56,7 +56,7 @@ export function addBuildings(world, buildings, propertyIndex, mat) {
         addMesh(world, roofGeometry(tris, b.height), mat(roof, { flatShading: true, side: THREE.DoubleSide }));
       }
     } catch (err) {
-      console.warn('genmap: skipped building', b, err);
+      console.warn('hoodiemap: skipped building', b, err);
     }
   });
 }

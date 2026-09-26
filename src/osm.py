@@ -18,7 +18,7 @@ ENDPOINTS: list[str] = [
     "https://overpass.kumi.systems/api/interpreter",
     "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
 ]
-USER_AGENT = "genmap/1.0 (neighbourhood-map)"
+USER_AGENT = "hoodiemap/1.0 (neighbourhood-map)"
 TIMEOUT_S = 25
 CACHE_TTL_S = 30 * 24 * 3600
 AREA_MARGIN_M = 20

@@ -25,7 +25,7 @@ async function load() {
     createStage(mapEl, scene);
     statusEl.hidden = true;
   } catch (err) {
-    console.error('genmap: scene load failed', err);
+    console.error('hoodiemap: scene load failed', err);
     statusEl.classList.add('is-error');
     statusText.textContent = 'Mapu sa nepodarilo načítať. Skúste to znova o chvíľu.';
     retryBtn.hidden = false;

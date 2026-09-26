@@ -15,7 +15,7 @@ from scene_builder import build_scene
 _FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "pezinok-centrum.json"
 AREA_FAILED_DETAIL = "Could not load map data from OpenStreetMap. Try again in a minute."
 
-app = FastAPI(title="genmap API")
+app = FastAPI(title="HoodieMap API")
 
 app.add_middleware(
     CORSMiddleware,
