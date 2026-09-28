@@ -1,7 +1,8 @@
 # Local Overpass API for Slovakia — see docs/local-overpass.md
 services:
   overpass:
-    image: wiktorn/overpass-api:latest
+    # pinned: the image we imported and tested with (Overpass API 0.7.62.11, amd64+arm64 index)
+    image: wiktorn/overpass-api:latest@sha256:9bb5f4a9b54cd225bf828c04c67e7f4010650ff4d70b72157a9473a9ba02d93c
     container_name: hoodiemap-overpass
     ports:
       - "12345:80"
