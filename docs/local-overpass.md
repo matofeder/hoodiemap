@@ -1,9 +1,16 @@
 # Local Overpass (Slovakia)
 
-Start (first run downloads 345 MB and imports; ~15 min on the dev machine, expect 15–40 min):
+Start (first run downloads ~330 MB and imports; 15–19 min on the dev machine, expect 15–40 min):
 
     docker-compose up -d overpass
-    docker-compose logs -f overpass        # wait for "Overpass API ready" / dispatcher started
+    docker-compose logs -f overpass        # ready when supervisord reports "nginx entered RUNNING state"
+
+The container exits once after the import and `restart: unless-stopped` brings it back up
+(restart count 1 is expected). Many `compute_geometry: Node … not found` lines during the
+import are normal: ways crossing the border reference nodes outside the extract.
+
+The image is pinned by digest in `docker-compose.yml` (Overpass API 0.7.62.11); a fresh import
+from an empty volume was verified with it on 2026-09-28.
 
 Check:
 
@@ -19,5 +26,8 @@ Coverage: Slovakia only (`overpass.local_bbox` in config.yaml). Places across th
 use the public servers; points inside the bbox but outside the extract fall back to them
 automatically (`warnings: ["public_fallback"]`).
 
-Troubleshooting: if the API answers "Permission denied ... osm3s_osm_base" after a fresh import, run
-`docker exec hoodiemap-overpass chmod 755 /db` (the compose preprocess also does this, untested from scratch).
+Troubleshooting:
+- "Permission denied ... osm3s_osm_base": a fresh `/db` volume is 0700. The compose preprocess runs
+  `chmod 755 /db` (verified from scratch); on an older volume run `docker exec hoodiemap-overpass chmod 755 /db`.
+- `ERROR: Error while downloading diffs` / `Update finished with status code: 3` right after an import
+  just means there is no newer diff yet (the extract is the latest state).
