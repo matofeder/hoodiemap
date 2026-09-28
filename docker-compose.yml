@@ -1,0 +1,31 @@
+# Local Overpass API for Slovakia — see docs/local-overpass.md
+services:
+  overpass:
+    image: wiktorn/overpass-api:latest
+    container_name: hoodiemap-overpass
+    ports:
+      - "12345:80"
+    volumes:
+      - overpass-db:/db
+    environment:
+      OVERPASS_MODE: init
+      OVERPASS_META: "no"
+      OVERPASS_PLANET_URL: https://download.geofabrik.de/europe/slovakia-latest.osm.pbf
+      OVERPASS_DIFF_URL: https://download.geofabrik.de/europe/slovakia-updates/
+      # the image imports .osm.bz2; convert the Geofabrik .pbf first.
+      # chmod: a fresh /db volume is 0700 (overpass home), so the nginx/fcgiwrap user
+      # cannot reach the dispatcher socket ("Permission denied ... osm3s_osm_base").
+      OVERPASS_PLANET_PREPROCESS: >-
+        mv /db/planet.osm.bz2 /db/planet.osm.pbf &&
+        osmium cat -o /db/planet.osm.bz2 /db/planet.osm.pbf &&
+        rm /db/planet.osm.pbf &&
+        chmod 755 /db
+      OVERPASS_COMPRESSION: gz
+      OVERPASS_RULES_LOAD: "10"
+      OVERPASS_UPDATE_SLEEP: "3600"
+      OVERPASS_USE_AREAS: "false"
+      OVERPASS_MAX_TIMEOUT: "120s"
+    restart: unless-stopped
+
+volumes:
+  overpass-db:

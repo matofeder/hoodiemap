@@ -14,6 +14,8 @@ Design: `docs/superpowers/specs/2026-09-26-playful-iso-map-design.md`. Default c
 .venv/bin/pip install -r requirements.txt
 cd frontend && npm install
 
+docker-compose up -d overpass   # local Overpass for Slovakia (optional, see docs/local-overpass.md)
+
 # Backend (terminal 1)
 .venv/bin/python src/api.py        # FastAPI on http://localhost:8000
 
@@ -45,6 +47,9 @@ poi:
          food: true, post: true, bank: true, doctors: true, city: true}
 cache: {enabled: true, dir: .cache}
 api: {host: "0.0.0.0", port: 8000}
+overpass:
+  local_url: "http://localhost:12345/api/interpreter"   # docker-compose up -d overpass; null = public only
+  local_bbox: [47.73, 16.83, 49.61, 22.57]             # Slovakia extract (S, W, N, E); outside -> public servers
 ```
 
 ## Architecture
@@ -58,6 +63,7 @@ src/
   osm.py            Overpass queries, 3-endpoint fallback, User-Agent, JSON cache (.cache/osm, 30 days)
   geo.py            haversine, bearing, equirectangular local projection (metres, x east, y north)
   config.py         Pydantic config
+docker-compose.yml  local Overpass (Slovakia extract); docs/local-overpass.md = setup notes
 frontend/src/
   main.js           URL params, fetch, loading/error states
   requestGate.js    "latest request wins": aborts stale in-flight searches
@@ -108,7 +114,7 @@ The POI query uses `out bb tags` (bbox centre = position, bbox size = area check
 
 ### Known risks
 
-- Public Overpass servers are often overloaded (504 / timeouts). Cold requests can take 10–60 s; cached ones are instant. Failures are not cached.
+- Local Overpass (`docker-compose.yml`, `docs/local-overpass.md`) serves Slovakia in ~1 s cold; outside Slovakia or with the container stopped the public servers are used (often overloaded, 504 / timeouts; 10–60 s cold). Cross-border POIs/cities are not found locally. Cached requests are instant; failures are not cached.
 - OSM data quality: missing names fall back to the category label.
 
 ### Planned Stages
