@@ -341,12 +341,12 @@ def test_build_scene_street_tier_recentres_and_reports_timing(monkeypatch, defau
     seen = {}
     monkeypatch.setattr(scene_builder, "fetch_street", lambda *a, **k: street_raw)
 
-    def fake_area(lat, lon, half_m, cache_dir, light=False, stats=None):
+    def fake_area(lat, lon, half_m, cache_dir, light=False, stats=None, endpoints=None):
         seen.update(lat=lat, lon=lon, half=half_m, light=light)
         stats.append(True)
         return {"elements": []}
 
-    def fake_pois(lat, lon, categories, cache_dir, square_m=0.0, stats=None):
+    def fake_pois(lat, lon, categories, cache_dir, square_m=0.0, stats=None, endpoints=None):
         seen["categories"] = categories
         stats.append(True)
         return {"elements": []}
@@ -365,7 +365,7 @@ def test_build_scene_street_tier_recentres_and_reports_timing(monkeypatch, defau
 def test_build_scene_city_tier_is_light_and_street_failure_is_a_warning(monkeypatch, default_config):
     seen = {}
 
-    def fake_area(lat, lon, half_m, cache_dir, light=False, stats=None):
+    def fake_area(lat, lon, half_m, cache_dir, light=False, stats=None, endpoints=None):
         seen.update(half=half_m, light=light)
         stats.append(False)
         return {"elements": []}
@@ -396,3 +396,67 @@ def test_street_distances_use_street_clipped_to_square():
     assert [p["name"] for p in near] == ["Blizka"]
     assert near[0]["distance_m"] == pytest.approx(60, abs=1)
     assert all(p["distance_m"] >= 10 for p in far)
+
+
+def _cfg_with_local(default_config):
+    from config import OverpassConfig
+    return default_config.model_copy(update={"overpass": OverpassConfig(local_url="http://local/api")})
+
+
+def test_build_scene_sends_local_first_inside_slovakia(monkeypatch, default_config):
+    seen = []
+
+    def fake_area(*a, endpoints=None, **k):
+        seen.append(endpoints)
+        return {"elements": [way(rect(0, 0, 10, 10), {"building": "house"})]}
+
+    monkeypatch.setattr(scene_builder, "fetch_area", fake_area)
+    monkeypatch.setattr(scene_builder, "fetch_pois", lambda *a, **k: {"elements": []})
+    build_scene(LAT0, LON0, _cfg_with_local(default_config))
+    assert seen[0][0] == "http://local/api"
+
+
+def test_empty_local_area_is_refetched_from_public(monkeypatch, default_config):
+    seen = []
+
+    def fake_area(*a, endpoints=None, **k):
+        seen.append(endpoints)
+        local = endpoints[0] == "http://local/api"
+        return {"elements": [] if local else [way(rect(0, 0, 10, 10), {"building": "house"})]}
+
+    monkeypatch.setattr(scene_builder, "fetch_area", fake_area)
+    monkeypatch.setattr(scene_builder, "fetch_pois", lambda *a, **k: {"elements": []})
+    s = build_scene(LAT0, LON0, _cfg_with_local(default_config))
+    assert len(seen) == 2 and seen[1][0] != "http://local/api"
+    assert len(s["buildings"]) == 1
+    assert "public_fallback" in s["warnings"]
+
+
+def test_no_local_configured_means_no_refetch(monkeypatch, default_config):
+    calls = []
+    monkeypatch.setattr(scene_builder, "fetch_area", lambda *a, **k: calls.append(1) or {"elements": []})
+    monkeypatch.setattr(scene_builder, "fetch_pois", lambda *a, **k: {"elements": []})
+    build_scene(LAT0, LON0, default_config)
+    assert calls == [1]
+
+
+def _local_poi_fails(public_pois_ok):
+    def fake_pois(*a, endpoints=None, **k):
+        if endpoints[0] == "http://local/api" or not public_pois_ok:
+            raise OverpassError("down")
+        return {"elements": []}
+    return fake_pois
+
+
+def test_local_pois_failed_public_pois_ok_drops_poi_warning(monkeypatch, default_config):
+    monkeypatch.setattr(scene_builder, "fetch_area", lambda *a, endpoints=None, **k: {"elements": []})
+    monkeypatch.setattr(scene_builder, "fetch_pois", _local_poi_fails(True))
+    s = build_scene(LAT0, LON0, _cfg_with_local(default_config))
+    assert "poi_fetch_failed" not in s["warnings"] and "public_fallback" in s["warnings"]
+
+
+def test_local_and_public_pois_failed_keeps_one_poi_warning(monkeypatch, default_config):
+    monkeypatch.setattr(scene_builder, "fetch_area", lambda *a, endpoints=None, **k: {"elements": []})
+    monkeypatch.setattr(scene_builder, "fetch_pois", _local_poi_fails(False))
+    s = build_scene(LAT0, LON0, _cfg_with_local(default_config))
+    assert s["warnings"].count("poi_fetch_failed") == 1 and "public_fallback" in s["warnings"]

@@ -8,7 +8,7 @@ from shapely.ops import polygonize
 
 from config import Config
 from geo import compute_bearing, from_local, haversine_m, to_local
-from osm import OverpassError, categorize_poi, fetch_area, fetch_pois, fetch_street, landmark_kind
+from osm import OverpassError, categorize_poi, endpoints_for, fetch_area, fetch_pois, fetch_street, landmark_kind
 from street import street_anchor, street_frame, street_lines
 
 logger = logging.getLogger(__name__)
@@ -385,13 +385,15 @@ def build_scene(lat: float, lon: float, cfg: Config, tier: str = "address", name
     cache_dir = cfg.cache.dir if cfg.cache.enabled else None
     stats: list[bool] = []  # one entry per Overpass query: True = served from cache
     warnings: list[str] = []
+    endpoints = endpoints_for(lat, lon, cfg.overpass)
+    public = list(cfg.overpass.public_endpoints)
     lines = None
     radius = {"address": cfg.radii.display_meters, "city": cfg.radii.city_meters}.get(tier, cfg.radii.street_min)
     if tier == "street":
         lines = []
         if name:
             try:
-                lines = street_lines(fetch_street(name, lat, lon, cache_dir, stats), lat, lon)
+                lines = street_lines(fetch_street(name, lat, lon, cache_dir, stats, endpoints=endpoints), lat, lon)
             except OverpassError as exc:
                 logger.warning("Street fetch failed: %s", exc)
                 warnings.append("street_fetch_failed")
@@ -402,8 +404,10 @@ def build_scene(lat: float, lon: float, cfg: Config, tier: str = "address", name
         lines = [[(x - frame["x"], y - frame["y"]) for x, y in line] for line in lines]
     categories = [c for c in cfg.poi.enabled() if c in TIER_CATEGORIES[tier]]
     with ThreadPoolExecutor(max_workers=2) as pool:
-        area_job = pool.submit(fetch_area, lat, lon, radius, cache_dir, tier == "city", stats)
-        poi_job = pool.submit(fetch_pois, lat, lon, categories, cache_dir, radius, stats)
+        area_job = pool.submit(fetch_area, lat, lon, radius, cache_dir, tier == "city", stats,
+                              endpoints=endpoints)
+        poi_job = pool.submit(fetch_pois, lat, lon, categories, cache_dir, radius, stats,
+                             endpoints=endpoints)
         area = area_job.result()
     try:
         pois_raw = poi_job.result()
@@ -411,6 +415,22 @@ def build_scene(lat: float, lon: float, cfg: Config, tier: str = "address", name
         logger.warning("POI fetch failed: %s", exc)
         pois_raw = {"elements": []}
         warnings.append("poi_fetch_failed")
+    # A point can lie inside the local extract's bbox but outside the extract itself (e.g. Miskolc):
+    # an empty local answer means "no data here", not "nothing here" - ask the public servers.
+    # (run_query never caches empty answers, so the public refetch is not shadowed by the cache.)
+    local = cfg.overpass.local_url
+    if local and endpoints[0] == local and not area.get("elements"):
+        area = fetch_area(lat, lon, radius, cache_dir, tier == "city", stats, endpoints=public)
+        try:
+            pois_raw = fetch_pois(lat, lon, categories, cache_dir, radius, stats, endpoints=public)
+            if "poi_fetch_failed" in warnings:
+                warnings.remove("poi_fetch_failed")  # it came from the failed local attempt
+        except OverpassError as exc:
+            logger.warning("Public POI refetch failed: %s", exc)
+            pois_raw = {"elements": []}
+            if "poi_fetch_failed" not in warnings:
+                warnings.append("poi_fetch_failed")
+        warnings.append("public_fallback")
     scene = assemble_scene(lat, lon, radius, area, pois_raw, categories, tier=tier, street=lines)
     if tier == "street":
         scene["focus"]["name"] = name or ""
