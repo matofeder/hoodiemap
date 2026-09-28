@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildingInfo } from '../overlay/describe.js';
+import { centroid } from './geom.js';
 import { createOverlay } from '../overlay/labels.js';
 import { createTooltip } from '../overlay/tooltip.js';
 import { mulberry32, seedFromCoords } from '../random.js';
@@ -82,11 +83,19 @@ export function createStage(container, scene) {
     return { x: ((v.x + 1) / 2) * container.clientWidth, y: ((1 - v.y) / 2) * container.clientHeight };
   };
   const propertyIndex = scene.property?.building_index ?? null;
+  const propertyAt = propertyIndex != null ? centroid(scene.buildings[propertyIndex].footprint) : null;
+  const distanceFromProperty = (i) => {
+    if (!propertyAt) return null;
+    const [x, y] = centroid(scene.buildings[i].footprint);
+    return Math.hypot(x - propertyAt[0], y - propertyAt[1]);
+  };
   const poiByBuilding = new Map(scene.near_pois.filter((p) => p.building_index != null).map((p) => [p.building_index, p]));
   const tooltip = createTooltip(container);
   const hover = createHover({
     container, camera, meshes: buildingMeshes, world, buildings: scene.buildings, tooltip,
-    describe: (i) => buildingInfo(scene.buildings[i], { isProperty: i === propertyIndex, poi: poiByBuilding.get(i) }),
+    describe: (i) => buildingInfo(scene.buildings[i], {
+      isProperty: i === propertyIndex, poi: poiByBuilding.get(i), distanceM: distanceFromProperty(i),
+    }),
     requestRender: () => { if (!raf) frame(performance.now()); },
   });
   const overlay = createOverlay(container, scene, project, focus.anchor, hover.onLabel, tagInfo);

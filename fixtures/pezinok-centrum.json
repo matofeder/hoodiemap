@@ -33,7 +33,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "M. R. Štefánika 4326/12A"
   },
   {
    "footprint": [
@@ -117,7 +118,8 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "address": "M. R. Štefánika 24/10"
   },
   {
    "footprint": [
@@ -245,7 +247,8 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "address": "M. R. Štefánika 23/8"
   },
   {
    "footprint": [
@@ -291,7 +294,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "M. R. Štefánika 26/12"
   },
   {
    "footprint": [
@@ -341,7 +345,8 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "address": "Šancová 5410/4"
   },
   {
    "footprint": [
@@ -367,7 +372,9 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "type": "apartments",
+   "address": "Záhradná 1374/2"
   },
   {
    "footprint": [
@@ -397,7 +404,9 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "type": "apartments",
+   "address": "Záhradná 1376/4"
   },
   {
    "footprint": [
@@ -473,7 +482,10 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "name": "Obvodné oddelenie PZ",
+   "type": "police",
+   "address": "Meisslova 1583/3"
   },
   {
    "footprint": [
@@ -523,7 +535,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Meisslova 4684/10"
   },
   {
    "footprint": [
@@ -577,7 +590,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Meisslova 3710/10A"
   },
   {
    "footprint": [
@@ -599,7 +613,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -633,7 +648,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kalinčiakova 1066/7"
   },
   {
    "footprint": [
@@ -691,7 +707,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kalinčiakova 1071/17"
   },
   {
    "footprint": [
@@ -733,7 +750,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kalinčiakova 1070/15"
   },
   {
    "footprint": [
@@ -767,7 +785,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kalinčiakova 1068/11"
   },
   {
    "footprint": [
@@ -813,7 +832,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kalinčiakova 1069/13"
   },
   {
    "footprint": [
@@ -843,7 +863,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kalinčiakova 4728/13A"
   },
   {
    "footprint": [
@@ -865,7 +886,9 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "type": "apartments",
+   "address": "Záhradná 1377/5"
   },
   {
    "footprint": [
@@ -1105,7 +1128,10 @@
     ]
    ],
    "kind": "apartment",
-   "height": 6.0
+   "height": 6.0,
+   "name": "Fitness centrum Mirage",
+   "address": "Kalinčiakova 1072/4",
+   "levels": 2
   },
   {
    "footprint": [
@@ -1127,7 +1153,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -1173,7 +1200,8 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "address": "Kalinčiakova 1065/5"
   },
   {
    "footprint": [
@@ -1271,7 +1299,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kollárova 3977/22"
   },
   {
    "footprint": [
@@ -1301,7 +1330,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kollárova 2781/18A"
   },
   {
    "footprint": [
@@ -1377,7 +1407,8 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "address": "Kollárova 136/20"
   },
   {
    "footprint": [
@@ -1435,7 +1466,9 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "type": "apartments",
+   "address": "Záhradná 1375/3"
   },
   {
    "footprint": [
@@ -1491,7 +1524,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kollárova 135/18"
   },
   {
    "footprint": [
@@ -1535,7 +1569,10 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "name": "Poštová banka",
+   "type": "bank",
+   "address": "Meisslova 4676/1A"
   },
   {
    "footprint": [
@@ -1627,7 +1664,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Meisslova 5589/4A"
   },
   {
    "footprint": [
@@ -1821,7 +1859,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -1843,7 +1882,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -1897,7 +1937,8 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "address": "M. R. Štefánika 20/2"
   },
   {
    "footprint": [
@@ -1985,7 +2026,10 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "name": "Malokarpatské múzeum",
+   "type": "museum",
+   "address": "M. R. Štefánika 21/4"
   },
   {
    "footprint": [
@@ -2057,7 +2101,11 @@
     ]
    ],
    "kind": "apartment",
-   "height": 9.0
+   "height": 9.0,
+   "name": "Billa",
+   "type": "supermarket",
+   "address": "Meisslova 46/2",
+   "levels": 3
   },
   {
    "footprint": [
@@ -2181,7 +2229,8 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "address": "Meisslova 1582/1"
   },
   {
    "footprint": [
@@ -2291,7 +2340,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "M. R. Štefánika 22/6"
   },
   {
    "footprint": [
@@ -2383,7 +2433,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -2405,7 +2456,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -2427,7 +2479,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -2449,7 +2502,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -2475,7 +2529,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -2497,7 +2552,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -2523,7 +2579,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -2557,7 +2614,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -2579,7 +2637,9 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "type": "apartments",
+   "address": "Záhradná 1381/9"
   },
   {
    "footprint": [
@@ -2601,7 +2661,9 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "type": "apartments",
+   "address": "Záhradná 1379/7"
   },
   {
    "footprint": [
@@ -2645,7 +2707,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -2667,7 +2730,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -2693,7 +2757,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -2715,7 +2780,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -2737,7 +2803,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -2759,7 +2826,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -2781,7 +2849,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -2803,7 +2872,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -2825,7 +2895,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -2847,7 +2918,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -2869,7 +2941,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -2891,7 +2964,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -2965,7 +3039,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kalinčiakova 1067/9"
   },
   {
    "footprint": [
@@ -2987,7 +3062,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -3009,7 +3085,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -3147,7 +3224,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Meisslova 4721/8A"
   },
   {
    "footprint": [
@@ -3233,7 +3311,10 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "name": "Slovenská sporiteľňa",
+   "type": "bank",
+   "address": "Šancová 1277/2"
   },
   {
    "footprint": [
@@ -3263,7 +3344,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Šancová 1081/1"
   },
   {
    "footprint": [
@@ -3293,7 +3375,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Šancová 2278/3"
   },
   {
    "footprint": [
@@ -3319,7 +3402,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Meisslova 1606/8"
   },
   {
    "footprint": [
@@ -3353,7 +3437,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Meisslova 1605/6"
   },
   {
    "footprint": [
@@ -3391,7 +3476,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Meisslova 1604/4"
   },
   {
    "footprint": [
@@ -3497,7 +3583,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Meisslova 1608/12"
   },
   {
    "footprint": [
@@ -3527,7 +3614,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kalinčiakova 4117/19"
   },
   {
    "footprint": [
@@ -3581,7 +3669,10 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "name": "Gymnazium",
+   "type": "school",
+   "address": "Senecká 4691/2"
   },
   {
    "footprint": [
@@ -3643,7 +3734,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kalinčiakova 1074/8"
   },
   {
    "footprint": [
@@ -3751,7 +3843,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Hollého 1075/1"
   },
   {
    "footprint": [
@@ -3789,7 +3882,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kalinčiakova 1073/6"
   },
   {
    "footprint": [
@@ -3827,7 +3921,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Meisslova 1584/5"
   },
   {
    "footprint": [
@@ -3861,7 +3956,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Meisslova 1152/7"
   },
   {
    "footprint": [
@@ -3917,7 +4013,8 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "address": "Radničné námestie 42/5"
   },
   {
    "footprint": [
@@ -4031,7 +4128,8 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "address": "Kollárova 4439/11"
   },
   {
    "footprint": [
@@ -4081,7 +4179,8 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "address": "Radničné námestie 45/3"
   },
   {
    "footprint": [
@@ -4261,7 +4360,8 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "address": "Kalinčiakova 1654/2"
   },
   {
    "footprint": [
@@ -4331,7 +4431,8 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "address": "Kollárova 132/12"
   },
   {
    "footprint": [
@@ -4451,7 +4552,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kollárova 128/4"
   },
   {
    "footprint": [
@@ -4473,7 +4575,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kollárova 129/6"
   },
   {
    "footprint": [
@@ -4495,7 +4598,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -4553,7 +4657,9 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "type": "apartments",
+   "address": "Záhradná 1373/1"
   },
   {
    "footprint": [
@@ -4575,7 +4681,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -4663,7 +4770,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kollárova 4007/14A"
   },
   {
    "footprint": [
@@ -4709,7 +4817,8 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "address": "Kollárova 125/9"
   },
   {
    "footprint": [
@@ -4787,7 +4896,8 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "address": "Kollárova 134/16"
   },
   {
    "footprint": [
@@ -4817,7 +4927,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kollárova 131/10"
   },
   {
    "footprint": [
@@ -4851,7 +4962,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kollárova 130/8"
   },
   {
    "footprint": [
@@ -4995,7 +5107,8 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "address": "Kollárova 123/5"
   },
   {
    "footprint": [
@@ -5025,7 +5138,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kollárova 4814/14"
   },
   {
    "footprint": [
@@ -5127,7 +5241,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kollárova 127/13"
   },
   {
    "footprint": [
@@ -5209,7 +5324,9 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "name": "Turecký dom",
+   "address": "Radničné námestie 4651/1"
   },
   {
    "footprint": [
@@ -5255,7 +5372,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kollárova 127/13A"
   },
   {
    "footprint": [
@@ -5277,7 +5395,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -5299,7 +5418,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -5329,7 +5449,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Moyzesova 5555/1"
   },
   {
    "footprint": [
@@ -5351,7 +5472,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -5399,7 +5521,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -5441,7 +5564,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kalinčiakova 1064/3"
   },
   {
    "footprint": [
@@ -5487,7 +5611,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Kalinčiakova 1063/1"
   },
   {
    "footprint": [
@@ -5557,7 +5682,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Moyzesova 2519/20"
   },
   {
    "footprint": [
@@ -5583,7 +5709,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Moyzesova 2520/22"
   },
   {
    "footprint": [
@@ -5625,7 +5752,8 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "address": "Hollého 1078/2"
   },
   {
    "footprint": [
@@ -5679,7 +5807,8 @@
     ]
    ],
    "kind": "apartment",
-   "height": 12.0
+   "height": 12.0,
+   "address": "Hollého 5013/2A"
   },
   {
    "footprint": [
@@ -5701,7 +5830,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -5749,7 +5879,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -5771,7 +5902,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -5793,7 +5925,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -5819,7 +5952,8 @@
     ]
    ],
    "kind": "other",
-   "height": 3.0
+   "height": 3.0,
+   "type": "garage"
   },
   {
    "footprint": [
@@ -5841,7 +5975,8 @@
     ]
    ],
    "kind": "house",
-   "height": 6.0
+   "height": 6.0,
+   "address": "Pezinok 6334"
   }
  ],
  "property": {
@@ -9332,7 +9467,7 @@
   }
  ],
  "warnings": [],
- "timing_ms": 48,
+ "timing_ms": 49,
  "cached": true,
  "address": "Záhradná, Pezinok"
 }

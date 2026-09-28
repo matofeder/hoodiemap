@@ -1,4 +1,5 @@
 """Turn raw Overpass JSON into the compact scene consumed by the frontend."""
+import re
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -58,6 +59,58 @@ def classify_building(tags: dict, area_m2: float) -> str:
     if b in ("yes", "residential") and small:
         return "house"
     return "apartment"
+
+
+# building=* values specific enough to name the building (the generic yes/residential/… are not).
+NAMED_BUILDING_TYPES = {
+    "apartments", "house", "detached", "semidetached_house", "terrace", "bungalow", "garage", "garages",
+    "retail", "office", "commercial", "industrial", "warehouse", "school", "kindergarten", "university",
+    "hospital", "church", "chapel", "cathedral", "hotel", "civic", "public", "government", "train_station",
+    "supermarket", "sports_hall", "shed", "barn", "tower", "monastery", "castle",
+}
+MAX_LEVELS = 60
+
+
+def _building_type(tags: dict) -> str | None:
+    # What is inside says more than the shell: a "yes" building with shop=supermarket is a supermarket.
+    for key in ("amenity", "shop", "tourism"):
+        if tags.get(key):
+            return str(tags[key])
+    b = str(tags.get("building", "")).lower()
+    return b if b in NAMED_BUILDING_TYPES else None
+
+
+def _year(raw) -> str | None:
+    if not raw:
+        return None
+    text = str(raw)
+    century = re.search(r"C(\d{1,2})\b", text)
+    if century:
+        return f"{century.group(1)}. stor."
+    year = re.search(r"\d{4}", text)
+    return year.group(0) if year else None
+
+
+def building_facts(tags: dict) -> dict:
+    """Facts OSM actually states about a building, for the hover bubble. Guesses are left out."""
+    facts: dict = {}
+    if tags.get("name"):
+        facts["name"] = tags["name"]
+    kind = _building_type(tags)
+    if kind:
+        facts["type"] = kind
+    street = tags.get("addr:street") or tags.get("addr:place")
+    if street and tags.get("addr:housenumber"):
+        facts["address"] = f"{street} {tags['addr:housenumber']}"
+    levels = _num(tags.get("building:levels"))
+    if levels is not None and levels.is_integer() and 0 < levels <= MAX_LEVELS:
+        facts["levels"] = int(levels)
+    year = _year(tags.get("start_date"))
+    if year:
+        facts["year"] = year
+    if tags.get("heritage") or tags.get("historic") in ("building", "castle", "manor", "monastery", "church"):
+        facts["heritage"] = True
+    return facts
 
 
 def building_height(tags: dict, kind: str) -> float:
@@ -167,7 +220,7 @@ def _building(poly: Polygon, tags: dict, square) -> dict | None:
     if main.area < MIN_KEEP_RATIO * poly.area:
         return None
     kind = classify_building(tags, poly.area)
-    return {"footprint": _ring(main), "kind": kind, "height": _r(building_height(tags, kind))}
+    return {"footprint": _ring(main), "kind": kind, "height": _r(building_height(tags, kind)), **building_facts(tags)}
 
 
 def find_property(buildings: list[dict]) -> int | None:
