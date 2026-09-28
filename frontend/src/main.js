@@ -1,5 +1,5 @@
 import './style.css';
-import { formatLoadTime, tierLabel } from './format.js';
+import { formatLoadTime, tierLabel, warningText } from './format.js';
 import { createStage } from './map/stage.js';
 import { createRequestGate } from './requestGate.js';
 import { DEFAULT_COORDS, getViewFromURL, isFixture, sceneUrl, viewToSearch } from './url.js';
@@ -13,6 +13,9 @@ const form = document.getElementById('search');
 const input = document.getElementById('q');
 const searchMsg = document.getElementById('search-msg');
 const timingEl = document.getElementById('timing');
+const noticeEl = document.getElementById('notice');
+const noticeText = document.getElementById('notice-text');
+const noticeRetry = document.getElementById('notice-retry');
 
 const NOT_FOUND = (q) => `Nenašli sme „${q}“. Skúste pridať mesto alebo PSČ.`;
 const GEOCODE_DOWN = 'Vyhľadávanie je dočasne nedostupné, skúste o chvíľu.';
@@ -92,6 +95,7 @@ async function showView(view, startedAt = performance.now()) {
   const { token, signal } = beginRequest();
   showStatus(`${LOADING[view.tier]}${view.label ? ` ${view.label}` : ''}…`, false);
   timingEl.hidden = true;
+  noticeEl.hidden = true;
   retireStageAfterFade(token);
   const hintTimer = setTimeout(() => { if (gate.isCurrent(token)) statusHint.hidden = false; }, SLOW_HINT_MS);
   try {
@@ -107,6 +111,9 @@ async function showView(view, startedAt = performance.now()) {
     hideStatus();
     timingEl.textContent = formatLoadTime(performance.now() - startedAt, scene.cached === true);
     timingEl.hidden = false;
+    const notice = warningText(scene.warnings);
+    noticeText.textContent = notice ?? '';
+    noticeEl.hidden = !notice;
   } catch (err) {
     if (err.name === 'AbortError' || !gate.isCurrent(token)) return;
     console.error('hoodiemap: scene load failed', err);
@@ -152,6 +159,7 @@ form.addEventListener('submit', (e) => {
   if (q.length >= 2) search(q);
 });
 retryBtn.addEventListener('click', () => showView(current ?? defaultView()));
+noticeRetry.addEventListener('click', () => showView(current ?? defaultView()));
 window.addEventListener('popstate', () => {
   const view = getViewFromURL(window.location.search) ?? defaultView();
   input.value = view.label ?? '';

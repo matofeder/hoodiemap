@@ -28,3 +28,14 @@ const TIER_LABELS = { address: 'adresa', street: 'ulica', city: 'mesto' };
 export function tierLabel(tier) {
   return TIER_LABELS[tier] ?? tier;
 }
+
+// Scene warnings that leave a visible hole in the map, in display order. Others (e.g. public_fallback) stay silent.
+const WARNINGS = [
+  ['poi_fetch_failed', 'Okolité miesta (obchody, školy, zastávky…) sa nepodarilo načítať.'],
+  ['street_fetch_failed', 'Ulicu sa nepodarilo zvýrazniť.'],
+];
+
+export function warningText(warnings = []) {
+  const parts = WARNINGS.filter(([code]) => warnings.includes(code)).map(([, text]) => text);
+  return parts.length ? parts.join(' ') : null;
+}
