@@ -54,7 +54,7 @@ class ApiConfig(BaseModel):
 
 
 class GeocodeConfig(BaseModel):
-    countrycodes: str = "sk,cz"
+    countrycodes: str = "sk"
 
 
 class Config(BaseModel):

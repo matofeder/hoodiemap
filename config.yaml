@@ -37,4 +37,4 @@ api:
   port: 8000
 
 geocode:
-  countrycodes: "sk,cz"    # Nominatim search is limited to these countries
+  countrycodes: "sk"    # Slovakia is the target market

@@ -38,7 +38,7 @@ radii:
   street_max: 300
   city_meters: 450         # city tier: half-size around the town centre
 geocode:
-  countrycodes: "sk,cz"    # Nominatim search limited to these countries
+  countrycodes: "sk"    # Slovakia is the target market
 poi:
   show: {hospital: true, supermarket: true, school: true, kindergarten: true,
          pharmacy: true, bus_stop: true, train: true, park: true, playground: true,
