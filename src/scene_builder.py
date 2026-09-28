@@ -94,6 +94,13 @@ NEAR_INSET_M = 10.0
 POI_BUILDING_MAX_DIST_M = 6.0
 CITY_COUNT = 2
 CITY_MIN_DIST_M = 5_000  # skip the city the property is in
+# Farthest a POI may be and still be worth a badge for a flat or house for sale: beyond this it
+# belongs to another town (the Senec bus station seen from Pezinok) and only adds noise.
+# Categories not listed keep their Overpass search radius as the limit.
+MAX_SHOWN_M = {
+    "supermarket": 3_000, "school": 3_000, "kindergarten": 3_000, "pharmacy": 3_000,
+    "bus_stop": 1_000, "park": 2_000, "train": 10_000, "bus_station": 3_000, "mall": 10_000,
+}
 LOCAL_ONLY = frozenset({"food", "post", "bank", "doctors", "playground"})
 PARK_MIN_AREA_M2 = 5_000  # unnamed lawns in courtyards are often tagged leisure=park
 # Psychiatric, oncology, rehab… hospitals are not what "nearest hospital" means to a buyer.
@@ -183,7 +190,9 @@ def _element_latlon(el: dict) -> tuple[float, float] | None:
     if center:
         return center["lat"], center["lon"]
     b = el.get("bounds")
-    if b:
+    # A relation whose members are missing from the (local) database comes back with Overpass's
+    # "empty bbox" sentinels (minlat -91, maxlon -200): no usable position.
+    if b and -90 <= b["minlat"] <= b["maxlat"] <= 90 and -180 <= b["minlon"] <= b["maxlon"] <= 180:
         return (b["minlat"] + b["maxlat"]) / 2, (b["minlon"] + b["maxlon"]) / 2
     return None
 
@@ -238,6 +247,8 @@ def split_pois(lat: float, lon: float, radius_m: float, pois_raw: dict,
         if cat == "park" and not _is_real_park(el, tags):
             continue
         d = distance(*pos)
+        if d > MAX_SHOWN_M.get(cat, float("inf")):
+            continue
         if cat == "city":
             name = tags.get("name", "")
             if name and d >= CITY_MIN_DIST_M and (name not in cities or d < cities[name][0]):

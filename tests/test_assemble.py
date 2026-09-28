@@ -516,3 +516,26 @@ def test_partial_local_poi_answer_does_not_shadow_public_refetch(monkeypatch, de
     assert len(captured["pois"]["elements"]) == 2
     files = [json.loads(p.read_text()) for p in (tmp_path / "osm").glob("*.json")]
     assert any(len(f["data"]["elements"]) == 2 for f in files)
+
+
+def test_split_pois_drops_elements_with_invalid_bounds():
+    # A relation whose members lie outside the local extract (Uzhhorod from Košice) comes back with
+    # Overpass's "no bbox" sentinel bounds; its midpoint is near Antarctica (13 000 km away).
+    broken = {"type": "relation", "id": 7, "tags": {"place": "city", "name": "Ужгород"},
+              "bounds": {"minlat": -91.0, "minlon": 22.2, "maxlat": 48.66, "maxlon": -200.0}}
+    near, far = split_pois(LAT0, LON0, R, {"elements": [broken]}, ["city"])
+    assert near == [] and far == []
+
+
+@pytest.mark.parametrize("cat,tags,dist_m,shown", [
+    ("bus_station", {"amenity": "bus_station", "name": "Autobusová stanica Senec"}, 11_800, False),
+    ("bus_station", {"amenity": "bus_station", "name": "AS"}, 2_500, True),
+    ("train", {"railway": "station", "name": "Far"}, 25_000, False),
+    ("hospital", {"amenity": "hospital", "name": "Nemocnica"}, 25_000, True),
+    ("supermarket", {"shop": "supermarket", "name": "Far"}, 4_000, False),
+    ("bus_stop", {"highway": "bus_stop", "name": "Far"}, 1_500, False),
+])
+def test_split_pois_hides_places_too_far_to_matter(cat, tags, dist_m, shown):
+    el = {"type": "node", "id": 1, "tags": tags, **ll(0, dist_m)}
+    _, far = split_pois(LAT0, LON0, R, {"elements": [el]}, [cat])
+    assert bool(far) == shown
