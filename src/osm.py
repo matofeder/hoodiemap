@@ -9,6 +9,7 @@ from pathlib import Path
 
 import httpx
 
+from config import OverpassConfig
 from geo import square_bbox
 
 logger = logging.getLogger(__name__)
@@ -158,6 +159,15 @@ def categorize_poi(tags: dict) -> str | None:
     return None
 
 
+def endpoints_for(lat: float, lon: float, ocfg: OverpassConfig) -> list[str]:
+    """Local Overpass first when the point is inside its extract's bbox; public servers otherwise/after."""
+    south, west, north, east = ocfg.local_bbox
+    inside = south <= lat <= north and west <= lon <= east
+    if ocfg.local_url and inside:
+        return [ocfg.local_url, *ocfg.public_endpoints]
+    return list(ocfg.public_endpoints)
+
+
 def _cache_file(query: str, cache_dir: str) -> Path:
     return Path(cache_dir) / "osm" / f"{hashlib.sha256(query.encode()).hexdigest()[:16]}.json"
 
@@ -181,7 +191,7 @@ def _cache_write(query: str, data: dict, cache_dir: str) -> None:
 
 
 def run_query(query: str, cache_dir: str | None, transport: httpx.BaseTransport | None = None,
-              timeout_s: float = TIMEOUT_S, stats: list | None = None) -> dict:
+              timeout_s: float = TIMEOUT_S, stats: list | None = None, endpoints: list[str] | None = None) -> dict:
     if cache_dir:
         cached = _cache_read(query, cache_dir)
         if cached is not None:
@@ -190,7 +200,7 @@ def run_query(query: str, cache_dir: str | None, transport: httpx.BaseTransport 
             return cached
     errors = []
     with httpx.Client(timeout=timeout_s, headers={"User-Agent": USER_AGENT}, transport=transport) as client:
-        for url in ENDPOINTS:
+        for url in endpoints or ENDPOINTS:
             try:
                 resp = client.post(url, data={"data": query})
                 resp.raise_for_status()
@@ -203,7 +213,7 @@ def run_query(query: str, cache_dir: str | None, transport: httpx.BaseTransport 
                 logger.warning("Overpass %s runtime error: %s", url, data["remark"])
                 errors.append(f"{url}: {data['remark']}")
                 continue
-            if cache_dir:
+            if cache_dir and data.get("elements"):
                 try:
                     _cache_write(query, data, cache_dir)
                 except OSError as exc:
@@ -220,19 +230,20 @@ def build_street_query(name: str, lat: float, lon: float) -> str:
             f"(around:{STREET_SEARCH_M},{lat:.6f},{lon:.6f});out geom;")
 
 
-def fetch_street(name: str, lat: float, lon: float, cache_dir: str | None, stats: list | None = None) -> dict:
-    return run_query(build_street_query(name, lat, lon), cache_dir, stats=stats)
+def fetch_street(name: str, lat: float, lon: float, cache_dir: str | None, stats: list | None = None,
+                endpoints: list[str] | None = None) -> dict:
+    return run_query(build_street_query(name, lat, lon), cache_dir, stats=stats, endpoints=endpoints)
 
 
 def fetch_area(lat: float, lon: float, half_m: float, cache_dir: str | None,
-               light: bool = False, stats: list | None = None) -> dict:
+               light: bool = False, stats: list | None = None, endpoints: list[str] | None = None) -> dict:
     south, west, north, east = square_bbox(lat, lon, half_m + AREA_MARGIN_M)
     return run_query(build_area_query(south, west, north, east, light), cache_dir,
-                      timeout_s=CITY_TIMEOUT_S if light else TIMEOUT_S, stats=stats)
+                      timeout_s=CITY_TIMEOUT_S if light else TIMEOUT_S, stats=stats, endpoints=endpoints)
 
 
 def fetch_pois(lat: float, lon: float, categories: list[str], cache_dir: str | None,
-               square_m: float = 0.0, stats: list | None = None) -> dict:
+               square_m: float = 0.0, stats: list | None = None, endpoints: list[str] | None = None) -> dict:
     if not categories:
         return {"elements": []}
-    return run_query(build_poi_query(lat, lon, categories, square_m), cache_dir, stats=stats)
+    return run_query(build_poi_query(lat, lon, categories, square_m), cache_dir, stats=stats, endpoints=endpoints)

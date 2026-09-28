@@ -4,8 +4,9 @@ import httpx
 import pytest
 
 import osm
+from config import OverpassConfig
 from geo import square_bbox
-from osm import OverpassError, build_area_query, build_poi_query, categorize_poi, run_query
+from osm import OverpassError, build_area_query, build_poi_query, categorize_poi, endpoints_for, run_query
 
 
 def _transport(responses, calls):
@@ -233,3 +234,54 @@ def test_light_area_query_skips_footways_and_trees():
     assert 'way["highway"]["highway"!~"^(footway|path|steps|track|cycleway)$"]' in q
     assert '"natural"="tree"' not in q
     assert build_area_query(48.1, 17.1, 48.2, 17.2).startswith("[out:json][timeout:25];")
+
+
+LOCAL = "http://localhost:12345/api/interpreter"
+
+
+def test_endpoints_local_first_inside_coverage_public_only_outside():
+    ocfg = OverpassConfig(local_url=LOCAL)
+    assert endpoints_for(48.2865, 17.2722, ocfg) == [LOCAL, *ocfg.public_endpoints]   # Pezinok
+    assert endpoints_for(49.1951, 16.6068, ocfg) == ocfg.public_endpoints             # Brno
+    assert endpoints_for(48.2865, 17.2722, OverpassConfig()) == OverpassConfig().public_endpoints
+
+
+def test_run_query_uses_given_endpoints_and_falls_through_a_refused_local():
+    calls = []
+
+    def handler(request):
+        calls.append(str(request.url))
+        if str(request.url).startswith(LOCAL):
+            raise httpx.ConnectError("refused")
+        return httpx.Response(200, json={"elements": [1]})
+
+    out = run_query("q", None, transport=httpx.MockTransport(handler), endpoints=[LOCAL, "https://pub.example/api"])
+    assert out == {"elements": [1]}
+    assert calls == [LOCAL, "https://pub.example/api"]
+
+
+def test_run_query_treats_an_importing_local_instance_as_failed():
+    def handler(request):
+        if str(request.url).startswith(LOCAL):
+            return httpx.Response(200, json={"remark": "runtime error: database not ready", "elements": []})
+        return httpx.Response(200, json={"elements": [2]})
+
+    assert run_query("q", None, transport=httpx.MockTransport(handler),
+                     endpoints=[LOCAL, "https://pub.example/api"]) == {"elements": [2]}
+
+
+def test_empty_answers_are_not_cached(tmp_path):
+    calls = []
+    t = _transport([(200, {"elements": []}), (200, {"elements": [3]})], calls)
+    assert run_query("q", str(tmp_path), transport=t) == {"elements": []}
+    assert run_query("q", str(tmp_path), transport=t) == {"elements": [3]}   # second call went to the network
+    assert len(calls) == 2
+
+
+def test_fetchers_pass_endpoints_through(monkeypatch):
+    seen = []
+    monkeypatch.setattr(osm, "run_query", lambda q, cache, **kw: seen.append(kw.get("endpoints")) or {"elements": []})
+    osm.fetch_area(48.0, 17.0, 140, None, endpoints=["x"])
+    osm.fetch_pois(48.0, 17.0, ["pharmacy"], None, endpoints=["y"])
+    osm.fetch_street("Hlavná", 48.0, 17.0, None, endpoints=["z"])
+    assert seen == [["x"], ["y"], ["z"]]
