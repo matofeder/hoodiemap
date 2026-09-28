@@ -9,16 +9,12 @@ from pathlib import Path
 
 import httpx
 
-from config import OverpassConfig
+from config import PUBLIC_OVERPASS, OverpassConfig
 from geo import square_bbox
 
 logger = logging.getLogger(__name__)
 
-ENDPOINTS: list[str] = [
-    "https://overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
-    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
-]
+ENDPOINTS: list[str] = PUBLIC_OVERPASS
 USER_AGENT = "hoodiemap/1.0 (neighbourhood-map)"
 TIMEOUT_S = 25
 CITY_TIMEOUT_S = 70
@@ -191,15 +187,17 @@ def _cache_write(query: str, data: dict, cache_dir: str) -> None:
 
 
 def run_query(query: str, cache_dir: str | None, transport: httpx.BaseTransport | None = None,
-              timeout_s: float = TIMEOUT_S, stats: list | None = None, endpoints: list[str] | None = None) -> dict:
-    if cache_dir:
+              timeout_s: float = TIMEOUT_S, stats: list | None = None, endpoints: list[str] | None = None,
+              refresh: bool = False) -> dict:
+    """refresh: skip the cache read (a cached answer may come from another endpoint); still write the fresh one."""
+    if cache_dir and not refresh:
         cached = _cache_read(query, cache_dir)
         if cached is not None:
             if stats is not None:
                 stats.append(True)
             return cached
     errors = []
-    with httpx.Client(timeout=timeout_s, headers={"User-Agent": USER_AGENT}, transport=transport) as client:
+    with httpx.Client(timeout=httpx.Timeout(timeout_s, connect=2.0), headers={"User-Agent": USER_AGENT}, transport=transport) as client:
         for url in endpoints or ENDPOINTS:
             try:
                 resp = client.post(url, data={"data": query})
@@ -236,14 +234,18 @@ def fetch_street(name: str, lat: float, lon: float, cache_dir: str | None, stats
 
 
 def fetch_area(lat: float, lon: float, half_m: float, cache_dir: str | None,
-               light: bool = False, stats: list | None = None, endpoints: list[str] | None = None) -> dict:
+               light: bool = False, stats: list | None = None, endpoints: list[str] | None = None,
+               refresh: bool = False) -> dict:
     south, west, north, east = square_bbox(lat, lon, half_m + AREA_MARGIN_M)
     return run_query(build_area_query(south, west, north, east, light), cache_dir,
-                      timeout_s=CITY_TIMEOUT_S if light else TIMEOUT_S, stats=stats, endpoints=endpoints)
+                      timeout_s=CITY_TIMEOUT_S if light else TIMEOUT_S, stats=stats, endpoints=endpoints,
+                      refresh=refresh)
 
 
 def fetch_pois(lat: float, lon: float, categories: list[str], cache_dir: str | None,
-               square_m: float = 0.0, stats: list | None = None, endpoints: list[str] | None = None) -> dict:
+               square_m: float = 0.0, stats: list | None = None, endpoints: list[str] | None = None,
+               refresh: bool = False) -> dict:
     if not categories:
         return {"elements": []}
-    return run_query(build_poi_query(lat, lon, categories, square_m), cache_dir, stats=stats, endpoints=endpoints)
+    return run_query(build_poi_query(lat, lon, categories, square_m), cache_dir, stats=stats, endpoints=endpoints,
+                     refresh=refresh)

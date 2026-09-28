@@ -114,7 +114,7 @@ The POI query uses `out bb tags` (bbox centre = position, bbox size = area check
 
 ### Known risks
 
-- Local Overpass (`docker-compose.yml`, `docs/local-overpass.md`) serves Slovakia in ~1 s cold; outside Slovakia or with the container stopped the public servers are used (often overloaded, 504 / timeouts; 10–60 s cold). Cross-border POIs/cities are not found locally. Cached requests are instant; failures are not cached.
+- Local Overpass (`docker-compose.yml`, `docs/local-overpass.md`) serves Slovakia in ~2–3 s cold; outside Slovakia or with the container stopped the public servers are used (often overloaded, 504 / timeouts; 10–60 s cold). Cross-border POIs/cities are not found locally. Cached requests are instant; failures are not cached.
 - OSM data quality: missing names fall back to the category label.
 
 ### Planned Stages

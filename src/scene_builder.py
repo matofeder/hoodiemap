@@ -417,12 +417,14 @@ def build_scene(lat: float, lon: float, cfg: Config, tier: str = "address", name
         warnings.append("poi_fetch_failed")
     # A point can lie inside the local extract's bbox but outside the extract itself (e.g. Miskolc):
     # an empty local answer means "no data here", not "nothing here" - ask the public servers.
-    # (run_query never caches empty answers, so the public refetch is not shadowed by the cache.)
+    # A partial local answer (non-empty POIs) is cached under the same query text, so the public
+    # refetch uses refresh=True: it bypasses that cache entry and overwrites it with the public answer.
     local = cfg.overpass.local_url
     if local and endpoints[0] == local and not area.get("elements"):
-        area = fetch_area(lat, lon, radius, cache_dir, tier == "city", stats, endpoints=public)
+        area = fetch_area(lat, lon, radius, cache_dir, tier == "city", stats, endpoints=public, refresh=True)
         try:
-            pois_raw = fetch_pois(lat, lon, categories, cache_dir, radius, stats, endpoints=public)
+            pois_raw = fetch_pois(lat, lon, categories, cache_dir, radius, stats, endpoints=public,
+                              refresh=True)
             if "poi_fetch_failed" in warnings:
                 warnings.remove("poi_fetch_failed")  # it came from the failed local attempt
         except OverpassError as exc:

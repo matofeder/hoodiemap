@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 import scene_builder
@@ -341,12 +343,12 @@ def test_build_scene_street_tier_recentres_and_reports_timing(monkeypatch, defau
     seen = {}
     monkeypatch.setattr(scene_builder, "fetch_street", lambda *a, **k: street_raw)
 
-    def fake_area(lat, lon, half_m, cache_dir, light=False, stats=None, endpoints=None):
+    def fake_area(lat, lon, half_m, cache_dir, light=False, stats=None, endpoints=None, refresh=False):
         seen.update(lat=lat, lon=lon, half=half_m, light=light)
         stats.append(True)
         return {"elements": []}
 
-    def fake_pois(lat, lon, categories, cache_dir, square_m=0.0, stats=None, endpoints=None):
+    def fake_pois(lat, lon, categories, cache_dir, square_m=0.0, stats=None, endpoints=None, refresh=False):
         seen["categories"] = categories
         stats.append(True)
         return {"elements": []}
@@ -365,7 +367,7 @@ def test_build_scene_street_tier_recentres_and_reports_timing(monkeypatch, defau
 def test_build_scene_city_tier_is_light_and_street_failure_is_a_warning(monkeypatch, default_config):
     seen = {}
 
-    def fake_area(lat, lon, half_m, cache_dir, light=False, stats=None, endpoints=None):
+    def fake_area(lat, lon, half_m, cache_dir, light=False, stats=None, endpoints=None, refresh=False):
         seen.update(half=half_m, light=light)
         stats.append(False)
         return {"elements": []}
@@ -460,3 +462,57 @@ def test_local_and_public_pois_failed_keeps_one_poi_warning(monkeypatch, default
     monkeypatch.setattr(scene_builder, "fetch_pois", _local_poi_fails(False))
     s = build_scene(LAT0, LON0, _cfg_with_local(default_config))
     assert s["warnings"].count("poi_fetch_failed") == 1 and "public_fallback" in s["warnings"]
+
+
+def test_public_refetch_passes_refresh(monkeypatch, default_config):
+    seen = []
+
+    def fake_area(*a, endpoints=None, refresh=False, **k):
+        seen.append(("area", endpoints[0], refresh))
+        return {"elements": []}
+
+    def fake_pois(*a, endpoints=None, refresh=False, **k):
+        seen.append(("pois", endpoints[0], refresh))
+        return {"elements": []}
+
+    monkeypatch.setattr(scene_builder, "fetch_area", fake_area)
+    monkeypatch.setattr(scene_builder, "fetch_pois", fake_pois)
+    build_scene(LAT0, LON0, _cfg_with_local(default_config))
+    public = [s for s in seen if s[1] != "http://local/api"]
+    assert sorted(public) == [("area", public[0][1], True), ("pois", public[0][1], True)]
+    assert all(s[2] is False for s in seen if s[1] == "http://local/api")
+
+
+def test_partial_local_poi_answer_does_not_shadow_public_refetch(monkeypatch, default_config, tmp_path):
+    import httpx
+    import osm
+
+    def handler(request):
+        local = request.url.host == "local"
+        body = request.content.decode()
+        if "out+geom" in body or "out%20geom" in body or "out geom" in body:
+            els = [] if local else [way(rect(0, 0, 10, 10), {"building": "house"})]
+        else:
+            n = 1 if local else 2
+            els = [{"type": "node", "id": i, "lat": LAT0, "lon": LON0, "tags": {"amenity": "pharmacy", "name": f"P{i}"}}
+                   for i in range(n)]
+        return httpx.Response(200, json={"elements": els})
+
+    real_client = httpx.Client
+    monkeypatch.setattr(osm.httpx, "Client",
+                        lambda **kw: real_client(**{**kw, "transport": httpx.MockTransport(handler)}))
+    cfg = _cfg_with_local(default_config)
+    cfg = cfg.model_copy(update={"cache": cfg.cache.model_copy(update={"enabled": True, "dir": str(tmp_path)})})
+    captured = {}
+    real_assemble = scene_builder.assemble_scene
+
+    def spy(lat, lon, radius, area, pois_raw, *a, **k):
+        captured["pois"] = pois_raw
+        return real_assemble(lat, lon, radius, area, pois_raw, *a, **k)
+
+    monkeypatch.setattr(scene_builder, "assemble_scene", spy)
+    s = build_scene(LAT0, LON0, cfg)
+    assert "public_fallback" in s["warnings"]
+    assert len(captured["pois"]["elements"]) == 2
+    files = [json.loads(p.read_text()) for p in (tmp_path / "osm").glob("*.json")]
+    assert any(len(f["data"]["elements"]) == 2 for f in files)

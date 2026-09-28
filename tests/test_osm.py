@@ -182,7 +182,7 @@ def test_run_query_passes_timeout(monkeypatch):
 
     monkeypatch.setattr(osm.httpx, "Client", spy)
     run_query("q", None, transport=_transport([(200, {"elements": []})], []), timeout_s=70)
-    assert seen["timeout"] == 70
+    assert seen["timeout"].read == 70 and seen["timeout"].connect == 2.0
 
 
 @pytest.mark.parametrize("tags,expected", [
@@ -285,3 +285,26 @@ def test_fetchers_pass_endpoints_through(monkeypatch):
     osm.fetch_pois(48.0, 17.0, ["pharmacy"], None, endpoints=["y"])
     osm.fetch_street("Hlavná", 48.0, 17.0, None, endpoints=["z"])
     assert seen == [["x"], ["y"], ["z"]]
+
+
+def test_refresh_skips_cache_read_and_overwrites_entry(tmp_path):
+    cache = str(tmp_path)
+    assert run_query("q", cache, transport=_transport([(200, {"elements": [1]})], [])) == {"elements": [1]}
+    calls = []
+    fresh = run_query("q", cache, transport=_transport([(200, {"elements": [1, 2]})], calls),
+                      endpoints=["http://public/api"], refresh=True)
+    assert fresh == {"elements": [1, 2]} and calls == ["http://public/api"]
+    assert run_query("q", cache, transport=_transport([], [])) == {"elements": [1, 2]}  # cache holds the new answer
+
+
+def test_fetch_helpers_pass_refresh(monkeypatch):
+    seen = []
+    monkeypatch.setattr(osm, "run_query", lambda q, cache, **kw: seen.append(kw.get("refresh")) or {"elements": []})
+    osm.fetch_area(48.0, 17.0, 140, None, refresh=True)
+    osm.fetch_pois(48.0, 17.0, ["pharmacy"], None, refresh=True)
+    assert seen == [True, True]
+
+
+def test_endpoints_is_config_public_list():
+    from config import PUBLIC_OVERPASS
+    assert osm.ENDPOINTS == PUBLIC_OVERPASS
