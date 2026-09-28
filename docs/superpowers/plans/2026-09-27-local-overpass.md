@@ -13,7 +13,8 @@
 ## Design notes (decisions and their costs)
 
 - **Why Overpass in Docker, not PostGIS:** the backend's queries stay byte-identical, so the JSON cache, the tests and every query builder keep working; the change is a URL list. PostGIS would mean rewriting every query (area, POIs, street) — weeks, not hours.
-- **Coverage = Slovakia bbox** `(47.73, 16.83, 49.61, 22.57)` (south, west, north, east). Points outside go straight to the public servers (Brno, Vienna, Budapest — the geocoder allows `cz`).
+- **Market = Slovakia only** (decided 2026-09-28: Slovakia is the first market). The geocoder is limited to `sk` (Task 0), which also fixes bare "Senec" resolving to Czechia.
+- **Coverage = Slovakia bbox** `(47.73, 16.83, 49.61, 22.57)` (south, west, north, east). Points outside (only reachable via a hand-edited `?lat=&lon=` URL now) go straight to the public servers.
 - **Known limitation:** the extract ends at the border (plus Geofabrik's small buffer). For a property in Slovakia, POIs and cities across the border are not found locally — e.g. from Bratislava the "Wien 55 km" city badge disappears, and near-border hospitals/stations abroad are not candidates. Accepted: this is a Slovak real-estate tool. If it matters later, add neighbouring extracts (Austria, Czechia, Hungary) or cut a buffered extract from the Europe file with `osmium extract`.
 - **Freshness:** diffs are applied hourly (`OVERPASS_UPDATE_SLEEP=3600`) from Geofabrik's daily updates; the backend's 30-day JSON cache still applies on top.
 - **Resources:** the database for Slovakia is a few GB (disk has 553 GB free); the initial import takes roughly 15–40 min on this machine (16 cores, 45 GB RAM) and runs once.
@@ -30,8 +31,7 @@
 - Commit messages end with:
   ```
   Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-  Claude-Session: https://claude.ai/code/session_01Ks8oBdDjJanB3ngMLhZ38E
-  ```
+    ```
 
 ## Review Focus
 
@@ -52,6 +52,33 @@
 | `src/scene_builder.py` | pass the per-scene endpoint list; empty-local-area refetch from public |
 | `scripts/time_tiers.py` | unchanged; re-run for the acceptance numbers |
 | `CLAUDE.md` | running notes + known limitation |
+
+---
+
+### Task 0: Geocoder limited to Slovakia
+
+**Files:**
+- Modify: `src/config.py`, `config.yaml`, `CLAUDE.md` (the `countrycodes` line in the config snippet)
+- Test: `tests/test_config.py`
+
+- [ ] **Step 1: Failing test** — add to `tests/test_config.py`:
+
+```python
+def test_geocode_limited_to_slovakia():
+    from config import Config, LocationConfig
+    assert Config(location=LocationConfig(lat=48.0, lon=17.0)).geocode.countrycodes == "sk"
+    assert load_config(Path(__file__).parent.parent / "config.yaml").geocode.countrycodes == "sk"
+```
+
+- [ ] **Step 2:** run `.venv/bin/python -m pytest tests/test_config.py -v` → FAIL.
+- [ ] **Step 3:** default `countrycodes: str = "sk"` in `src/config.py`; `countrycodes: "sk"` in `config.yaml` (comment: Slovakia is the target market); same in the `CLAUDE.md` config snippet. The geocode cache key already includes `countrycodes`, so old `sk,cz` entries are simply not reused.
+- [ ] **Step 4:** `.venv/bin/python -m pytest -q` → all pass (fix any test that asserted `"sk,cz"`).
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/config.py config.yaml CLAUDE.md tests/
+git commit -m "feat(geocode): limit search to Slovakia, the target market" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+```
 
 ---
 
@@ -121,8 +148,7 @@ overpass:
 
 ```bash
 git add src/config.py config.yaml tests/test_config.py
-git commit -m "feat(config): overpass section — local URL, public endpoints, local coverage bbox" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01Ks8oBdDjJanB3ngMLhZ38E"
+git commit -m "feat(config): overpass section — local URL, public endpoints, local coverage bbox" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -222,8 +248,7 @@ In `run_query` add the keyword `endpoints: list[str] | None = None` and iterate 
 
 ```bash
 git add src/osm.py tests/test_osm.py
-git commit -m "feat(osm): per-scene endpoint list with local Overpass first inside its coverage" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01Ks8oBdDjJanB3ngMLhZ38E"
+git commit -m "feat(osm): per-scene endpoint list with local Overpass first inside its coverage" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -314,8 +339,7 @@ Expected: FAIL (endpoints never passed; no refetch).
 
 ```bash
 git add src/scene_builder.py tests/test_assemble.py
-git commit -m "feat(scene): local Overpass per scene, public refetch when the local extract has no data" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01Ks8oBdDjJanB3ngMLhZ38E"
+git commit -m "feat(scene): local Overpass per scene, public refetch when the local extract has no data" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -410,6 +434,5 @@ Run: `.venv/bin/python -m pytest -q` → all pass.
 
 ```bash
 git add docker-compose.yml docs/local-overpass.md CLAUDE.md
-git commit -m "feat: local Overpass service for Slovakia (docker-compose) with docs and timing" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01Ks8oBdDjJanB3ngMLhZ38E"
+git commit -m "feat: local Overpass service for Slovakia (docker-compose) with docs and timing" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
