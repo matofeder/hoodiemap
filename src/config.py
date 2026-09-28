@@ -4,6 +4,13 @@ import yaml
 from pydantic import BaseModel, Field
 
 
+PUBLIC_OVERPASS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+]
+
+
 class LocationConfig(BaseModel):
     lat: float
     lon: float
@@ -57,6 +64,12 @@ class GeocodeConfig(BaseModel):
     countrycodes: str = "sk"
 
 
+class OverpassConfig(BaseModel):
+    local_url: str | None = None  # None: public servers only
+    public_endpoints: list[str] = Field(default_factory=lambda: list(PUBLIC_OVERPASS))
+    local_bbox: tuple[float, float, float, float] = (47.73, 16.83, 49.61, 22.57)  # S, W, N, E of the extract
+
+
 class Config(BaseModel):
     location: LocationConfig
     radii: RadiiConfig = Field(default_factory=RadiiConfig)
@@ -64,6 +77,7 @@ class Config(BaseModel):
     cache: CacheConfig = Field(default_factory=CacheConfig)
     api: ApiConfig = Field(default_factory=ApiConfig)
     geocode: GeocodeConfig = Field(default_factory=GeocodeConfig)
+    overpass: OverpassConfig = Field(default_factory=OverpassConfig)
 
 
 def load_config(path: str | Path = "config.yaml") -> Config:

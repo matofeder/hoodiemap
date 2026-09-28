@@ -38,3 +38,7 @@ api:
 
 geocode:
   countrycodes: "sk"    # Slovakia is the target market
+
+overpass:
+  local_url: "http://localhost:12345/api/interpreter"   # docker-compose up -d overpass; null = public only
+  local_bbox: [47.73, 16.83, 49.61, 22.57]             # Slovakia extract (S, W, N, E); outside -> public servers
