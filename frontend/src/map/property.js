@@ -13,6 +13,12 @@ export function addProperty(world, scene, mat) {
   const ringR = b ? Math.max(12, orientedRect(b.footprint).length / 2 + 5) : 12;
   const base = (b?.height ?? 0) + PIN_CLEARANCE;
 
+  return addPin(world, x, y, base, ringR, mat);
+}
+
+// The bobbing, spinning pin with a pulse ring on the ground below — shared by the address and street tiers.
+// `size` scales pin, ring and bob together so the pin reads the same on a larger (zoomed-out) map.
+export function addPin(world, x, y, base, ringR, mat, size = 1) {
   const pinMat = mat(PALETTE.property);
   const pin = new THREE.Group();
   const head = new THREE.Mesh(new THREE.SphereGeometry(3.2, 20, 14), pinMat);
@@ -23,11 +29,11 @@ export function addProperty(world, scene, mat) {
   const dot = new THREE.Mesh(new THREE.SphereGeometry(1.3, 12, 8), mat('#FFFFFF'));
   dot.position.set(0, 5, 2.6);
   pin.add(head, tip, dot);
-  pin.scale.setScalar(PIN_SCALE);
+  pin.scale.setScalar(PIN_SCALE * size);
   pin.traverse((o) => { o.castShadow = true; });
   world.add(pin);
 
-  const ringGeo = new THREE.RingGeometry(ringR, ringR + 2, 48);
+  const ringGeo = new THREE.RingGeometry(ringR, ringR + 2 * size, 48);
   ringGeo.rotateX(-Math.PI / 2);
   const ringMat = new THREE.MeshBasicMaterial({ color: PALETTE.property, transparent: true, depthWrite: false });
   const ring = new THREE.Mesh(ringGeo, ringMat);
@@ -35,12 +41,12 @@ export function addProperty(world, scene, mat) {
   world.add(ring);
 
   function update(t) {
-    pin.position.set(x, base + Math.sin(t * 2.4) * 1.6, -y);
+    pin.position.set(x, base + Math.sin(t * 2.4) * 1.6 * size, -y);
     pin.rotation.y = t * 1.2;
     const p = (t * 0.45) % 1;
     ring.scale.setScalar(0.7 + p * 1.1);
     ringMat.opacity = 0.75 * (1 - p);
   }
   update(0);
-  return { update, anchor: { x, y, h: base + 9 * PIN_SCALE, base } };
+  return { update, anchor: { x, y, h: base + 9 * PIN_SCALE * size, base } };
 }

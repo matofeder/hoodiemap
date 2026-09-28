@@ -148,8 +148,13 @@ body {
   z-index: 2;
   font-family: "Fredoka", "Figtree", system-ui, sans-serif; font-weight: 600;
   font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
-  color: #fff; background: #FF5A5F; padding: 4px 10px 5px; border-radius: 999px;
+  color: #fff; background: #FF5A5F; padding: 4px 10px 5px; border-radius: 999px; text-align: center;
   box-shadow: 0 4px 12px rgba(255, 90, 95, 0.35);
+}
+.gm-tag small {
+  display: block; margin-top: 1px;
+  font-family: "Figtree", system-ui, sans-serif; font-weight: 600;
+  font-size: 10px; letter-spacing: 0; text-transform: none; opacity: 0.92;
 }
 .gm-tag::after {
   content: ""; position: absolute; left: 50%; bottom: -5px; margin-left: -5px;

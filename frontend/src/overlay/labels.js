@@ -57,6 +57,7 @@ export function createOverlay(container, scene, project, anchor, onLabel = () =>
   const tag = anchor ? el('div', 'gm-tag', root) : null;
   if (tag) {
     tag.textContent = 'Na predaj';
+    if (tagInfo?.note) tag.appendChild(text('small', tagInfo.note));
     const propertyIndex = scene.property?.building_index ?? null;
     const info = propertyIndex != null
       ? buildingInfo(scene.buildings[propertyIndex], { isProperty: true })

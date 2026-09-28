@@ -24,6 +24,8 @@ const CAMERA_DIR = new THREE.Vector3(190, 215, 250).normalize();
 const SUN_DIR = new THREE.Vector3(90, 160, 60).normalize();
 const FRAME_MS = 1000 / 30; // gentle idle animation — 30 fps is plenty and halves GPU work
 
+const STREET_NOTE = 'Presná adresa nie je uvedená';
+
 export function createStage(container, scene) {
   const r = scene.radius_m;
   const detail = detailFor(scene.tier);
@@ -64,10 +66,10 @@ export function createStage(container, scene) {
   const groups = detail.pigeons ? addChatGroups(world, spots.slice(1), mat, mulberry32(seed + 5)) : idle;
   const pigeons = detail.pigeons ? addPigeons(world, spots[0] ?? null, r, mat, mulberry32(seed + 6)) : idle;
   const focus = detail.property ? addProperty(world, scene, mat)
-    : detail.streetFocus ? addStreetFocus(world, scene.focus, mat)
+    : detail.streetFocus ? addStreetFocus(world, scene.focus, mat, r)
       : { update() {}, anchor: null };
   const tagInfo = detail.streetFocus
-    ? { title: `Na predaj · ${tierLabel('street')} ${scene.focus?.name ?? ''}`.trim(), lines: ['Presná adresa nie je uvedená'] }
+    ? { title: `Na predaj · ${tierLabel('street')} ${scene.focus?.name ?? ''}`.trim(), lines: [STREET_NOTE], note: STREET_NOTE }
     : null;
 
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -r * 10, r * 10);
