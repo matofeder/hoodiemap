@@ -1,7 +1,6 @@
-# HoodieMap on your own server: app + Postgres + Overpass (Slovakia), optionally a Cloudflare Tunnel.
+# HoodieMap on your own server: app + Postgres + Overpass (Slovakia).
 #   cp .env.example .env   # fill in the secrets
 #   docker compose up -d --build
-#   docker compose --profile tunnel up -d   # public HTTPS through Cloudflare, no open ports
 # Details: docs/deploy.md
 name: hoodiemap
 
@@ -19,7 +18,9 @@ services:
       - app-data:/app/data         # uploaded and imported photos
       - app-cache:/app/.cache      # OSM and geocoding cache
     ports:
-      - "127.0.0.1:8000:8000"      # local only; the internet comes in through the tunnel (or your reverse proxy)
+      # Default: this machine only (put your reverse proxy with HTTPS in front).
+      # APP_BIND=0.0.0.0:8000 in .env opens it to the network.
+      - "${APP_BIND:-127.0.0.1:8000}:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -62,16 +63,6 @@ services:
       OVERPASS_USE_AREAS: "false"
       OVERPASS_MAX_TIMEOUT: "120s"
 
-  cloudflared:
-    # Public HTTPS without port forwarding. Pin a version after the first pull if you prefer.
-    image: cloudflare/cloudflared:latest
-    profiles: ["tunnel"]
-    restart: unless-stopped
-    command: tunnel --no-autoupdate run
-    environment:
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?set TUNNEL_TOKEN in .env for the tunnel profile}
-    depends_on:
-      - app
 
 volumes:
   app-data:
