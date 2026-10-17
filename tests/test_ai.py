@@ -187,4 +187,4 @@ async def test_transcribe_endpoint_maps_provider_failure_to_502(client):
 
 async def test_features_endpoint_is_public(client):
     r = await client.get("/api/features")
-    assert r.status_code == 200 and r.json() == {"ai": {"voice": False, "text": False}}
+    assert r.status_code == 200 and r.json() == {"ai": {"voice": False, "text": False}, "create_needs_admin": False}

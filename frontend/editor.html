@@ -137,6 +137,13 @@
           </div>
         </fieldset>
 
+        <fieldset id="admin-fields" hidden>
+          <legend>Správca</legend>
+          <label for="f-admin">Admin token</label>
+          <input id="f-admin" type="password" autocomplete="current-password" />
+          <p class="ed-hint">Na tomto serveri vytvára prezentácie len správca. Maklér dostane odkaz na úpravy.</p>
+        </fieldset>
+
         <div class="ed-save">
           <ul id="problems" class="ed-problems" role="alert" hidden></ul>
           <button id="save" type="submit">Vytvoriť prezentáciu</button>

@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from config import get_config
 from geocode import GeocodeUnavailable, Geocoder, get_geocoder
 from osm import AREA_FAILED_DETAIL, USER_AGENT, OverpassError
+from admin import admin_token
 from import_api import router as import_router
 from presentation_api import ai_features, router as presentation_router
 from scene_builder import build_scene
@@ -78,7 +79,7 @@ async def health():
 @app.get("/api/features")
 async def features():
     """What the editor may offer; on/off flags only, no provider details."""
-    return {"ai": ai_features()}
+    return {"ai": ai_features(), "create_needs_admin": admin_token() is not None}
 
 
 @app.get("/api/scene")

@@ -32,6 +32,8 @@ Property presentations (spec `docs/superpowers/specs/2026-10-17-property-present
 
 Demo import: `/import` turns one public nehnutelnosti.sk listing URL into a non-public, expiring demo presentation for the agent who published it (needs `$HOODIEMAP_ADMIN_TOKEN` on the server; `?fixture=true` uses the fixture map). One page and its photos per request, never crawling.
 
+Own server: `deploy/` (Dockerfile at the root, `deploy/docker-compose.yml` with app + Postgres + Overpass + optional Cloudflare Tunnel, `backup.sh`); steps in `docs/deploy.md`. With `HOODIEMAP_ADMIN_TOKEN` set, creating presentations needs the admin token too; editing needs only the edit link.
+
 Tests: `.venv/bin/python -m pytest` (backend, no network) and `cd frontend && npm test` (vitest, pure helpers). Database tests need `HOODIEMAP_TEST_DATABASE_URL=postgresql://hoodiemap:hoodiemap@localhost:5432/hoodiemap_test` (each test gets a throwaway schema) and are skipped without it.
 Timing: `.venv/bin/python scripts/time_tiers.py`
 

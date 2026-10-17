@@ -1,0 +1,60 @@
+# Production config for deploy/docker-compose.yml (mounted over /app/config.yaml). Secrets stay in deploy/.env.
+location:
+  lat: 48.28646434486518
+  lon: 17.27221245956356
+
+radii:
+  display_meters: 140      # address tier: half-size of the square around the property
+  street_min: 160          # street tier: clamp(street length / 2 + 60 m, min, max)
+  street_max: 300
+  city_meters: 450         # city tier: half-size around the town centre
+
+poi:
+  show:
+    hospital: true
+    supermarket: true
+    school: true
+    kindergarten: true
+    pharmacy: true
+    bus_stop: true
+    train: true
+    park: true
+    playground: true     # only when on the map
+    food: true           # cafe / restaurant — only when on the map
+    post: true           # only when on the map
+    bank: true           # only when on the map
+    doctors: true        # doctors / clinic / dentist — only when on the map
+    city: true           # nearest cities (place=city) as edge badges
+    bus_station: true    # city tier
+    mall: true           # city tier (shop=mall)
+    landmark: true       # city tier: town hall, square, castle, church, museum (with Wikipedia/Wikidata)
+
+cache:
+  enabled: true
+  dir: .cache
+
+storage:
+  dir: data             # uploaded photos (presentations live in Postgres)
+
+database:               # $HOODIEMAP_DATABASE_URL overrides url
+  url: postgresql://hoodiemap@postgres:5432/hoodiemap   # the real URL with the password comes from $HOODIEMAP_DATABASE_URL
+
+ai:
+  llm:                  # OpenAI-compatible chat API; key from $HOODIEMAP_LLM_API_KEY
+    base_url: null      # e.g. https://api.deepseek.com/v1 ; null = AI text off
+    model: ""           # e.g. deepseek-chat
+  stt:                  # OpenAI-compatible /audio/transcriptions (local whisper server)
+    base_url: null      # e.g. http://localhost:8001/v1 ; null = voice input off
+    model: ""           # the model name your server expects
+    language: sk
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+
+geocode:
+  countrycodes: "sk"    # Slovakia is the target market
+
+overpass:
+  local_url: "http://overpass/api/interpreter"   # the overpass service in deploy/docker-compose.yml
+  local_bbox: [47.73, 16.83, 49.61, 22.57]             # Slovakia extract (S, W, N, E); outside -> public servers

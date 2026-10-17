@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 import ai
+from admin import check_admin
 from config import get_config
 from db import connect_pool, migrate
 from osm import AREA_FAILED_DETAIL, OverpassError
@@ -101,7 +102,8 @@ def _validated(data: dict) -> dict:
 
 
 @router.post("", status_code=201)
-async def create(body: CreateIn, store: Store):
+async def create(body: CreateIn, store: Store, admin: Annotated[str | None, Header(alias="X-Admin-Token")] = None):
+    check_admin(admin, required=False)  # a public server sets HOODIEMAP_ADMIN_TOKEN: only the admin creates
     if body.data.photos:
         raise HTTPException(status_code=422, detail="Upload photos after creating the presentation.")
     scene = await _scene_for(body.data.location, body.fixture)

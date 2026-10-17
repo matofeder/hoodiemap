@@ -225,3 +225,16 @@ async def test_create_with_fixture_uses_the_fixture_scene(client):
     build.assert_not_called()
     body = (await client.get(f"/api/presentations/{r.json()['id']}")).json()
     assert body["scene"]["near_pois"]
+
+
+async def test_create_needs_the_admin_token_once_it_is_set(client, monkeypatch):
+    monkeypatch.setenv("HOODIEMAP_ADMIN_TOKEN", "letmein")
+    with patch("presentation_api.build_scene", return_value=dict(SCENE)):
+        assert (await client.post("/api/presentations", json={"data": DATA})).status_code == 403
+        r = await client.post("/api/presentations", json={"data": DATA}, headers={"X-Admin-Token": "letmein"})
+    assert r.status_code == 201
+    assert (await client.get("/api/features")).json()["create_needs_admin"] is True
+    # editing with the edit link still works without the admin token
+    r = await client.patch(f"/api/presentations/{r.json()['id']}", json={"title": "Byt"},
+                           headers={"X-Edit-Token": r.json()["edit_token"]})
+    assert r.status_code == 200

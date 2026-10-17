@@ -11,3 +11,5 @@ frontend/dist/
 *.egg-info/
 .env
 data/
+deploy/.env
+deploy/backups/

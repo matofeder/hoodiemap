@@ -1,21 +1,19 @@
 """/api/import: turn one public nehnutelnosti.sk listing into a demo presentation (admin only)."""
 import asyncio
 import logging
-import os
-import secrets
 from typing import Annotated
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 import listing_import
+from admin import check_admin
 from geocode import GeocodeUnavailable, get_geocoder
 from presentation_api import Store, _scene_for
 from presentations import Location, PhotoError, Photo, PresentationData, new_photo_id, process_photo
 
 logger = logging.getLogger(__name__)
 
-ADMIN_TOKEN_ENV = "HOODIEMAP_ADMIN_TOKEN"
 router = APIRouter(prefix="/api/import")
 
 
@@ -25,14 +23,6 @@ class ImportIn(BaseModel):
     demo_for: Annotated[str, Field(max_length=200)] | None = None  # default: the listing's agency
     expires_in_days: Annotated[int, Field(ge=1, le=365)] = 30
     fixture: bool = False  # offline: the fixture map instead of Overpass, no geocoding
-
-
-def _check_admin(token: str | None) -> None:
-    expected = os.environ.get(ADMIN_TOKEN_ENV)
-    if not expected:
-        raise HTTPException(status_code=503, detail=f"Import is off: set {ADMIN_TOKEN_ENV} on the server.")
-    if not token or not secrets.compare_digest(token, expected):
-        raise HTTPException(status_code=403, detail="Wrong admin token.")
 
 
 def _locate(listing: listing_import.ImportedListing, fixture: bool) -> tuple[dict, list[str]]:
@@ -74,7 +64,7 @@ def _import_photos(store, pid: str, urls: list[str]) -> tuple[int, int]:
 
 @router.post("", status_code=201)
 async def import_listing(body: ImportIn, store: Store, admin: Annotated[str | None, Header(alias="X-Admin-Token")] = None):
-    _check_admin(admin)
+    check_admin(admin)
     try:
         url = listing_import.check_url(body.url)
         html = await asyncio.to_thread(listing_import.fetch, url)

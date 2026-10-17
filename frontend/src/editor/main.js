@@ -19,6 +19,7 @@ const state = {
 
 const SAVE_ERRORS = {
   403: 'Odkaz na úpravy nie je platný. Otvorte ho znova z miesta, kam ste si ho uložili.',
+  create403: 'Admin token nesedí. Prezentácie na tomto serveri vytvára len správca.',
   410: 'Platnosť prezentácie skončila.',
   422: 'Niektoré údaje majú nesprávny tvar. Skontrolujte čísla a e-mail.',
   502: 'Mapu okolia sa teraz nepodarilo načítať z OpenStreetMap. Skúste uložiť znova o minútu.',
@@ -140,8 +141,8 @@ window.addEventListener('beforeunload', (e) => { if (dirty) e.preventDefault(); 
 
 // --- saving --------------------------------------------------------------------------------
 
-async function call(method, path, body) {
-  const headers = { ...(state.token ? { 'X-Edit-Token': state.token } : {}) };
+async function call(method, path, body, extraHeaders = {}) {
+  const headers = { ...(state.token ? { 'X-Edit-Token': state.token } : {}), ...extraHeaders };
   let payload = body;
   if (body && !(body instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
@@ -178,7 +179,9 @@ form.addEventListener('submit', async (e) => {
         body.demo_for = $('f-demo-for').value.trim() || null;
         body.expires_in_days = Number.parseInt($('f-demo-days').value, 10) || 30;
       }
-      const created = await call('POST', '/api/presentations', body);
+      const admin = $('f-admin').value;
+      if (admin) store.set('hm.admin', admin);
+      const created = await call('POST', '/api/presentations', body, admin ? { 'X-Admin-Token': admin } : {});
       state.pid = created.id;
       state.token = created.edit_token;
       history.replaceState(null, '', `/upravit/${encodeURIComponent(state.pid)}${fixture ? '?fixture=true' : ''}#${state.token}`);
@@ -188,7 +191,8 @@ form.addEventListener('submit', async (e) => {
     dirty = false;
     $('save-state').textContent = `Uložené o ${new Date().toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' })}.`;
   } catch (err) {
-    $('save-state').textContent = SAVE_ERRORS[err.status] ?? FAILED;
+    const key = !state.pid && err.status === 403 ? 'create403' : err.status;
+    $('save-state').textContent = SAVE_ERRORS[key] ?? FAILED;
   } finally {
     $('save').disabled = false;
   }
@@ -486,8 +490,11 @@ $('ai-draft').addEventListener('click', async () => {
 async function start() {
   if (!state.pid) {
     writeValues(valuesFromData({ agent: store.get('hm.agent', {}) }));
-    fetch('/api/features').then((r) => r.json()).then(({ ai: f }) => {
-      if (state.pid || (!f.voice && !f.text)) return;
+    fetch('/api/features').then((r) => r.json()).then(({ ai: f, create_needs_admin: needsAdmin }) => {
+      if (state.pid) return;
+      $('admin-fields').hidden = !needsAdmin;
+      $('f-admin').value = store.get('hm.admin', '');
+      if (!f.voice && !f.text) return;
       $('ai-fields').hidden = false;
       $('ai-tools').hidden = true;
       $('ai-locked').hidden = false;
