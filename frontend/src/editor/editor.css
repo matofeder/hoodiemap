@@ -122,3 +122,10 @@ body.ed { margin: 0; padding: 0 16px 64px; background: var(--ed-paper); color: v
 /* fields the AI just filled, until the agent touches them */
 .ed .ed-ai-filled { border-color: #8B6FD6 !important; background: #F4F0FD !important; }
 .ed-check.ed-ai-filled { border-radius: 6px; padding: 0 4px; outline: 2px solid #C9B9F2; }
+
+/* import page */
+.ed-narrow { max-width: 720px; }
+.ed-list { margin: 0; padding: 10px 14px 10px 30px; display: grid; gap: 2px; }
+.ed-result-links { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.ed-button { display: inline-block; padding: 10px 20px; border-radius: 999px; background: var(--ed-coral-strong); color: #fff !important; font-weight: 700; text-decoration: none; }
+#import-go { background: var(--ed-coral-strong); border-color: var(--ed-coral-strong); color: #fff; font-weight: 700; padding: 12px 24px; justify-self: start; }

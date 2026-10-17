@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 import ai
 from config import get_config
+from db import connect_pool, migrate
 from osm import AREA_FAILED_DETAIL, OverpassError
 from presentations import (
     MAX_PHOTO_BYTES, MAX_PHOTOS, LeadIn, Location, Photo, PhotoError, PresentationData, PresentationStore,
@@ -25,14 +26,15 @@ PHOTO_SIZES = {"large", "thumb"}
 
 router = APIRouter(prefix="/api/presentations")
 _store: PresentationStore | None = None
-# Edits are read-modify-write on one JSON column; serialize them so two uploads can't drop a photo.
-_write_lock = asyncio.Lock()
 
 
 def get_store() -> PresentationStore:
     global _store
     if _store is None:
-        _store = PresentationStore(get_config().storage.dir)
+        cfg = get_config()
+        pool = connect_pool(cfg.database.resolved_url())
+        migrate(pool)
+        _store = PresentationStore(pool, cfg.storage.dir)
     return _store
 
 
@@ -65,9 +67,13 @@ async def _scene_for(loc: Location, fixture: bool) -> dict:
     return scene
 
 
+def _iso(dt) -> str | None:
+    return dt.isoformat(timespec="seconds") if dt else None
+
+
 def _public(rec: Record) -> dict:
     return {"id": rec.id, "data": rec.data, "scene": rec.scene, "demo_for": rec.demo_for,
-            "expires_at": rec.expires_at, "updated_at": rec.updated_at}
+            "expires_at": _iso(rec.expires_at), "updated_at": _iso(rec.updated_at)}
 
 
 def _load(store: PresentationStore, pid: str, *, allow_expired: bool = False) -> Record:
@@ -111,30 +117,34 @@ async def view(pid: str, store: Store):
 @router.get("/{pid}/edit")
 async def edit_view(pid: str, store: Store, token: Token = None):
     rec = _editable(store, pid, token)
-    return {**_public(rec), "expired": rec.expired(), "leads": store.leads(pid), "ai": ai_features()}
+    return {**_public(rec), "expired": rec.expired(), "source_url": rec.source_url, "leads": store.leads(pid),
+            "ai": ai_features()}
 
 
 @router.patch("/{pid}")
 async def update(pid: str, patch: dict, store: Store, token: Token = None, fixture: bool = False):
-    async with _write_lock:
-        return await _update(pid, patch, store, token, fixture)
-
-
-async def _update(pid: str, patch: dict, store: PresentationStore, token: str | None, fixture: bool) -> dict:
     rec = _editable(store, pid, token)
     unknown = set(patch) - set(PresentationData.model_fields)
     if unknown:
         raise HTTPException(status_code=422, detail=f"Unknown fields: {', '.join(sorted(unknown))}")
-    if "photos" in patch:
-        patch = {**patch, "photos": _reordered_photos(rec.data["photos"], patch["photos"])}
-    data = _validated({**rec.data, **patch})
-    scene = None
-    if _location_key(data["location"]) != _location_key(rec.data["location"]):
-        scene = await _scene_for(Location.model_validate(data["location"]), fixture)
-    elif data["location"].get("label") != rec.data["location"].get("label"):
-        scene = {**rec.scene, "address": data["location"].get("label") or rec.scene.get("address")}
-    store.update(pid, data, scene)
-    return _public(_load(store, pid, allow_expired=True))
+    # A new location needs a new map. Build it before taking the row lock: it can take seconds.
+    new_scene = None
+    if "location" in patch:
+        loc = Location.model_validate(_validated({**rec.data, "location": patch["location"]})["location"])
+        if _location_key(loc.model_dump()) != _location_key(rec.data["location"]):
+            new_scene = await _scene_for(loc, fixture)
+
+    def change(current: Record) -> tuple[dict, dict | None]:
+        merged = dict(patch)
+        if "photos" in merged:
+            merged["photos"] = _reordered_photos(current.data["photos"], merged["photos"])
+        data = _validated({**current.data, **merged})
+        scene = new_scene
+        if scene is None and data["location"].get("label") != current.data["location"].get("label"):
+            scene = {**current.scene, "address": data["location"].get("label") or current.scene.get("address")}
+        return data, scene
+
+    return _public(await asyncio.to_thread(store.mutate, pid, change))
 
 
 def _reordered_photos(current: list[dict], wanted) -> list[dict]:
@@ -164,20 +174,18 @@ async def upload_photo(pid: str, store: Store, file: Annotated[UploadFile, File(
     (folder / f"{photo_id}_large.jpg").write_bytes(large)
     (folder / f"{photo_id}_thumb.jpg").write_bytes(thumb)
     photo = Photo(id=photo_id, w=w, h=h).model_dump(mode="json")
-    async with _write_lock:
-        rec = _editable(store, pid, token)
-        store.update(pid, _validated({**rec.data, "photos": [*rec.data["photos"], photo]}))
+    if not store.append_photo(pid, photo):
+        for size in PHOTO_SIZES:
+            (folder / f"{photo_id}_{size}.jpg").unlink(missing_ok=True)
+        raise HTTPException(status_code=422, detail=f"At most {MAX_PHOTOS} photos.")
     return photo
 
 
 @router.delete("/{pid}/photos/{photo_id}", status_code=204)
 async def delete_photo(pid: str, photo_id: str, store: Store, token: Token = None):
-    async with _write_lock:
-        rec = _editable(store, pid, token)
-        remaining = [p for p in rec.data["photos"] if p["id"] != photo_id]
-        if len(remaining) == len(rec.data["photos"]):
-            raise HTTPException(status_code=404, detail="Photo not found.")
-        store.update(pid, {**rec.data, "photos": remaining})
+    _editable(store, pid, token)
+    if not store.remove_photo(pid, photo_id):
+        raise HTTPException(status_code=404, detail="Photo not found.")
     for size in PHOTO_SIZES:
         (store.photo_dir(pid) / f"{photo_id}_{size}.jpg").unlink(missing_ok=True)
     return Response(status_code=204)

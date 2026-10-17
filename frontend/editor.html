@@ -81,6 +81,8 @@
           </div>
           <label for="f-price-note">Poznámka k cene</label>
           <input id="f-price-note" name="price_note" maxlength="200" placeholder="vrátane parkovacieho miesta" />
+          <label for="f-tour">3D prehliadka (odkaz)</label>
+          <input id="f-tour" name="tour_url" type="url" maxlength="500" placeholder="https://my.matterport.com/show/?m=…" />
         </fieldset>
 
         <fieldset>
@@ -155,6 +157,7 @@
             <a id="qr-download" download="qr-prezentacia.png" href="#">Stiahnuť QR kód (PNG) na tlač</a>
           </div>
           <p id="expiry" class="ed-muted" hidden></p>
+          <p id="source" class="ed-muted" hidden>Importované z <a id="source-link" target="_blank" rel="noopener">inzerátu na nehnutelnosti.sk</a>.</p>
           <div class="ed-keep">
             <p><strong>Odkaz na úpravy si uložte.</strong> Je to jediný spôsob, ako sa k tejto prezentácii vrátiť. Nikomu ho neposielajte.</p>
             <div class="ed-link">

@@ -1,5 +1,19 @@
-# Local Overpass API for Slovakia — see docs/local-overpass.md
+# Local services: Overpass API for Slovakia (docs/local-overpass.md) and Postgres for presentations.
 services:
+  postgres:
+    image: postgres:16.4-bookworm
+    container_name: hoodiemap-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: hoodiemap
+      POSTGRES_PASSWORD: hoodiemap   # local development only; production sets HOODIEMAP_DATABASE_URL
+      POSTGRES_DB: hoodiemap
+    volumes:
+      - postgres-db:/var/lib/postgresql/data
+      - ./scripts/postgres-init.sql:/docker-entrypoint-initdb.d/10-test-db.sql:ro
+    restart: unless-stopped
+
   overpass:
     # pinned: the image we imported and tested with (Overpass API 0.7.62.11, amd64+arm64 index)
     image: wiktorn/overpass-api:latest@sha256:9bb5f4a9b54cd225bf828c04c67e7f4010650ff4d70b72157a9473a9ba02d93c
@@ -30,3 +44,4 @@ services:
 
 volumes:
   overpass-db:
+  postgres-db:

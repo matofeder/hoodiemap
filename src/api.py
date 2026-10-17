@@ -10,8 +10,9 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from config import get_config
-from geocode import GeocodeUnavailable, Geocoder
+from geocode import GeocodeUnavailable, Geocoder, get_geocoder
 from osm import AREA_FAILED_DETAIL, USER_AGENT, OverpassError
+from import_api import router as import_router
 from presentation_api import ai_features, router as presentation_router
 from scene_builder import build_scene
 
@@ -29,9 +30,10 @@ app.add_middleware(
 )
 
 app.include_router(presentation_router)
+app.include_router(import_router)
 
 # Presentations are shared by link only (demos are built from other people's listings): keep them out of search engines.
-_PRIVATE_PREFIXES = ("/p/", "/novy", "/upravit/", "/api/presentations")
+_PRIVATE_PREFIXES = ("/p/", "/novy", "/upravit/", "/import", "/api/presentations", "/api/import")
 
 
 @app.middleware("http")
@@ -42,19 +44,12 @@ async def noindex_private_pages(request: Request, call_next):
     return response
 
 
-_geocoder = None
-
-
 def _get_cfg():
     return get_config()
 
 
 def _get_geocoder() -> Geocoder:
-    global _geocoder
-    if _geocoder is None:
-        cfg = _get_cfg()
-        _geocoder = Geocoder(cfg.geocode.countrycodes, cfg.cache.dir if cfg.cache.enabled else None)
-    return _geocoder
+    return get_geocoder()
 
 
 async def _reverse_geocode(lat: float, lon: float) -> str:
@@ -128,6 +123,10 @@ if _frontend_dist.exists():
     @app.api_route("/p/{pid}", methods=["GET", "HEAD"], include_in_schema=False)
     async def presentation_page(pid: str):
         return FileResponse(_frontend_dist / "presentation.html")
+
+    @app.api_route("/import", methods=["GET", "HEAD"], include_in_schema=False)
+    async def import_page():
+        return FileResponse(_frontend_dist / "import.html")
 
     @app.api_route("/novy", methods=["GET", "HEAD"], include_in_schema=False)
     @app.api_route("/upravit/{pid}", methods=["GET", "HEAD"], include_in_schema=False)

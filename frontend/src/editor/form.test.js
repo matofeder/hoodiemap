@@ -34,6 +34,7 @@ describe('form <-> data', () => {
         rooms: 3, area_m2: 72, land_m2: null, floor: 4, floors_total: 7, year_built: null,
       },
       description: 'Svetlý byt.',
+      tour_url: null,
       agent: { name: 'Jana Nová', phone: '0900 123 456', email: null, agency: 'Reality Pezinok' },
     });
   });

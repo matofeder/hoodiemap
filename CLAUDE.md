@@ -14,6 +14,7 @@ Design: `docs/superpowers/specs/2026-09-26-playful-iso-map-design.md`. Default c
 .venv/bin/pip install -r requirements.txt
 cd frontend && npm install
 
+docker-compose up -d postgres   # presentations database (+ hoodiemap_test for the test suite)
 docker-compose up -d overpass   # local Overpass for Slovakia (optional, see docs/local-overpass.md)
 
 # Backend (terminal 1)
@@ -27,9 +28,11 @@ Open `http://localhost:5173/?lat=…&lon=…`, or `?fixture=true` for offline de
 
 Search box: type a town, a street or a full address; the tier follows the match (see the spec).
 
-Property presentations (spec `docs/superpowers/specs/2026-10-17-property-presentation-design.md`): `/novy` creates one in the editor, `/upravit/{id}#{token}` edits it, `/p/{id}` is the buyer page. Add `?fixture=true` to `/novy` to build presentations offline from the fixture scene. Data lives in `storage.dir` (SQLite + photos), relative to the working directory like `.cache`.
+Property presentations (spec `docs/superpowers/specs/2026-10-17-property-presentation-design.md`): `/novy` creates one in the editor, `/upravit/{id}#{token}` edits it, `/p/{id}` is the buyer page. Add `?fixture=true` to `/novy` to build presentations offline from the fixture scene. Presentations live in Postgres (`database.url`, overridden by `$HOODIEMAP_DATABASE_URL`; schema in `migrations/`, applied on first use); photo files in `storage.dir`, relative to the working directory like `.cache`.
 
-Tests: `.venv/bin/python -m pytest` (backend, no network) and `cd frontend && npm test` (vitest, pure helpers).
+Demo import: `/import` turns one public nehnutelnosti.sk listing URL into a non-public, expiring demo presentation for the agent who published it (needs `$HOODIEMAP_ADMIN_TOKEN` on the server; `?fixture=true` uses the fixture map). One page and its photos per request, never crawling.
+
+Tests: `.venv/bin/python -m pytest` (backend, no network) and `cd frontend && npm test` (vitest, pure helpers). Database tests need `HOODIEMAP_TEST_DATABASE_URL=postgresql://hoodiemap:hoodiemap@localhost:5432/hoodiemap_test` (each test gets a throwaway schema) and are skipped without it.
 Timing: `.venv/bin/python scripts/time_tiers.py`
 
 ## Configuration (`config.yaml`, validated by `src/config.py`)
@@ -48,7 +51,8 @@ poi:
          pharmacy: true, bus_stop: true, train: true, park: true, playground: true,
          food: true, post: true, bank: true, doctors: true, city: true}
 cache: {enabled: true, dir: .cache}
-storage: {dir: data}       # presentations: SQLite + photos (git-ignored)
+storage: {dir: data}       # uploaded photos (git-ignored)
+database: {url: postgresql://hoodiemap:hoodiemap@localhost:5432/hoodiemap}   # $HOODIEMAP_DATABASE_URL wins
 ai:                        # both off (base_url: null) unless configured; see docs/ai-providers.md
   llm: {base_url, model}   # OpenAI-compatible /chat/completions; key in $HOODIEMAP_LLM_API_KEY
   stt: {base_url, model, language: sk}   # OpenAI-compatible /audio/transcriptions (local whisper)
@@ -64,7 +68,10 @@ overpass:
 src/
   api.py            GET /api/scene (+ Nominatim address), /api/geocode, /health; serves frontend/dist in prod (+ /p/{id}, /novy, /upravit/{id})
   presentation_api.py  /api/presentations: create (scene snapshot), view, edit (X-Edit-Token), photos, leads
-  presentations.py  pydantic models for listing data and leads, SQLite store, photo re-encoding (Pillow, EXIF stripped)
+  presentations.py  pydantic models for listing data and leads, Postgres store (jsonb, row-locked edits, atomic photo ops), photo re-encoding
+  db.py             psycopg connection pool + versioned SQL migrations (migrations/NNNN_*.sql, schema_migrations, advisory lock)
+  listing_import.py parse one nehnutelnosti.sk detail page (JSON-LD + Next.js flight data) into listing fields, photos, 3D tour
+  import_api.py     POST /api/import (X-Admin-Token): fetch, parse, geocode the house, build the map, create the demo, copy photos
   ai.py             voice -> text (whisper server) and a listing draft (chat model) grounded in the scene's POIs; never sends contacts
   scene_builder.py  build_scene(): rules (building kind/height, road kind, area layer), clipping, property, POI split, tier-aware
   geocode.py        Nominatim best match → tier (`place_rank`), 1 req/s throttle, JSON cache (.cache/geocode, 30 days)
@@ -87,6 +94,7 @@ frontend/src/
   palette.js, icons.js, format.js, random.js, url.js, qr.js
 frontend/presentation.html + src/presentation/   buyer page: gallery, parameters, map, "Lokalita v číslach", contact form, QR
 frontend/editor.html + src/editor/               agent editor: form, address search, photo upload/order, share link, leads
+frontend/import.html + src/import/               admin: listing URL -> demo presentation
 ```
 
 ### Pipeline

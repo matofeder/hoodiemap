@@ -1,16 +1,16 @@
-"""Property presentations: validated listing data, a SQLite store, photo re-encoding."""
+"""Property presentations: validated listing data, the Postgres store, photo re-encoding."""
 import io
-import json
 import secrets
-import sqlite3
-import threading
 import warnings
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Annotated, Literal
 
 from PIL import Image, ImageOps
+from psycopg.types.json import Jsonb
+from psycopg_pool import ConnectionPool
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 MAX_PHOTOS = 40
@@ -70,6 +70,7 @@ class PresentationData(_Model):
     price_note: Short | None = None
     params: Params = Field(default_factory=Params)
     description: Annotated[str, Field(max_length=10_000)] | None = None
+    tour_url: Annotated[str, Field(max_length=500, pattern=r"^https://\S+$")] | None = None  # 3D tour (Matterport…)
     agent: Agent = Field(default_factory=Agent)
     photos: list[Photo] = Field(default=[], max_length=MAX_PHOTOS)
 
@@ -100,102 +101,100 @@ class LeadIn(_Model):
 class Record:
     id: str
     edit_token: str
-    created_at: str
-    updated_at: str
-    expires_at: str | None
+    created_at: datetime
+    updated_at: datetime
+    expires_at: datetime | None
     demo_for: str | None
+    source_url: str | None
     data: dict
     scene: dict
 
     def expired(self, now: datetime | None = None) -> bool:
-        if not self.expires_at:
-            return False
-        return (now or datetime.now(timezone.utc)) >= datetime.fromisoformat(self.expires_at)
+        return self.expires_at is not None and (now or datetime.now(timezone.utc)) >= self.expires_at
 
     def token_ok(self, token: str | None) -> bool:
         return bool(token) and secrets.compare_digest(token, self.edit_token)
 
 
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
-
-
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS presentations (
-  id TEXT PRIMARY KEY, edit_token TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
-  expires_at TEXT, demo_for TEXT, data TEXT NOT NULL, scene TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS leads (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, presentation_id TEXT NOT NULL REFERENCES presentations(id),
-  created_at TEXT NOT NULL, name TEXT NOT NULL, email TEXT, phone TEXT, message TEXT
-);
-CREATE INDEX IF NOT EXISTS leads_by_presentation ON leads(presentation_id);
-"""
+_COLUMNS = "id, edit_token, created_at, updated_at, expires_at, demo_for, source_url, data, scene"
 
 
 class PresentationStore:
-    def __init__(self, root: str | Path):
-        self.root = Path(root)
-        self.root.mkdir(parents=True, exist_ok=True)
-        self._db = self.root / "hoodiemap.db"
-        self._lock = threading.Lock()
-        with self._connect() as con:
-            con.executescript(_SCHEMA)
+    """Presentations and leads in Postgres (see migrations/); photo files under `photo_root`."""
 
-    def _connect(self) -> sqlite3.Connection:
-        con = sqlite3.connect(self._db)
-        con.row_factory = sqlite3.Row
-        return con
+    def __init__(self, pool: ConnectionPool, photo_root: str | Path):
+        self.pool = pool
+        self.photo_root = Path(photo_root)
 
     def photo_dir(self, pid: str) -> Path:
-        return self.root / "photos" / pid
+        return self.photo_root / "photos" / pid
 
     def create(self, data: dict, scene: dict, demo_for: str | None = None,
-               expires_in_days: int | None = None) -> Record:
-        now = _now()
-        expires = None
-        if expires_in_days:
-            expires = (datetime.now(timezone.utc) + timedelta(days=expires_in_days)).isoformat(timespec="seconds")
-        rec = Record(secrets.token_urlsafe(9), secrets.token_urlsafe(24), now, now, expires, demo_for, data, scene)
-        with self._lock, self._connect() as con:
-            con.execute(
-                "INSERT INTO presentations VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (rec.id, rec.edit_token, rec.created_at, rec.updated_at, rec.expires_at, rec.demo_for,
-                 json.dumps(data, ensure_ascii=False), json.dumps(scene, ensure_ascii=False)),
-            )
-        return rec
+               expires_in_days: int | None = None, source_url: str | None = None) -> Record:
+        expires = datetime.now(timezone.utc) + timedelta(days=expires_in_days) if expires_in_days else None
+        with self.pool.connection() as conn:
+            row = conn.execute(
+                f"INSERT INTO presentations (id, edit_token, expires_at, demo_for, source_url, data, scene) "
+                f"VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING {_COLUMNS}",
+                (secrets.token_urlsafe(9), secrets.token_urlsafe(24), expires, demo_for, source_url,
+                 Jsonb(data), Jsonb(scene)),
+            ).fetchone()
+        return Record(**row)
 
     def get(self, pid: str) -> Record | None:
-        with self._connect() as con:
-            row = con.execute("SELECT * FROM presentations WHERE id = ?", (pid,)).fetchone()
-        if row is None:
-            return None
-        return Record(row["id"], row["edit_token"], row["created_at"], row["updated_at"], row["expires_at"],
-                      row["demo_for"], json.loads(row["data"]), json.loads(row["scene"]))
+        with self.pool.connection() as conn:
+            row = conn.execute(f"SELECT {_COLUMNS} FROM presentations WHERE id = %s", (pid,)).fetchone()
+        return Record(**row) if row else None
 
-    def update(self, pid: str, data: dict, scene: dict | None = None) -> None:
-        with self._lock, self._connect() as con:
-            if scene is None:
-                con.execute("UPDATE presentations SET data = ?, updated_at = ? WHERE id = ?",
-                            (json.dumps(data, ensure_ascii=False), _now(), pid))
-            else:
-                con.execute("UPDATE presentations SET data = ?, scene = ?, updated_at = ? WHERE id = ?",
-                            (json.dumps(data, ensure_ascii=False), json.dumps(scene, ensure_ascii=False), _now(), pid))
+    def mutate(self, pid: str, change: Callable[[Record], tuple[dict, dict | None]]) -> Record | None:
+        """Read-modify-write under a row lock: `change` gets the current record, returns (data, scene or None)."""
+        with self.pool.connection() as conn, conn.transaction():
+            row = conn.execute(f"SELECT {_COLUMNS} FROM presentations WHERE id = %s FOR UPDATE", (pid,)).fetchone()
+            if row is None:
+                return None
+            data, scene = change(Record(**row))
+            row = conn.execute(
+                f"UPDATE presentations SET data = %s, scene = COALESCE(%s, scene), updated_at = now() "
+                f"WHERE id = %s RETURNING {_COLUMNS}",
+                (Jsonb(data), Jsonb(scene) if scene is not None else None, pid),
+            ).fetchone()
+        return Record(**row)
+
+    def append_photo(self, pid: str, photo: dict, max_photos: int = MAX_PHOTOS) -> bool:
+        """Atomic append; False when the presentation is gone or already has `max_photos`."""
+        with self.pool.connection() as conn:
+            row = conn.execute(
+                "UPDATE presentations SET data = jsonb_set(data, '{photos}', data->'photos' || %s), updated_at = now() "
+                "WHERE id = %s AND jsonb_array_length(data->'photos') < %s RETURNING id",
+                (Jsonb([photo]), pid, max_photos),
+            ).fetchone()
+        return row is not None
+
+    def remove_photo(self, pid: str, photo_id: str) -> bool:
+        with self.pool.connection() as conn:
+            row = conn.execute(
+                "UPDATE presentations SET data = jsonb_set(data, '{photos}', COALESCE("
+                "  (SELECT jsonb_agg(p ORDER BY n) FROM jsonb_array_elements(data->'photos') WITH ORDINALITY AS t(p, n)"
+                "   WHERE p->>'id' <> %s), '[]'::jsonb)), updated_at = now() "
+                "WHERE id = %s AND data->'photos' @> %s RETURNING id",
+                (photo_id, pid, Jsonb([{"id": photo_id}])),
+            ).fetchone()
+        return row is not None
 
     def add_lead(self, pid: str, lead: LeadIn) -> None:
-        with self._lock, self._connect() as con:
-            con.execute(
-                "INSERT INTO leads (presentation_id, created_at, name, email, phone, message) VALUES (?, ?, ?, ?, ?, ?)",
-                (pid, _now(), lead.name, lead.email, lead.phone, lead.message),
+        with self.pool.connection() as conn:
+            conn.execute(
+                "INSERT INTO leads (presentation_id, name, email, phone, message) VALUES (%s, %s, %s, %s, %s)",
+                (pid, lead.name, lead.email, lead.phone, lead.message),
             )
 
     def leads(self, pid: str) -> list[dict]:
-        with self._connect() as con:
-            rows = con.execute(
-                "SELECT created_at, name, email, phone, message FROM leads WHERE presentation_id = ? ORDER BY id DESC",
+        with self.pool.connection() as conn:
+            rows = conn.execute(
+                "SELECT created_at, name, email, phone, message FROM leads WHERE presentation_id = %s ORDER BY id DESC",
                 (pid,),
             ).fetchall()
-        return [dict(r) for r in rows]
+        return [{**r, "created_at": r["created_at"].isoformat(timespec="seconds")} for r in rows]
 
 
 class PhotoError(ValueError):

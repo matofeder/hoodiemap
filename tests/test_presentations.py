@@ -24,11 +24,11 @@ DATA = {
 
 
 @pytest.fixture
-def store(tmp_path):
+def store(tmp_path, pg_pool):
     from presentation_api import get_store
     from presentations import PresentationStore
     from api import app
-    s = PresentationStore(tmp_path / "data")
+    s = PresentationStore(pg_pool, tmp_path / "data")
     app.dependency_overrides[get_store] = lambda: s
     yield s
     app.dependency_overrides.clear()
@@ -71,8 +71,8 @@ async def test_create_502_when_overpass_down_saves_nothing(client, store):
     with patch("presentation_api.build_scene", side_effect=OverpassError("down")):
         r = await client.post("/api/presentations", json={"data": DATA})
     assert r.status_code == 502
-    with store._connect() as con:
-        assert con.execute("SELECT COUNT(*) FROM presentations").fetchone()[0] == 0
+    with store.pool.connection() as con:
+        assert con.execute("SELECT count(*) AS n FROM presentations").fetchone()["n"] == 0
 
 
 async def test_create_rejects_unknown_fields_and_bad_values(client):
@@ -126,9 +126,9 @@ async def test_patch_rejects_unknown_keys(client):
 async def test_expired_presentation_is_410_but_owner_can_still_edit(client, store):
     created, _ = await _create(client, demo_for="Reality Pezinok", expires_in_days=30)
     pid = created["id"]
-    past = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat(timespec="seconds")
-    with store._connect() as con:
-        con.execute("UPDATE presentations SET expires_at = ? WHERE id = ?", (past, pid))
+    past = datetime.now(timezone.utc) - timedelta(days=1)
+    with store.pool.connection() as con:
+        con.execute("UPDATE presentations SET expires_at = %s WHERE id = %s", (past, pid))
     assert (await client.get(f"/api/presentations/{pid}")).status_code == 410
     r = await client.get(f"/api/presentations/{pid}/edit", headers={"X-Edit-Token": created["edit_token"]})
     assert r.status_code == 200

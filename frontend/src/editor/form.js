@@ -35,6 +35,7 @@ export function dataFromValues(values, location) {
     price_note: text(values.price_note),
     params,
     description: text(values.description),
+    tour_url: text(values.tour_url),
     agent: {
       name: text(values.agent_name), phone: text(values.agent_phone),
       email: text(values.agent_email), agency: text(values.agent_agency),
@@ -51,7 +52,7 @@ export function valuesFromData(d) {
     property_type: s(p.property_type), condition: s(p.condition), energy_class: s(p.energy_class),
     rooms: s(p.rooms), area_m2: s(p.area_m2), land_m2: s(p.land_m2), floor: s(p.floor),
     floors_total: s(p.floors_total), year_built: s(p.year_built), features: p.features ?? [],
-    description: s(d.description),
+    description: s(d.description), tour_url: s(d.tour_url),
     agent_name: s(a.name), agent_phone: s(a.phone), agent_email: s(a.email), agent_agency: s(a.agency),
   };
 }

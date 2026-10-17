@@ -33,7 +33,10 @@ cache:
   dir: .cache
 
 storage:
-  dir: data             # presentations (SQLite) and their photos
+  dir: data             # uploaded photos (presentations live in Postgres)
+
+database:               # $HOODIEMAP_DATABASE_URL overrides url
+  url: postgresql://hoodiemap:hoodiemap@localhost:5432/hoodiemap   # docker-compose up -d postgres
 
 ai:
   llm:                  # OpenAI-compatible chat API; key from $HOODIEMAP_LLM_API_KEY

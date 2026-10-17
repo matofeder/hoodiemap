@@ -19,6 +19,19 @@ CACHE_TTL_S = 30 * 24 * 3600
 MIN_INTERVAL_S = 1.0  # Nominatim usage policy: at most one request per second
 
 
+_shared: "Geocoder | None" = None
+
+
+def get_geocoder() -> "Geocoder":
+    """The app's geocoder (one throttle and cache for every caller)."""
+    global _shared
+    if _shared is None:
+        from config import get_config
+        cfg = get_config()
+        _shared = Geocoder(cfg.geocode.countrycodes, cfg.cache.dir if cfg.cache.enabled else None)
+    return _shared
+
+
 class GeocodeUnavailable(RuntimeError):
     """Nominatim could not be reached or answered with an error."""
 

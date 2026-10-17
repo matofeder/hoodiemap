@@ -228,6 +228,8 @@ async function renderShare(p) {
     p.expires_at ? `${p.expired ? 'platnosť skončila' : 'platí do'} ${formatDate(p.expires_at)}` : null].filter(Boolean);
   $('expiry').textContent = expiry.join(' · ');
   $('expiry').hidden = !expiry.length;
+  $('source').hidden = !p.source_url;
+  if (p.source_url) $('source-link').href = p.source_url;
   $('qr').innerHTML = await qrSvg(url);
   $('qr-download').href = await qrPngDataUrl(url);
 }

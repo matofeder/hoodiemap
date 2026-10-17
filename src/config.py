@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -57,7 +58,15 @@ class CacheConfig(BaseModel):
 
 
 class StorageConfig(BaseModel):
-    dir: str = "data"  # presentations database and photos
+    dir: str = "data"  # uploaded photos
+
+
+class DatabaseConfig(BaseModel):
+    url: str = "postgresql://hoodiemap:hoodiemap@localhost:5432/hoodiemap"  # docker-compose up -d postgres
+    url_env: str = "HOODIEMAP_DATABASE_URL"  # overrides `url` when set (production credentials)
+
+    def resolved_url(self) -> str:
+        return os.environ.get(self.url_env) or self.url
 
 
 class LlmConfig(BaseModel):
@@ -103,6 +112,7 @@ class Config(BaseModel):
     poi: PoiConfig = Field(default_factory=PoiConfig)
     cache: CacheConfig = Field(default_factory=CacheConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
+    database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     ai: AiConfig = Field(default_factory=AiConfig)
     api: ApiConfig = Field(default_factory=ApiConfig)
     geocode: GeocodeConfig = Field(default_factory=GeocodeConfig)

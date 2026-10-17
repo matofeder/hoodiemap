@@ -31,7 +31,7 @@ Success: a presentation for a real address (or the fixture) is created, opened o
 
 ## 1. Data
 
-SQLite at `{storage.dir}/hoodiemap.db` (stdlib `sqlite3`, no ORM); photos under `{storage.dir}/photos/{presentation_id}/`. `storage.dir` defaults to `data` and is git-ignored.
+Postgres (psycopg 3 + pool, no ORM). Schema in versioned SQL files `migrations/NNNN_*.sql`, applied on first use and tracked in `schema_migrations` (advisory lock against parallel workers). `data` and `scene` are `jsonb`; edits that read-modify-write `data` run under `SELECT … FOR UPDATE`, photo append/remove are single atomic `UPDATE`s. Photos stay on disk under `{storage.dir}/photos/{presentation_id}/` (git-ignored).
 
 ### presentations
 
@@ -42,6 +42,7 @@ SQLite at `{storage.dir}/hoodiemap.db` (stdlib `sqlite3`, no ORM); photos under 
 | created_at, updated_at | text | ISO 8601 UTC |
 | expires_at | text, null | after it the public page answers 410 |
 | demo_for | text, null | e.g. agency name, shown as "Ukážka pre …" |
+| source_url | text, null | the portal listing an imported demo came from |
 | data | text (JSON) | the editable fields below |
 | scene | text (JSON) | snapshot of `/api/scene` taken when the location is set |
 
@@ -63,6 +64,7 @@ Editable fields (`data`), all optional except `location`:
     "features": ["balcony", "elevator", "cellar", "parking"]
   },
   "description": "…",
+  "tour_url": "https://my.matterport.com/show/?m=…",   // optional 3D tour, shown as a button
   "agent": {"name": "…", "phone": "…", "email": "…", "agency": "…"},
   "photos": [{"id": "…", "w": 2000, "h": 1500, "caption": "Obývačka"}]
 }
@@ -138,3 +140,17 @@ Provider-neutral by design: the LLM is any OpenAI-compatible `/chat/completions`
 - Every field of the answer is validated on its own against the listing model; a bad field becomes null instead of failing the whole draft. `<think>` blocks and code fences are stripped; a server without JSON mode is retried without `response_format`.
 - The editor merges the draft into the form (fills what the draft knows, adds features, never clears), highlights the changed fields and leaves saving to the agent.
 - Recording uses `MediaRecorder` (WebM/Opus, MP4 on Safari), max 10 minutes; it needs HTTPS or localhost. Without a microphone the agent can upload an audio file (e.g. a phone voice memo).
+
+---
+
+## 6. Demo import from nehnutelnosti.sk
+
+The sales demo: paste one listing URL, get a non-public presentation of that listing to show its agent.
+
+- `POST /api/import` `{url, demo_for?, expires_in_days = 30, fixture?}` with `X-Admin-Token` (= `$HOODIEMAP_ADMIN_TOKEN`; import is off without it). Admin page: `/import`.
+- Only `https://www.nehnutelnosti.sk/detail/…` URLs; one page plus its photos (≤ 20) per request, never crawled. `robots.txt` allows `/detail/`.
+- Parsing (`listing_import.py`): schema.org JSON-LD (Product, Offer, Accommodation, RealEstateAgent) and the listing object in the Next.js flight data (`"advertisement":{…}`: exact address with house number, the portal's point (±200 m), parameters, photos in 1560 px, 3D tours, advertiser). The description comes from its flight text row (keeps paragraphs), falling back to JSON-LD.
+- Mapping notes: the portal counts storeys from 1 (ground floor = 1), so floor and floor count are reduced by one and the import warns to check it; implausible build years are dropped with a warning; no house number → street tier.
+- Location: the address with house number is geocoded (Nominatim) for the exact building; otherwise the portal's point.
+- Result: a demo (`demo_for` = the agency, expiry, `source_url`, noindex) with the agent's name and agency but no contacts; warnings are shown on the import page. The agent's original text is kept; "Pripraviť návrh inzerátu" in the editor can rewrite it with real distances.
+- The portal already lists nearby stops/POIs with distances on the listing page, so the demo should lead with the 3D map, the one-link presentation, the AI text and lead capture, not with the distances alone.

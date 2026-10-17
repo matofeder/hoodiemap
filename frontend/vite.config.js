@@ -4,6 +4,7 @@ import { defineConfig } from 'vite';
 const PAGES = [
   [/^\/p\/[^/]+\/?$/, '/presentation.html'],
   [/^\/(novy|upravit\/[^/]+)\/?$/, '/editor.html'],
+  [/^\/import\/?$/, '/import.html'],
 ];
 
 const pageRoutes = {
@@ -32,6 +33,7 @@ export default defineConfig({
         main: 'index.html',
         presentation: 'presentation.html',
         editor: 'editor.html',
+        import: 'import.html',
       },
     },
   },

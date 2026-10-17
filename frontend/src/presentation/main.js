@@ -63,6 +63,8 @@ function render(p) {
   }
 
   renderGallery(d.photos);
+  $('tour').hidden = !d.tour_url;
+  if (d.tour_url) $('tour').href = d.tour_url;
 
   const paras = paragraphs(d.description);
   $('description').replaceChildren(...paras.map((t) => el('p', { textContent: t })));
