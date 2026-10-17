@@ -1,7 +1,7 @@
 # HoodieMap — Property Presentation (Phase 1a)
 
 **Date:** 2026-10-17
-**Status:** Implemented on `feat/presentation` (phase 1a)
+**Status:** Implemented on `feat/presentation` (phase 1a + 1b)
 **Builds on:** `2026-09-26-playful-iso-map-design.md`, `2026-09-26-location-search-tiers-design.md`
 **Product context:** "Živá prezentácia nehnuteľnosti" product proposal (v0.1, 2026-10-17)
 
@@ -22,7 +22,6 @@ Success: a presentation for a real address (or the fixture) is created, opened o
 
 ## Non-goals (later phases)
 
-- AI-written description and voice → text (phase 1b, needs an LLM and a speech-to-text provider).
 - Voice updates, "Sledovať" followers and e-mail notifications (phase 2).
 - Buyer assistant, 3D interior (phase 3–4).
 - Accounts, billing, teams. Phase 1 uses a secret edit link instead of a login.
@@ -121,3 +120,21 @@ One form: address search (the existing `/api/geocode`), title, offer, price, par
 
 - `tests/test_presentations.py`: store round-trip, token checks, expiry → 410, PATCH merge and scene rebuild, photo upload validation and re-encoding, lead validation and honeypot, noindex header.
 - vitest: `localityRows(scene)`, price and parameter formatting, photo order helpers.
+
+---
+
+## 5. Phase 1b: voice and AI draft
+
+Provider-neutral by design: the LLM is any OpenAI-compatible `/chat/completions` API (a cheap hosted model such as DeepSeek or Qwen), speech goes to any OpenAI-compatible `/audio/transcriptions` server (a local whisper with a Slovak model). Both are off until `ai.llm` / `ai.stt` are set in `config.yaml`; `GET /api/features` tells the editor which to show. Setup notes: `docs/ai-providers.md`.
+
+| method | path | auth | |
+|---|---|---|---|
+| GET | `/api/features` | — | `{"ai": {"voice": bool, "text": bool}}` |
+| POST | `/api/presentations/{id}/ai/transcribe` | token | multipart `file` (≤ 25 MB) → `{text}`; 503 off, 502 provider failed |
+| POST | `/api/presentations/{id}/ai/draft` | token | `{transcript, data}` (the editor's unsaved values) → a sanitized draft + `missing`; nothing is saved |
+
+- The prompt carries the address label, the known listing fields, the scene's POIs as "name: distance, time" lines and the transcript. It never carries the agent's or buyers' contacts, photos or coordinates. The editor warns the agent not to say the owner's name or contacts (the transcript goes to the LLM as spoken).
+- Rules in the prompt: facts only from the input, unknown → null and listed in `missing`, concrete distances instead of "kompletná občianska vybavenosť", no price in the text.
+- Every field of the answer is validated on its own against the listing model; a bad field becomes null instead of failing the whole draft. `<think>` blocks and code fences are stripped; a server without JSON mode is retried without `response_format`.
+- The editor merges the draft into the form (fills what the draft knows, adds features, never clears), highlights the changed fields and leaves saving to the agent.
+- Recording uses `MediaRecorder` (WebM/Opus, MP4 on Safari), max 10 minutes; it needs HTTPS or localhost. Without a microphone the agent can upload an audio file (e.g. a phone voice memo).

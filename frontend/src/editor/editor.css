@@ -103,3 +103,22 @@ body.ed { margin: 0; padding: 0 16px 64px; background: var(--ed-paper); color: v
   .ed fieldset { padding: 14px 14px 16px; }
 }
 
+/* voice and AI draft */
+.ed-ai { display: grid; gap: 6px; }
+.ed-ai-voice { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 6px; }
+.ed .ed-rec { display: inline-flex; align-items: center; gap: 8px; background: var(--ed-ink); border-color: var(--ed-ink); color: #fff; padding: 10px 18px; }
+.ed-rec::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--ed-coral); }
+.ed .ed-rec[aria-pressed="true"] { background: var(--ed-coral-strong); border-color: var(--ed-coral-strong); }
+.ed-rec[aria-pressed="true"]::before { background: #fff; border-radius: 2px; animation: ed-pulse 1.2s ease-in-out infinite; }
+@keyframes ed-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .ed-rec[aria-pressed="true"]::before { animation: none; } }
+.ed-rec-time { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 3.5em; }
+.ed .ed-file-link { margin: 0; font-weight: 600; color: var(--ed-coral-strong); cursor: pointer; text-decoration: underline; }
+.ed-file-link:focus-within, #audio-file:focus-visible + * { outline: 3px solid var(--ed-ink); }
+.ed-ai-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 6px; }
+#ai-draft { background: var(--ed-ink); border-color: var(--ed-ink); color: #fff; }
+.ed-ai-missing { padding: 10px 14px; border-radius: 10px; background: #FFF4DB; border: 1px solid #F6D493; color: #5A3E0F; font-size: 14px; }
+.ed-ai-missing ul { margin: 4px 0 0; padding-left: 1.2em; }
+/* fields the AI just filled, until the agent touches them */
+.ed .ed-ai-filled { border-color: #8B6FD6 !important; background: #F4F0FD !important; }
+.ed-check.ed-ai-filled { border-radius: 6px; padding: 0 4px; outline: 2px solid #C9B9F2; }

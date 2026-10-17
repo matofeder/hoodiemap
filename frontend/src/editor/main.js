@@ -3,7 +3,7 @@ import { qrPngDataUrl, qrSvg } from '../qr.js';
 import { DEFAULT_COORDS, isFixture } from '../url.js';
 import { tierLabel } from '../format.js';
 import { CONDITIONS, ENERGY_CLASSES, FEATURES, PROPERTY_TYPES, formatDate } from '../presentation/listing.js';
-import { dataFromValues, moveItem, validate, valuesFromData } from './form.js';
+import { dataFromValues, mergeDraft, moveItem, validate, valuesFromData } from './form.js';
 
 const $ = (id) => document.getElementById(id);
 const form = $('form');
@@ -211,6 +211,7 @@ async function loadExisting() {
   $('recent').hidden = true;
 
   renderShare(p);
+  setupAi(p.ai);
   $('photos-locked').hidden = true;
   $('photos-tools').hidden = false;
   renderPhotos();
@@ -333,11 +334,162 @@ $('leads-refresh').addEventListener('click', async () => {
   } catch { /* keep the list on screen */ }
 });
 
+// --- voice and AI draft --------------------------------------------------------------------
+
+const AI_ERRORS = {
+  413: 'Nahrávka je príliš dlhá. Nahrajte kratšie časti.',
+  422: 'Nie je z čoho písať: nahrajte alebo napíšte poznámky.',
+  503: 'AI nie je na tomto serveri nastavená.',
+  502: 'Služba AI teraz neodpovedala. Skúste to o chvíľu.',
+};
+const MAX_RECORDING_S = 10 * 60;
+let ai = { voice: false, text: false };
+
+function setupAi(features) {
+  ai = features ?? ai;
+  $('ai-fields').hidden = !ai.voice && !ai.text;
+  $('ai-locked').hidden = true;
+  $('ai-tools').hidden = false;
+  $('ai-voice').hidden = !ai.voice;
+  $('ai-draft').textContent = ai.text ? 'Pripraviť návrh inzerátu' : 'Vložiť poznámky do popisu';
+}
+
+function aiState(text) {
+  $('ai-state').textContent = text;
+}
+
+let recorder = null;
+let recTimer = 0;
+
+function recordingType() {
+  const types = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg;codecs=opus'];
+  return types.find((t) => window.MediaRecorder?.isTypeSupported?.(t)) ?? '';
+}
+
+async function startRecording() {
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+    aiState('Nahrávanie v tomto prehliadači nefunguje. Nahrajte zvukový súbor, napríklad z diktafónu v mobile.');
+    return;
+  }
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch {
+    aiState('Prehliadač nedovolil použiť mikrofón. Povoľte ho v nastaveniach stránky alebo nahrajte zvukový súbor.');
+    return;
+  }
+  const type = recordingType();
+  const chunks = [];
+  recorder = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
+  recorder.addEventListener('dataavailable', (e) => { if (e.data.size) chunks.push(e.data); });
+  recorder.addEventListener('stop', () => {
+    stream.getTracks().forEach((t) => t.stop());
+    const mime = recorder.mimeType || type || 'audio/webm';
+    recorder = null;
+    const ext = mime.includes('mp4') ? 'm4a' : mime.includes('ogg') ? 'ogg' : 'webm';
+    transcribeAudio(new File(chunks, `poznamky.${ext}`, { type: mime.split(';')[0] }));
+  });
+  recorder.start(1000);
+  const started = Date.now();
+  $('rec').setAttribute('aria-pressed', 'true');
+  $('rec').textContent = 'Zastaviť';
+  aiState('Nahrávam… Hovorte prirodzene, po skončení kliknite na Zastaviť.');
+  recTimer = setInterval(() => {
+    const s = Math.floor((Date.now() - started) / 1000);
+    $('rec-time').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    if (s >= MAX_RECORDING_S) stopRecording();
+  }, 250);
+}
+
+function stopRecording() {
+  if (recorder?.state !== 'recording') return;
+  clearInterval(recTimer);
+  $('rec').setAttribute('aria-pressed', 'false');
+  $('rec').textContent = 'Nahrávať';
+  recorder?.stop();
+}
+
+$('rec').addEventListener('click', () => (recorder ? stopRecording() : startRecording()));
+$('audio-file').addEventListener('change', () => {
+  const file = $('audio-file').files[0];
+  $('audio-file').value = '';
+  if (file) transcribeAudio(file);
+});
+
+async function transcribeAudio(file) {
+  $('rec').disabled = true;
+  aiState('Prepisujem nahrávku… Dlhšia nahrávka môže trvať aj minútu.');
+  const body = new FormData();
+  body.append('file', file);
+  try {
+    const { text } = await call('POST', apiPath('/ai/transcribe'), body);
+    const box = $('ai-transcript');
+    box.value = [box.value.trim(), text].filter(Boolean).join('\n\n');
+    aiState(text ? 'Prepis je hotový. Skontrolujte ho a pripravte návrh.' : 'V nahrávke sme nepočuli reč. Skúste to znova bližšie pri mikrofóne.');
+  } catch (err) {
+    aiState(AI_ERRORS[err.status] ?? 'Prepis zlyhal. Skúste to znova.');
+  } finally {
+    $('rec').disabled = false;
+  }
+}
+
+function highlight(changed) {
+  form.querySelectorAll('.ed-ai-filled').forEach((n) => n.classList.remove('ed-ai-filled'));
+  for (const name of changed) {
+    const node = name.startsWith('feature:')
+      ? form.querySelector(`#f-feat-${name.slice(8)}`)?.closest('label')
+      : form.elements[name];
+    if (!node) continue;
+    node.classList.add('ed-ai-filled');
+    node.addEventListener('input', () => node.classList.remove('ed-ai-filled'), { once: true });
+  }
+}
+
+$('ai-draft').addEventListener('click', async () => {
+  const transcript = $('ai-transcript').value.trim();
+  if (!ai.text) {
+    if (!transcript) return aiState(AI_ERRORS[422]);
+    const desc = form.elements.description;
+    desc.value = [desc.value.trim(), transcript].filter(Boolean).join('\n\n');
+    highlight(['description']);
+    markDirty();
+    return aiState('Poznámky sú v popise. Upravte ich a uložte.');
+  }
+  $('ai-draft').disabled = true;
+  $('ai-missing').hidden = true;
+  aiState('Pripravujem návrh inzerátu…');
+  try {
+    const values = readValues();
+    const draft = await call('POST', apiPath('/ai/draft'), {
+      transcript: transcript || null, data: dataFromValues(values, state.location),
+    });
+    const { values: next, changed } = mergeDraft(values, draft);
+    writeValues(next);
+    highlight(changed);
+    if (changed.length) markDirty();
+    $('ai-missing-list').replaceChildren(...draft.missing.map((m) => el('li', { textContent: m })));
+    $('ai-missing').hidden = !draft.missing.length;
+    aiState(changed.length
+      ? `Návrh doplnil ${changed.length} ${changed.length === 1 ? 'pole' : changed.length < 5 ? 'polia' : 'polí'} (zvýraznené). Skontrolujte ich a uložte.`
+      : 'Návrh nič nové nedoplnil.');
+  } catch (err) {
+    aiState(AI_ERRORS[err.status] ?? 'Návrh sa nepodarilo pripraviť. Skúste to znova.');
+  } finally {
+    $('ai-draft').disabled = false;
+  }
+});
+
 // --- start ---------------------------------------------------------------------------------
 
 async function start() {
   if (!state.pid) {
     writeValues(valuesFromData({ agent: store.get('hm.agent', {}) }));
+    fetch('/api/features').then((r) => r.json()).then(({ ai: f }) => {
+      if (state.pid || (!f.voice && !f.text)) return;
+      $('ai-fields').hidden = false;
+      $('ai-tools').hidden = true;
+      $('ai-locked').hidden = false;
+    }).catch(() => {});
     renderRecent();
     if (fixture) $('address-q').placeholder = 'Režim fixture: adresa sa nevyhľadáva';
     return;

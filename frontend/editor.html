@@ -41,6 +41,30 @@
           <p class="ed-hint">Bez čísla domu sa zobrazí celá ulica, bez ulice celé mesto.</p>
         </fieldset>
 
+        <fieldset id="ai-fields" hidden>
+          <legend>Nahovoriť inzerát</legend>
+          <p id="ai-locked" class="ed-hint" hidden>Po vytvorení prezentácie (stačí adresa) môžete inzerát nahovoriť a AI z toho pripraví návrh.</p>
+          <div id="ai-tools" class="ed-ai">
+            <p class="ed-hint">Povedzte, čo o nehnuteľnosti viete: izby, plocha, poschodie, stav, cena, čo je na nej výnimočné. <strong>Nehovorte mená ani kontakty majiteľa.</strong></p>
+            <div id="ai-voice" class="ed-ai-voice" hidden>
+              <button id="rec" type="button" class="ed-rec" aria-pressed="false">Nahrávať</button>
+              <span id="rec-time" class="ed-rec-time" aria-live="off">0:00</span>
+              <label class="ed-file-link" for="audio-file">alebo nahrať zvukový súbor</label>
+              <input id="audio-file" type="file" accept="audio/*" class="ed-sr" />
+            </div>
+            <label for="ai-transcript">Poznámky makléra</label>
+            <textarea id="ai-transcript" rows="5" maxlength="20000" placeholder="Prepis nahrávky sa zobrazí tu. Môžete ho opraviť alebo poznámky napísať."></textarea>
+            <div class="ed-ai-actions">
+              <button id="ai-draft" type="button">Pripraviť návrh inzerátu</button>
+              <p id="ai-state" class="ed-muted" role="status"></p>
+            </div>
+            <div id="ai-missing" class="ed-ai-missing" hidden>
+              <p>V návrhu chýba:</p>
+              <ul id="ai-missing-list"></ul>
+            </div>
+          </div>
+        </fieldset>
+
         <fieldset>
           <legend>Ponuka</legend>
           <label for="f-title">Nadpis</label>

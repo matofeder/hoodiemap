@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, File, Header, HTTPException, Response, U
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+import ai
 from config import get_config
 from osm import AREA_FAILED_DETAIL, OverpassError
 from presentations import (
@@ -110,7 +111,7 @@ async def view(pid: str, store: Store):
 @router.get("/{pid}/edit")
 async def edit_view(pid: str, store: Store, token: Token = None):
     rec = _editable(store, pid, token)
-    return {**_public(rec), "expired": rec.expired(), "leads": store.leads(pid)}
+    return {**_public(rec), "expired": rec.expired(), "leads": store.leads(pid), "ai": ai_features()}
 
 
 @router.patch("/{pid}")
@@ -192,6 +193,56 @@ async def photo(pid: str, photo_id: str, size: str, store: Store):
         raise HTTPException(status_code=404, detail="Photo not found.")
     # Photo ids are never reused, so the bytes behind a URL never change.
     return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
+
+class DraftIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    transcript: Annotated[str, Field(max_length=ai.MAX_TRANSCRIPT_CHARS)] | None = None
+    data: dict = {}  # the editor's current, possibly unsaved, form values
+
+
+AI_OFF = "AI is not configured on this server."
+AI_FAILED = "The AI provider did not answer usefully. Try again in a minute."
+
+
+def ai_features() -> dict:
+    cfg = get_config().ai
+    return {"voice": bool(cfg.stt.base_url), "text": bool(cfg.llm.base_url and cfg.llm.model)}
+
+
+@router.post("/{pid}/ai/transcribe")
+async def transcribe(pid: str, store: Store, file: Annotated[UploadFile, File()], token: Token = None):
+    _editable(store, pid, token)
+    audio = await file.read(ai.MAX_AUDIO_BYTES + 1)
+    if len(audio) > ai.MAX_AUDIO_BYTES:
+        raise HTTPException(status_code=413, detail="The recording is longer than the server accepts (25 MB).")
+    if not audio:
+        raise HTTPException(status_code=422, detail="The recording is empty.")
+    try:
+        text = await asyncio.to_thread(ai.transcribe, get_config().ai.stt, audio, file.filename or "audio.webm",
+                                       file.content_type or "application/octet-stream")
+    except ai.AiUnavailable as exc:
+        raise HTTPException(status_code=503, detail=AI_OFF) from exc
+    except ai.AiFailed as exc:
+        raise HTTPException(status_code=502, detail=AI_FAILED) from exc
+    return {"text": text}
+
+
+@router.post("/{pid}/ai/draft")
+async def draft(pid: str, body: DraftIn, store: Store, token: Token = None):
+    rec = _editable(store, pid, token)
+    if not body.transcript and not body.data.get("description") and not body.data.get("params"):
+        raise HTTPException(status_code=422, detail="Nothing to write from: record notes or fill in some fields.")
+    context = ai.sanitize_draft(body.data)  # the same field checks as the model's answer
+    try:
+        return await asyncio.to_thread(
+            ai.draft_listing, get_config().ai.llm, transcript=body.transcript, data=context,
+            address=rec.data["location"].get("label"), scene=rec.scene,
+        )
+    except ai.AiUnavailable as exc:
+        raise HTTPException(status_code=503, detail=AI_OFF) from exc
+    except ai.AiFailed as exc:
+        raise HTTPException(status_code=502, detail=AI_FAILED) from exc
 
 
 @router.post("/{pid}/leads", status_code=201)

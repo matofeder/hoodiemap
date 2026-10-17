@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from config import get_config
 from geocode import GeocodeUnavailable, Geocoder
 from osm import AREA_FAILED_DETAIL, USER_AGENT, OverpassError
-from presentation_api import router as presentation_router
+from presentation_api import ai_features, router as presentation_router
 from scene_builder import build_scene
 
 _FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "pezinok-centrum.json"
@@ -78,6 +78,12 @@ async def _reverse_geocode(lat: float, lon: float) -> str:
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/api/features")
+async def features():
+    """What the editor may offer; on/off flags only, no provider details."""
+    return {"ai": ai_features()}
 
 
 @app.get("/api/scene")

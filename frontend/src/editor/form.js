@@ -84,3 +84,25 @@ export function moveItem(list, i, delta) {
   [out[i], out[j]] = [out[j], out[i]];
   return out;
 }
+
+/**
+ * Apply an AI draft to the form values: every field the draft knows overwrites, features are added,
+ * nothing is cleared. Returns the new values and the names of the fields that changed (to highlight).
+ */
+export function mergeDraft(values, draft) {
+  const fromDraft = valuesFromData({ ...draft, agent: {} });
+  const next = { ...values };
+  const changed = [];
+  for (const [name, value] of Object.entries(fromDraft)) {
+    if (name === 'features' || name.startsWith('agent_') || value === '' || value === values[name]) continue;
+    if (name === 'offer' && !draft.offer) continue;
+    next[name] = value;
+    changed.push(name);
+  }
+  const added = (draft.params?.features ?? []).filter((f) => !(values.features ?? []).includes(f));
+  if (added.length) {
+    next.features = [...(values.features ?? []), ...added];
+    changed.push(...added.map((f) => `feature:${f}`));
+  }
+  return { values: next, changed };
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dataFromValues, moveItem, parseNumber, validate, valuesFromData } from './form.js';
+import { dataFromValues, mergeDraft, moveItem, parseNumber, validate, valuesFromData } from './form.js';
 
 const LOC = { lat: 48.28, lon: 17.27, tier: 'address', name: null, label: 'Záhradná 12, Pezinok' };
 
@@ -66,5 +66,33 @@ describe('moveItem', () => {
     expect(moveItem(['a', 'b', 'c'], 2, -1)).toEqual(['a', 'c', 'b']);
     const list = ['a', 'b'];
     expect(moveItem(list, 0, -1)).toBe(list);
+  });
+});
+
+describe('mergeDraft', () => {
+  const values = valuesFromData({ title: 'Byt', offer: 'sale', params: { rooms: 2, features: ['cellar'] }, agent: { name: 'Jana' } });
+  const draft = {
+    title: '3-izbový byt s balkónom', offer: null, price_eur: 189000, price_note: null,
+    params: { rooms: 3, area_m2: 72.5, energy_class: null, features: ['balcony', 'cellar'] },
+    description: 'Svetlý byt.', missing: ['energetická trieda'],
+  };
+
+  it('fills what the draft knows and reports what changed', () => {
+    const { values: next, changed } = mergeDraft(values, draft);
+    expect(next.title).toBe('3-izbový byt s balkónom');
+    expect(next.rooms).toBe('3');
+    expect(next.area_m2).toBe('72,5');
+    expect(next.price_eur).toBe('189000');
+    expect(next.description).toBe('Svetlý byt.');
+    expect(next.features).toEqual(['cellar', 'balcony']);
+    expect(next.agent_name).toBe('Jana');
+    expect(next.offer).toBe('sale');
+    expect(changed.sort()).toEqual(['area_m2', 'description', 'feature:balcony', 'price_eur', 'rooms', 'title']);
+  });
+
+  it('never clears a field the draft leaves empty', () => {
+    const { values: next, changed } = mergeDraft(values, { params: {}, description: null });
+    expect(next).toEqual(values);
+    expect(changed).toEqual([]);
   });
 });

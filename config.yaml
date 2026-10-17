@@ -35,6 +35,15 @@ cache:
 storage:
   dir: data             # presentations (SQLite) and their photos
 
+ai:
+  llm:                  # OpenAI-compatible chat API; key from $HOODIEMAP_LLM_API_KEY
+    base_url: null      # e.g. https://api.deepseek.com/v1 ; null = AI text off
+    model: ""           # e.g. deepseek-chat
+  stt:                  # OpenAI-compatible /audio/transcriptions (local whisper server)
+    base_url: null      # e.g. http://localhost:8001/v1 ; null = voice input off
+    model: ""           # the model name your server expects
+    language: sk
+
 api:
   host: "0.0.0.0"
   port: 8000

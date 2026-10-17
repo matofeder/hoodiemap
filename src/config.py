@@ -60,6 +60,28 @@ class StorageConfig(BaseModel):
     dir: str = "data"  # presentations database and photos
 
 
+class LlmConfig(BaseModel):
+    """Any OpenAI-compatible chat API (DeepSeek, Qwen/DashScope, Kimi, GLM, a local server…)."""
+    base_url: str | None = None  # e.g. https://api.deepseek.com/v1 ; None = AI text off
+    model: str = ""
+    api_key_env: str = "HOODIEMAP_LLM_API_KEY"  # the key itself never goes into config.yaml
+    timeout_s: float = 90.0
+
+
+class SttConfig(BaseModel):
+    """Any OpenAI-compatible /audio/transcriptions server (faster-whisper-server, speaches, whisper.cpp…)."""
+    base_url: str | None = None  # e.g. http://localhost:8001/v1 ; None = voice input off
+    model: str = ""
+    language: str = "sk"
+    api_key_env: str = "HOODIEMAP_STT_API_KEY"  # optional; local servers usually need none
+    timeout_s: float = 180.0
+
+
+class AiConfig(BaseModel):
+    llm: LlmConfig = Field(default_factory=LlmConfig)
+    stt: SttConfig = Field(default_factory=SttConfig)
+
+
 class ApiConfig(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8000
@@ -81,6 +103,7 @@ class Config(BaseModel):
     poi: PoiConfig = Field(default_factory=PoiConfig)
     cache: CacheConfig = Field(default_factory=CacheConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
+    ai: AiConfig = Field(default_factory=AiConfig)
     api: ApiConfig = Field(default_factory=ApiConfig)
     geocode: GeocodeConfig = Field(default_factory=GeocodeConfig)
     overpass: OverpassConfig = Field(default_factory=OverpassConfig)

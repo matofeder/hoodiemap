@@ -49,6 +49,9 @@ poi:
          food: true, post: true, bank: true, doctors: true, city: true}
 cache: {enabled: true, dir: .cache}
 storage: {dir: data}       # presentations: SQLite + photos (git-ignored)
+ai:                        # both off (base_url: null) unless configured; see docs/ai-providers.md
+  llm: {base_url, model}   # OpenAI-compatible /chat/completions; key in $HOODIEMAP_LLM_API_KEY
+  stt: {base_url, model, language: sk}   # OpenAI-compatible /audio/transcriptions (local whisper)
 api: {host: "0.0.0.0", port: 8000}
 overpass:
   local_url: "http://localhost:12345/api/interpreter"   # docker-compose up -d overpass; null = public only
@@ -62,6 +65,7 @@ src/
   api.py            GET /api/scene (+ Nominatim address), /api/geocode, /health; serves frontend/dist in prod (+ /p/{id}, /novy, /upravit/{id})
   presentation_api.py  /api/presentations: create (scene snapshot), view, edit (X-Edit-Token), photos, leads
   presentations.py  pydantic models for listing data and leads, SQLite store, photo re-encoding (Pillow, EXIF stripped)
+  ai.py             voice -> text (whisper server) and a listing draft (chat model) grounded in the scene's POIs; never sends contacts
   scene_builder.py  build_scene(): rules (building kind/height, road kind, area layer), clipping, property, POI split, tier-aware
   geocode.py        Nominatim best match → tier (`place_rank`), 1 req/s throttle, JSON cache (.cache/geocode, 30 days)
   street.py         street tier: join a named street's OSM ways into one line, frame the map around it
