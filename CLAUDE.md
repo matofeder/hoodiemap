@@ -32,6 +32,8 @@ Property presentations (spec `docs/superpowers/specs/2026-10-17-property-present
 
 Demo import: `/import` turns one public nehnutelnosti.sk listing URL into a non-public, expiring demo presentation for the agent who published it (needs `$HOODIEMAP_ADMIN_TOKEN` on the server; `?fixture=true` uses the fixture map). One page and its photos per request, never crawling.
 
+Demand test: `/prever` is the "Preverte byt pred kúpou" landing page (price variant 9/19 € at random or `?cena=`, utm_source/utm_campaign kept per session, view and CTA counts without cookies, e-mail sign-up behind a consent box); the sign-up stays off until `landing.operator` and `landing.contact_email` are set. `/admin` (admin token) shows the funnel per price and source and exports the e-mails as CSV.
+
 Own server: `deploy/` (Dockerfile at the root, `deploy/docker-compose.yml` with app + Postgres + Overpass, `backup.sh`); steps in `docs/deploy.md`. With `HOODIEMAP_ADMIN_TOKEN` set, creating presentations needs the admin token too; editing needs only the edit link.
 
 Tests: `.venv/bin/python -m pytest` (backend, no network) and `cd frontend && npm test` (vitest, pure helpers). Database tests need `HOODIEMAP_TEST_DATABASE_URL=postgresql://hoodiemap:hoodiemap@localhost:5432/hoodiemap_test` (each test gets a throwaway schema) and are skipped without it.
@@ -73,6 +75,8 @@ src/
   presentations.py  pydantic models for listing data and leads, Postgres store (jsonb, row-locked edits, atomic photo ops), photo re-encoding
   db.py             psycopg connection pool + versioned SQL migrations (migrations/NNNN_*.sql, schema_migrations, advisory lock)
   listing_import.py parse one nehnutelnosti.sk detail page (JSON-LD + Next.js flight data) into listing fields, photos, 3D tour
+  landing_api.py    /api/landing: demand-test events, sign-ups, stats and CSV export (admin)
+  admin.py          the admin token check shared by import, create and stats
   import_api.py     POST /api/import (X-Admin-Token): fetch, parse, geocode the house, build the map, create the demo, copy photos
   ai.py             voice -> text (whisper server) and a listing draft (chat model) grounded in the scene's POIs; never sends contacts
   scene_builder.py  build_scene(): rules (building kind/height, road kind, area layer), clipping, property, POI split, tier-aware
@@ -97,6 +101,7 @@ frontend/src/
 frontend/presentation.html + src/presentation/   buyer page: gallery, parameters, map, "Lokalita v číslach", contact form, QR
 frontend/editor.html + src/editor/               agent editor: form, address search, photo upload/order, share link, leads
 frontend/import.html + src/import/               admin: listing URL -> demo presentation
+frontend/prever.html + src/landing/              public demand-test landing page; admin.html + src/admin/ = its stats
 ```
 
 ### Pipeline

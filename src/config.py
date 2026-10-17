@@ -91,6 +91,13 @@ class AiConfig(BaseModel):
     stt: SttConfig = Field(default_factory=SttConfig)
 
 
+class LandingConfig(BaseModel):
+    """The /prever demand test. Without an operator the sign-up form stays off (GDPR: who collects the e-mails)."""
+    operator: str | None = None        # e.g. "Matej Feder, IČO 12345678, Pezinok"
+    contact_email: str | None = None   # where people ask about or delete their data
+    price_variants: list[str] = Field(default_factory=lambda: ["9", "19"])  # € shown, one per visitor at random
+
+
 class ApiConfig(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8000
@@ -114,6 +121,7 @@ class Config(BaseModel):
     storage: StorageConfig = Field(default_factory=StorageConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     ai: AiConfig = Field(default_factory=AiConfig)
+    landing: LandingConfig = Field(default_factory=LandingConfig)
     api: ApiConfig = Field(default_factory=ApiConfig)
     geocode: GeocodeConfig = Field(default_factory=GeocodeConfig)
     overpass: OverpassConfig = Field(default_factory=OverpassConfig)

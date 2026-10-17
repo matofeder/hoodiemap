@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Test dopytu · HoodieMap</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Figtree:wght@400;500;600;700&display=swap" />
+</head>
+<body class="ed">
+  <header class="ed-bar">
+    <a class="ed-brand" href="/admin">HoodieMap</a>
+    <a class="ed-new" href="/prever" target="_blank" rel="noopener">Otvoriť /prever ↗</a>
+  </header>
+  <main class="ed-page ed-narrow">
+    <div class="ed-head">
+      <h1>Test dopytu „Preverte byt“</h1>
+      <p class="ed-muted">Koľko ľudí stránku videlo, koľko kliklo na „Preveriť byt“ a koľko nechalo e-mail, podľa ceny a zdroja reklamy.</p>
+    </div>
+    <form id="admin-form" class="ed-card">
+      <label for="a-token">Admin token</label>
+      <div class="ed-link">
+        <input id="a-token" type="password" autocomplete="current-password" />
+        <button id="a-load" type="submit">Načítať</button>
+      </div>
+      <p id="a-state" class="ed-muted" role="status"></p>
+    </form>
+    <section id="a-result" class="ed-card" hidden>
+      <div class="ed-stat-row" id="a-totals"></div>
+      <div class="ed-table-wrap">
+        <table class="ed-table">
+          <thead><tr><th>Cena</th><th>Zdroj</th><th>Videli</th><th>Klikli</th><th>E-mail</th><th>Klik / videli</th><th>E-mail / klikli</th><th>Do 3 mes.</th><th>S inzerátom</th></tr></thead>
+          <tbody id="a-rows"></tbody>
+        </table>
+      </div>
+      <button id="a-csv" type="button" class="ed-quiet">Stiahnuť e-maily (CSV)</button>
+    </section>
+  </main>
+  <script type="module" src="/src/admin/main.js"></script>
+</body>
+</html>

@@ -22,7 +22,8 @@ def test_migrations_run_once(pg_pool):
     assert migrate(pg_pool) == []  # the fixture already applied everything
     with pg_pool.connection() as conn:
         versions = [r["version"] for r in conn.execute("SELECT version FROM schema_migrations")]
-    assert versions == ["0001_presentations"]
+    assert versions == sorted(p.stem for p in __import__("db").MIGRATIONS_DIR.glob("*.sql"))
+    assert versions[0] == "0001_presentations"
 
 
 def test_round_trip_keeps_json_and_timestamps(store):

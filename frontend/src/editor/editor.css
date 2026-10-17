@@ -129,3 +129,13 @@ body.ed { margin: 0; padding: 0 16px 64px; background: var(--ed-paper); color: v
 .ed-result-links { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
 .ed-button { display: inline-block; padding: 10px 20px; border-radius: 999px; background: var(--ed-coral-strong); color: #fff !important; font-weight: 700; text-decoration: none; }
 #import-go { background: var(--ed-coral-strong); border-color: var(--ed-coral-strong); color: #fff; font-weight: 700; padding: 12px 24px; justify-self: start; }
+
+/* admin stats */
+.ed-stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; }
+.ed-stat { display: grid; gap: 2px; padding: 12px; border-radius: 10px; background: #F2F0EA; }
+.ed-stat strong { font: 600 24px/1.1 var(--ed-display); font-variant-numeric: tabular-nums; }
+.ed-stat span { font-size: 13px; color: var(--ed-muted); }
+.ed-table-wrap { overflow-x: auto; }
+.ed-table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 620px; font-variant-numeric: tabular-nums; }
+.ed-table th { text-align: left; font-size: 12px; color: var(--ed-muted); font-weight: 600; padding: 0 10px 8px 0; border-bottom: 1px solid var(--ed-line); }
+.ed-table td { padding: 8px 10px 8px 0; border-bottom: 1px solid var(--ed-line); }

@@ -5,6 +5,8 @@ const PAGES = [
   [/^\/p\/[^/]+\/?$/, '/presentation.html'],
   [/^\/(novy|upravit\/[^/]+)\/?$/, '/editor.html'],
   [/^\/import\/?$/, '/import.html'],
+  [/^\/prever\/?$/, '/prever.html'],
+  [/^\/admin\/?$/, '/admin.html'],
 ];
 
 const pageRoutes = {
@@ -34,6 +36,8 @@ export default defineConfig({
         presentation: 'presentation.html',
         editor: 'editor.html',
         import: 'import.html',
+        prever: 'prever.html',
+        admin: 'admin.html',
       },
     },
   },

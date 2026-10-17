@@ -48,6 +48,11 @@ ai:
     model: ""           # the model name your server expects
     language: sk
 
+landing:                # /prever demand test; the sign-up form stays off until operator and contact_email are set
+  operator: null        # e.g. "Matej Feder, IČO …, Pezinok": shown as who collects the e-mails
+  contact_email: null
+  price_variants: ["9", "19"]
+
 api:
   host: "0.0.0.0"
   port: 8000
