@@ -4,17 +4,18 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 import httpx
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from config import load_config
+from config import get_config
 from geocode import GeocodeUnavailable, Geocoder
-from osm import USER_AGENT, OverpassError
+from osm import AREA_FAILED_DETAIL, USER_AGENT, OverpassError
+from presentation_api import router as presentation_router
 from scene_builder import build_scene
 
 _FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "pezinok-centrum.json"
-AREA_FAILED_DETAIL = "Could not load map data from OpenStreetMap. Try again in a minute."
 GEOCODE_NOT_FOUND = "No place matches the query."
 GEOCODE_DOWN = "Geocoding is temporarily unavailable."
 
@@ -27,15 +28,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-_cfg = None
+app.include_router(presentation_router)
+
+# Presentations are shared by link only (demos are built from other people's listings): keep them out of search engines.
+_PRIVATE_PREFIXES = ("/p/", "/novy", "/upravit/", "/api/presentations")
+
+
+@app.middleware("http")
+async def noindex_private_pages(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith(_PRIVATE_PREFIXES):
+        response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    return response
+
+
 _geocoder = None
 
 
 def _get_cfg():
-    global _cfg
-    if _cfg is None:
-        _cfg = load_config(Path(__file__).parent.parent / "config.yaml")
-    return _cfg
+    return get_config()
 
 
 def _get_geocoder() -> Geocoder:
@@ -108,6 +119,15 @@ async def geocode(q: Annotated[str, Query(min_length=2, max_length=200)]):
 # Serve frontend build if it exists (production mode)
 _frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
 if _frontend_dist.exists():
+    @app.api_route("/p/{pid}", methods=["GET", "HEAD"], include_in_schema=False)
+    async def presentation_page(pid: str):
+        return FileResponse(_frontend_dist / "presentation.html")
+
+    @app.api_route("/novy", methods=["GET", "HEAD"], include_in_schema=False)
+    @app.api_route("/upravit/{pid}", methods=["GET", "HEAD"], include_in_schema=False)
+    async def editor_page(pid: str | None = None):
+        return FileResponse(_frontend_dist / "editor.html")
+
     app.mount("/", StaticFiles(directory=str(_frontend_dist), html=True), name="static")
 
 

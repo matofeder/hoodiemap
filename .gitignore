@@ -10,3 +10,4 @@ frontend/dist/
 .superpowers/
 *.egg-info/
 .env
+data/

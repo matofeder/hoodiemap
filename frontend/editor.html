@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Nová prezentácia · HoodieMap</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Figtree:wght@400;500;600;700&display=swap" />
+</head>
+<body class="ed">
+  <header class="ed-bar">
+    <a class="ed-brand" href="/novy">HoodieMap</a>
+    <a class="ed-new" href="/novy">Nová prezentácia</a>
+  </header>
+
+  <div id="load-state" class="ed-load" role="status" hidden></div>
+
+  <main id="editor" class="ed-page">
+    <div class="ed-head">
+      <h1 id="heading">Nová prezentácia</h1>
+      <p id="subheading" class="ed-muted">Vyplňte, čo o nehnuteľnosti viete. Všetko okrem adresy je nepovinné a dá sa doplniť neskôr.</p>
+    </div>
+
+    <section id="recent" class="ed-recent" hidden>
+      <h2>Posledné prezentácie v tomto prehliadači</h2>
+      <ul id="recent-list"></ul>
+    </section>
+
+    <div class="ed-grid">
+      <form id="form" class="ed-form" novalidate>
+        <fieldset>
+          <legend>Adresa</legend>
+          <div class="ed-search">
+            <input id="address-q" type="search" autocomplete="off" maxlength="200" placeholder="Ulica a číslo, mesto"
+                   aria-label="Adresa nehnuteľnosti" />
+            <button id="address-find" type="button">Nájsť</button>
+          </div>
+          <p id="address-result" class="ed-address" role="status" hidden></p>
+          <p class="ed-hint">Bez čísla domu sa zobrazí celá ulica, bez ulice celé mesto.</p>
+        </fieldset>
+
+        <fieldset>
+          <legend>Ponuka</legend>
+          <label for="f-title">Nadpis</label>
+          <input id="f-title" name="title" maxlength="200" placeholder="3-izbový byt s balkónom" />
+          <div class="ed-row">
+            <div>
+              <label for="f-offer">Typ ponuky</label>
+              <select id="f-offer" name="offer"><option value="sale">Predaj</option><option value="rent">Prenájom</option></select>
+            </div>
+            <div>
+              <label for="f-price">Cena (€)</label>
+              <input id="f-price" name="price_eur" inputmode="decimal" placeholder="189 000" />
+            </div>
+          </div>
+          <label for="f-price-note">Poznámka k cene</label>
+          <input id="f-price-note" name="price_note" maxlength="200" placeholder="vrátane parkovacieho miesta" />
+        </fieldset>
+
+        <fieldset>
+          <legend>Parametre</legend>
+          <div class="ed-row">
+            <div><label for="f-type">Typ nehnuteľnosti</label><select id="f-type" name="property_type"></select></div>
+            <div><label for="f-condition">Stav</label><select id="f-condition" name="condition"></select></div>
+          </div>
+          <div class="ed-row three">
+            <div><label for="f-rooms">Izby</label><input id="f-rooms" name="rooms" inputmode="numeric" /></div>
+            <div><label for="f-area">Plocha (m²)</label><input id="f-area" name="area_m2" inputmode="decimal" /></div>
+            <div><label for="f-land">Pozemok (m²)</label><input id="f-land" name="land_m2" inputmode="decimal" /></div>
+          </div>
+          <div class="ed-row three">
+            <div><label for="f-floor">Poschodie</label><input id="f-floor" name="floor" inputmode="numeric" placeholder="0 = prízemie" /></div>
+            <div><label for="f-floors">Poschodí v dome</label><input id="f-floors" name="floors_total" inputmode="numeric" /></div>
+            <div><label for="f-year">Rok výstavby</label><input id="f-year" name="year_built" inputmode="numeric" /></div>
+          </div>
+          <div class="ed-row">
+            <div><label for="f-energy">Energetická trieda</label><select id="f-energy" name="energy_class"></select></div>
+          </div>
+          <p class="ed-label">Vybavenie</p>
+          <div id="features" class="ed-checks"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Popis</legend>
+          <label for="f-description" class="ed-sr">Popis nehnuteľnosti</label>
+          <textarea id="f-description" name="description" rows="9" maxlength="10000"
+                    placeholder="Odseky oddeľte prázdnym riadkom."></textarea>
+        </fieldset>
+
+        <fieldset>
+          <legend>Maklér</legend>
+          <div class="ed-row">
+            <div><label for="f-agent-name">Meno</label><input id="f-agent-name" name="agent_name" autocomplete="name" maxlength="200" /></div>
+            <div><label for="f-agent-agency">Realitná kancelária</label><input id="f-agent-agency" name="agent_agency" autocomplete="organization" maxlength="200" /></div>
+          </div>
+          <div class="ed-row">
+            <div><label for="f-agent-phone">Telefón</label><input id="f-agent-phone" name="agent_phone" type="tel" autocomplete="tel" maxlength="40" /></div>
+            <div><label for="f-agent-email">E-mail</label><input id="f-agent-email" name="agent_email" type="email" autocomplete="email" maxlength="200" /></div>
+          </div>
+          <p class="ed-hint">Údaje makléra si prehliadač zapamätá pre ďalšiu prezentáciu.</p>
+        </fieldset>
+
+        <fieldset id="demo-fields">
+          <legend>Ukážka</legend>
+          <label class="ed-check" for="f-demo"><input id="f-demo" type="checkbox" /> Je to ukážka pre realitku (neverejná, s obmedzenou platnosťou)</label>
+          <div class="ed-row" id="demo-detail" hidden>
+            <div><label for="f-demo-for">Pre koho</label><input id="f-demo-for" maxlength="200" placeholder="Reality Pezinok" /></div>
+            <div><label for="f-demo-days">Platnosť (dni)</label><input id="f-demo-days" inputmode="numeric" value="30" /></div>
+          </div>
+        </fieldset>
+
+        <div class="ed-save">
+          <ul id="problems" class="ed-problems" role="alert" hidden></ul>
+          <button id="save" type="submit">Vytvoriť prezentáciu</button>
+          <p id="save-state" class="ed-muted" role="status"></p>
+        </div>
+      </form>
+
+      <aside class="ed-side">
+        <section id="share" class="ed-card" hidden>
+          <h2>Odkaz pre kupujúcich</h2>
+          <div class="ed-link">
+            <input id="public-url" readonly aria-label="Odkaz na prezentáciu" />
+            <button id="copy-url" type="button">Kopírovať</button>
+          </div>
+          <a id="open-url" class="ed-open" target="_blank" rel="noopener">Otvoriť prezentáciu ↗</a>
+          <div class="ed-qr">
+            <div id="qr" class="ed-qr-code" aria-hidden="true"></div>
+            <a id="qr-download" download="qr-prezentacia.png" href="#">Stiahnuť QR kód (PNG) na tlač</a>
+          </div>
+          <p id="expiry" class="ed-muted" hidden></p>
+          <div class="ed-keep">
+            <p><strong>Odkaz na úpravy si uložte.</strong> Je to jediný spôsob, ako sa k tejto prezentácii vrátiť. Nikomu ho neposielajte.</p>
+            <div class="ed-link">
+              <input id="edit-url" readonly aria-label="Odkaz na úpravy" />
+              <button id="copy-edit" type="button">Kopírovať</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="photos" class="ed-card">
+          <h2>Fotografie</h2>
+          <p id="photos-locked" class="ed-muted">Fotky pridáte po vytvorení prezentácie.</p>
+          <div id="photos-tools" hidden>
+            <label class="ed-upload" for="photo-input">Pridať fotky</label>
+            <input id="photo-input" type="file" accept="image/jpeg,image/png,image/webp" multiple class="ed-sr" />
+            <p id="photo-state" class="ed-muted" role="status"></p>
+            <p class="ed-hint">Prvá fotka je titulná. Poradie zmeníte šípkami.</p>
+            <ol id="photo-list" class="ed-photos"></ol>
+          </div>
+        </section>
+
+        <section id="leads" class="ed-card" hidden>
+          <h2>Záujemcovia <span id="lead-count" class="ed-count"></span></h2>
+          <p id="leads-empty" class="ed-muted">Zatiaľ sa nikto neozval. Kontakty z formulára na prezentácii sa zobrazia tu.</p>
+          <ol id="lead-list" class="ed-leads"></ol>
+          <button id="leads-refresh" type="button" class="ed-quiet">Obnoviť</button>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <script type="module" src="/src/editor/main.js"></script>
+</body>
+</html>

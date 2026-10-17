@@ -1,3 +1,4 @@
+from functools import lru_cache
 from pathlib import Path
 
 import yaml
@@ -55,6 +56,10 @@ class CacheConfig(BaseModel):
     dir: str = ".cache"
 
 
+class StorageConfig(BaseModel):
+    dir: str = "data"  # presentations database and photos
+
+
 class ApiConfig(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8000
@@ -75,6 +80,7 @@ class Config(BaseModel):
     radii: RadiiConfig = Field(default_factory=RadiiConfig)
     poi: PoiConfig = Field(default_factory=PoiConfig)
     cache: CacheConfig = Field(default_factory=CacheConfig)
+    storage: StorageConfig = Field(default_factory=StorageConfig)
     api: ApiConfig = Field(default_factory=ApiConfig)
     geocode: GeocodeConfig = Field(default_factory=GeocodeConfig)
     overpass: OverpassConfig = Field(default_factory=OverpassConfig)
@@ -84,3 +90,12 @@ def load_config(path: str | Path = "config.yaml") -> Config:
     with open(path, encoding="utf-8") as f:
         data = yaml.safe_load(f)
     return Config.model_validate(data)
+
+
+DEFAULT_CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
+
+
+@lru_cache(maxsize=1)
+def get_config() -> Config:
+    """The app's config.yaml, loaded once."""
+    return load_config(DEFAULT_CONFIG_PATH)

@@ -9,6 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "qrcode": "^1.5.4",
     "three": "^0.168.0"
   },
   "devDependencies": {

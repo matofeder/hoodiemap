@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Prezentácia nehnuteľnosti · HoodieMap</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Figtree:wght@400;500;600;700&display=swap" />
+</head>
+<body class="pr">
+  <p id="demo" class="pr-demo" hidden></p>
+
+  <div id="state" class="pr-state" role="status">
+    <p id="state-text">Načítavam prezentáciu…</p>
+    <button id="state-retry" type="button" hidden>Skúsiť znova</button>
+  </div>
+
+  <main id="page" class="pr-page" hidden>
+    <header class="pr-head">
+      <div class="pr-head-text">
+        <p id="address" class="pr-address"></p>
+        <h1 id="title"></h1>
+        <ul id="facts" class="pr-facts"></ul>
+      </div>
+      <div class="pr-price">
+        <p id="price" class="pr-price-value"></p>
+        <p id="price-note" class="pr-price-note" hidden></p>
+      </div>
+    </header>
+
+    <section id="gallery" class="pr-gallery" aria-label="Fotografie" hidden>
+      <button id="gallery-main" class="pr-gallery-main" type="button" aria-label="Zväčšiť fotografiu">
+        <img id="gallery-img" alt="" />
+        <span id="gallery-count" class="pr-gallery-count"></span>
+      </button>
+      <div id="gallery-thumbs" class="pr-thumbs"></div>
+    </section>
+
+    <div class="pr-body">
+      <div class="pr-main">
+        <section id="about" class="pr-section" hidden>
+          <h2>O nehnuteľnosti</h2>
+          <div id="description" class="pr-description"></div>
+        </section>
+
+        <section id="params-section" class="pr-section" hidden>
+          <h2>Parametre</h2>
+          <dl id="params" class="pr-params"></dl>
+          <ul id="features" class="pr-features"></ul>
+        </section>
+      </div>
+
+      <aside class="pr-side">
+        <section id="contact" class="pr-contact" aria-labelledby="contact-title">
+          <h2 id="contact-title">Máte záujem?</h2>
+          <div id="agent" class="pr-agent"></div>
+          <form id="lead-form" class="pr-form" novalidate>
+            <label for="lead-name">Meno</label>
+            <input id="lead-name" name="name" autocomplete="name" required maxlength="100" />
+            <label for="lead-email">E-mail</label>
+            <input id="lead-email" name="email" type="email" autocomplete="email" maxlength="200" />
+            <label for="lead-phone">Telefón</label>
+            <input id="lead-phone" name="phone" type="tel" autocomplete="tel" maxlength="40" />
+            <label for="lead-message">Správa</label>
+            <textarea id="lead-message" name="message" rows="3" maxlength="2000">Dobrý deň, mám záujem o obhliadku.</textarea>
+            <div class="pr-hp" aria-hidden="true">
+              <label for="lead-website">Web</label>
+              <input id="lead-website" name="website" tabindex="-1" autocomplete="off" />
+            </div>
+            <label class="pr-consent" for="lead-consent">
+              <input id="lead-consent" name="consent" type="checkbox" required />
+              <span>Súhlasím so spracovaním osobných údajov na účel kontaktovania maklérom.</span>
+            </label>
+            <p id="lead-error" class="pr-form-error" role="alert" hidden></p>
+            <button id="lead-submit" type="submit">Poslať maklérovi</button>
+          </form>
+          <p id="lead-done" class="pr-form-done" role="status" hidden>Ďakujeme, maklér sa vám ozve.</p>
+        </section>
+      </aside>
+    </div>
+
+    <section class="pr-section pr-hood" aria-labelledby="hood-title">
+      <div class="pr-hood-head">
+        <h2 id="hood-title">Okolie</h2>
+        <p class="pr-muted">Prejdite myšou alebo ťuknite na budovu či miesto a zobrazia sa podrobnosti.</p>
+      </div>
+      <div class="pr-hood-grid">
+        <div id="map" class="gm-map pr-map"></div>
+        <div class="pr-locality">
+          <h3>Lokalita v číslach</h3>
+          <table id="locality" class="pr-locality-table">
+            <tbody></tbody>
+          </table>
+          <p class="pr-footnote">Vzdialenosť vzdušnou čiarou, čas je odhad. Údaje z OpenStreetMap.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer class="pr-foot">
+      <div class="pr-qr">
+        <div id="qr" class="pr-qr-code" aria-hidden="true"></div>
+        <p>Naskenujte a otvorte prezentáciu v mobile.</p>
+      </div>
+      <p class="pr-credit">Mapové dáta © <a href="https://www.openstreetmap.org/copyright" rel="noopener">prispievatelia OpenStreetMap</a> · Prezentáciu vytvoril HoodieMap</p>
+    </footer>
+  </main>
+
+  <dialog id="viewer" class="pr-viewer" aria-label="Fotografia">
+    <img id="viewer-img" alt="" />
+    <p id="viewer-caption" class="pr-viewer-caption"></p>
+    <button id="viewer-prev" class="pr-viewer-nav prev" type="button" aria-label="Predchádzajúca">‹</button>
+    <button id="viewer-next" class="pr-viewer-nav next" type="button" aria-label="Ďalšia">›</button>
+    <button id="viewer-close" class="pr-viewer-close" type="button" aria-label="Zavrieť">×</button>
+  </dialog>
+
+  <script type="module" src="/src/presentation/main.js"></script>
+</body>
+</html>

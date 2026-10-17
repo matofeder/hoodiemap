@@ -27,6 +27,8 @@ Open `http://localhost:5173/?lat=…&lon=…`, or `?fixture=true` for offline de
 
 Search box: type a town, a street or a full address; the tier follows the match (see the spec).
 
+Property presentations (spec `docs/superpowers/specs/2026-10-17-property-presentation-design.md`): `/novy` creates one in the editor, `/upravit/{id}#{token}` edits it, `/p/{id}` is the buyer page. Add `?fixture=true` to `/novy` to build presentations offline from the fixture scene. Data lives in `storage.dir` (SQLite + photos), relative to the working directory like `.cache`.
+
 Tests: `.venv/bin/python -m pytest` (backend, no network) and `cd frontend && npm test` (vitest, pure helpers).
 Timing: `.venv/bin/python scripts/time_tiers.py`
 
@@ -46,6 +48,7 @@ poi:
          pharmacy: true, bus_stop: true, train: true, park: true, playground: true,
          food: true, post: true, bank: true, doctors: true, city: true}
 cache: {enabled: true, dir: .cache}
+storage: {dir: data}       # presentations: SQLite + photos (git-ignored)
 api: {host: "0.0.0.0", port: 8000}
 overpass:
   local_url: "http://localhost:12345/api/interpreter"   # docker-compose up -d overpass; null = public only
@@ -56,7 +59,9 @@ overpass:
 
 ```
 src/
-  api.py            GET /api/scene (+ Nominatim address), /api/geocode, /health; serves frontend/dist in prod
+  api.py            GET /api/scene (+ Nominatim address), /api/geocode, /health; serves frontend/dist in prod (+ /p/{id}, /novy, /upravit/{id})
+  presentation_api.py  /api/presentations: create (scene snapshot), view, edit (X-Edit-Token), photos, leads
+  presentations.py  pydantic models for listing data and leads, SQLite store, photo re-encoding (Pillow, EXIF stripped)
   scene_builder.py  build_scene(): rules (building kind/height, road kind, area layer), clipping, property, POI split, tier-aware
   geocode.py        Nominatim best match → tier (`place_rank`), 1 req/s throttle, JSON cache (.cache/geocode, 30 days)
   street.py         street tier: join a named street's OSM ways into one line, frame the map around it
@@ -75,7 +80,9 @@ frontend/src/
   map/geom.js, lines.js, roofs.js, placement.js                  pure geometry (unit-tested)
   overlay/labels.js, edge.js                                     HTML labels + edge badge placement
   overlay/tooltip.js, describe.js, map/hover.js                 hover/tap/focus info bubbles (walk/drive time, opening hours), building glow via raycast
-  palette.js, icons.js, format.js, random.js, url.js
+  palette.js, icons.js, format.js, random.js, url.js, qr.js
+frontend/presentation.html + src/presentation/   buyer page: gallery, parameters, map, "Lokalita v číslach", contact form, QR
+frontend/editor.html + src/editor/               agent editor: form, address search, photo upload/order, share link, leads
 ```
 
 ### Pipeline
