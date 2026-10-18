@@ -6,6 +6,7 @@ const PAGES = [
   [/^\/(novy|upravit\/[^/]+)\/?$/, '/editor.html'],
   [/^\/import\/?$/, '/import.html'],
   [/^\/prever\/?$/, '/prever.html'],
+  [/^\/skore\/?$/, '/skore.html'],
   [/^\/admin\/?$/, '/admin.html'],
 ];
 
@@ -37,6 +38,7 @@ export default defineConfig({
         editor: 'editor.html',
         import: 'import.html',
         prever: 'prever.html',
+        skore: 'skore.html',
         admin: 'admin.html',
       },
     },

@@ -15,6 +15,7 @@ from osm import AREA_FAILED_DETAIL, USER_AGENT, OverpassError
 from admin import admin_token
 from import_api import router as import_router
 from landing_api import router as landing_router
+from score_api import router as score_router
 from presentation_api import ai_features, router as presentation_router
 from scene_builder import build_scene
 
@@ -34,6 +35,7 @@ app.add_middleware(
 app.include_router(presentation_router)
 app.include_router(import_router)
 app.include_router(landing_router)
+app.include_router(score_router)
 
 # Presentations are shared by link only (demos are built from other people's listings): keep them out of search engines.
 _PRIVATE_PREFIXES = ("/p/", "/novy", "/upravit/", "/import", "/admin", "/api/presentations", "/api/import", "/api/landing")
@@ -126,6 +128,10 @@ if _frontend_dist.exists():
     @app.api_route("/p/{pid}", methods=["GET", "HEAD"], include_in_schema=False)
     async def presentation_page(pid: str):
         return FileResponse(_frontend_dist / "presentation.html")
+
+    @app.api_route("/skore", methods=["GET", "HEAD"], include_in_schema=False)
+    async def score_page():
+        return FileResponse(_frontend_dist / "skore.html")
 
     @app.api_route("/prever", methods=["GET", "HEAD"], include_in_schema=False)
     async def landing_page():

@@ -1,0 +1,33 @@
+import { describe, expect, it } from 'vitest';
+import { emptyFacts, factLine, missingLine } from './facts.js';
+
+const nb = (s) => s.replace(/ | /g, ' ');
+
+describe('factLine', () => {
+  it('describes a nearby place', () => {
+    const f = factLine({ label: 'Potraviny', name: 'Billa', distance_m: 71, minutes: 2, count_1km: 7 });
+    expect(nb(f.detail)).toBe('Billa · 70 m · 2 min pešo · 7 do 1 km');
+  });
+  it('hides a name that repeats the label and a count of one', () => {
+    expect(nb(factLine({ label: 'Materská škola', name: 'Materská škola', distance_m: 281, minutes: 5, count_1km: 1 }).detail))
+      .toBe('280 m · 5 min pešo');
+  });
+  it('handles green, presence and penalties', () => {
+    expect(nb(factLine({ label: 'Zeleň do 300 m', share: 0.05, target: 0.3 }).detail)).toBe('5 % plochy · odporúčanie 30 %');
+    expect(factLine({ label: 'Les', present: false }).detail).toBe('nie');
+    expect(nb(factLine({ label: 'Park', name: 'Zámocký Park', distance_m: 467, area_ha: 7.1 }).detail))
+      .toBe('Zámocký Park · 470 m · 7,1 ha');
+    expect(nb(factLine({ label: 'Cesta II. triedy', distance_m: 80, penalty: 8 }).detail)).toBe('80 m · −8 b.');
+    expect(factLine({ label: 'Bary', count: 1, penalty: 5 }).detail).toBe('1 podnik · −5 b.');
+    expect(factLine({ label: 'Verejná zeleň', name: null, distance_m: null }).detail).toBe('nenašli sme');
+  });
+});
+
+describe('missing and empty', () => {
+  it('words what was not found', () => {
+    expect(missingLine('family', ['Základná škola'])).toBe('Do 2,5 km sme nenašli: základná škola.');
+    expect(missingLine('walk', [])).toBeNull();
+    expect(emptyFacts('quiet')).toMatch(/nenašli/);
+    expect(emptyFacts('walk')).toBeNull();
+  });
+});
