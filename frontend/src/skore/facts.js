@@ -42,3 +42,26 @@ export function missingLine(kind, missing) {
 export function emptyFacts(kind) {
   return kind === 'quiet' ? 'V okolí sme nenašli hlavnú cestu, železnicu ani bary, ktoré by znižovali pokoj.' : null;
 }
+
+const num = (v, digits = 1) => v.toFixed(digits).replace('.', ',');
+
+export const WEIGHTS_NOTE = {
+  walkscore: 'Váhy kategórií: Walk Score (Brewster a kol. 2009).',
+  equal: 'Váhy: rovnaké pre všetky ukazovatele (OECD/JRC 2008), kým neodpovie expertný panel (AHP).',
+  ahp: 'Váhy: expertný panel metódou AHP.',
+  penalties: 'Od 100 bodov odpočítavame zrážky. Orientačný odhad, nie hlukový model.',
+};
+
+/** The step-by-step table under a score: display rows plus the total line, all as strings. */
+export function breakdownTable(s) {
+  if (s.weights_method === 'penalties') {
+    const rows = s.breakdown.map((r) => ({ label: r.label, fact: r.fact, sub: '', weight: '', points: `${r.points}` }));
+    return { head: ['Zdroj', 'Vzdialenosť', '', '', 'Body'], start: 'Začiatok: 100 bodov', rows,
+      total: `${s.score}`, note: WEIGHTS_NOTE.penalties };
+  }
+  const rows = s.breakdown.map((r) => ({
+    label: r.label, fact: r.fact, sub: num(r.sub_score), weight: `${num(r.weight * 100)} %`, points: num(r.points),
+  }));
+  return { head: ['Ukazovateľ', 'Fakt', 'Čiastkové skóre', 'Váha', 'Body'], start: null, rows,
+    total: `${s.score}`, note: WEIGHTS_NOTE[s.weights_method] ?? '' };
+}

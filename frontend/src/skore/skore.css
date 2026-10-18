@@ -90,3 +90,16 @@ body.sk { margin: 0; padding: 0 20px; background: var(--sk-paper); color: var(--
   .sk-tile { padding: 14px; }
   .sk-tile-value { font-size: 38px; }
 }
+
+/* step-by-step calculation */
+.sk-badge { margin-left: 8px; font: 600 11px/1 var(--sk-body); letter-spacing: 0.04em; text-transform: uppercase; color: #6B4A12; background: #FFF4DB; border-radius: 999px; padding: 3px 7px; vertical-align: 2px; }
+.sk-steps-box { font-size: 14px; }
+.sk-steps-box summary { cursor: pointer; font-weight: 600; color: var(--sk-coral-strong); padding: 4px 0; }
+.sk-steps-box .sk-muted { font-size: 13px; margin-top: 6px; }
+.sk-steps-wrap { overflow-x: auto; }
+.sk-steps { width: 100%; border-collapse: collapse; min-width: 520px; font-variant-numeric: tabular-nums; }
+.sk-steps th, .sk-steps td { padding: 6px 8px 6px 0; border-bottom: 1px solid var(--sk-line); text-align: left; vertical-align: top; }
+.sk-steps th { font-size: 12px; color: var(--sk-muted); font-weight: 600; }
+.sk-steps td:nth-child(n+3), .sk-steps th:nth-child(n+3) { text-align: right; white-space: nowrap; }
+.sk-steps td:nth-child(2) { color: var(--sk-muted); }
+.sk-steps tfoot td { font-weight: 700; border-bottom: 0; }

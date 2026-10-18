@@ -37,6 +37,12 @@
       </div>
       <button id="a-csv" type="button" class="ed-quiet">Stiahnuť e-maily (CSV)</button>
     </section>
+    <section id="ahp-result" class="ed-card" hidden>
+      <h2>Expertný panel (AHP)</h2>
+      <p class="ed-muted">Váhy z konzistentných odpovedí (CR pod 0,10). Súbor <code>weights.json</code> uložte do <code>methodology/</code> a commitnite: skóre ho potom použije namiesto rovnakých váh.</p>
+      <div id="ahp-sets"></div>
+      <button id="ahp-json" type="button" class="ed-quiet">Stiahnuť weights.json</button>
+    </section>
   </main>
   <script type="module" src="/src/admin/main.js"></script>
 </body>

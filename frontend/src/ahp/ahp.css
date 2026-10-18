@@ -1,0 +1,34 @@
+/* AHP questionnaire: each pair is a 9-step scale between two criteria; bigger dots = stronger preference. */
+.ahp-how ul { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; font-size: 15px; }
+.ahp-sets { display: grid; gap: 16px; }
+.ahp-set { gap: 10px !important; }
+.ahp-pair { display: grid; gap: 4px; padding: 12px 0; border-bottom: 1px solid var(--ed-line); }
+.ahp-pair.is-off { background: #FFF4DB; border-radius: 10px; padding-inline: 10px; outline: 2px solid #F6D493; }
+.ahp-scale { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 10px; align-items: center; }
+.ahp-left { font-weight: 700; text-align: right; }
+.ahp-right { font-weight: 700; }
+.ahp-dots { display: flex; align-items: center; gap: 4px; }
+.ed .ahp-dot { padding: 0; border-radius: 50%; border: 2px solid #B9C4C9; background: #fff; cursor: pointer; }
+.ahp-dot.d4 { width: 26px; height: 26px; }
+.ahp-dot.d3 { width: 22px; height: 22px; }
+.ahp-dot.d2 { width: 18px; height: 18px; }
+.ahp-dot.d1 { width: 15px; height: 15px; }
+.ahp-dot.d0 { width: 13px; height: 13px; }
+.ed .ahp-dot[aria-pressed="true"] { background: var(--ed-coral-strong); border-color: var(--ed-coral-strong); }
+.ed .ahp-dot:hover { border-color: var(--ed-coral-strong); }
+.ahp-say { font-size: 13px; color: var(--ed-muted); text-align: center; }
+.ahp-result { display: grid; gap: 6px; padding-top: 8px; }
+.ahp-result h3 { font: 600 16px/1.2 var(--ed-display); margin: 0; }
+.ahp-w { display: grid; grid-template-columns: minmax(120px, 1fr) 2fr 48px; gap: 10px; align-items: center; font-size: 14px; }
+.ahp-bar { height: 8px; border-radius: 999px; background: #D9ECE7; overflow: hidden; }
+.ahp-bar i { display: block; height: 100%; background: #1F7A6B; border-radius: 999px; }
+.ahp-pct { text-align: right; font-variant-numeric: tabular-nums; }
+.ahp-ok { color: #24573F; font-weight: 600; font-size: 14px; }
+.ahp-bad { color: #8E2A2E; font-weight: 600; font-size: 14px; }
+#ahp-submit { background: var(--ed-coral-strong); border-color: var(--ed-coral-strong); color: #fff; font-weight: 700; padding: 12px 24px; justify-self: start; }
+@media (max-width: 600px) {
+  .ahp-scale { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .ahp-dots { grid-column: 1 / -1; grid-row: 2; justify-content: center; }
+  .ahp-left { text-align: left; grid-column: 1; grid-row: 1; }
+  .ahp-right { text-align: right; grid-column: 2; grid-row: 1; }
+}

@@ -241,20 +241,46 @@ def _fact(label: str, p: Place | None, **extra) -> dict:
     return {"label": label, "name": p.name, "distance_m": round(p.distance_m), "minutes": minutes(p.distance_m), **extra}
 
 
+def _row(key: str, label: str, sub: float, weight: float, fact: str) -> dict:
+    """One line of the step-by-step calculation: sub-score 0–100 × weight = points of the final score."""
+    return {"key": key, "label": label, "fact": fact, "sub_score": round(sub, 1), "weight": round(weight, 4),
+            "points": round(sub * weight, 1)}
+
+
+def _dist_fact(p: Place | None) -> str:
+    if p is None:
+        return "nenájdené do 2,5 km"
+    return f"{round(p.distance_m)} m vzdušne = {round(walk_m(p.distance_m))} m chôdze"
+
+
 def score_walk(places: list[Place]) -> dict:
-    total = got = 0.0
-    facts, missing = [], []
+    total = sum(sum(spec["weights"]) for spec in M.WALK_CATEGORIES.values())
+    facts, missing, rows = [], [], []
     for cat, spec in M.WALK_CATEGORIES.items():
         near = _nearest(places, cat, len(spec["weights"]))
-        total += sum(spec["weights"])
-        got += sum(w * decay(walk_m(p.distance_m), M.WALK_DECAY) for w, p in zip(spec["weights"], near))
+        cat_w = sum(spec["weights"])
+        got = sum(w * decay(walk_m(p.distance_m), M.WALK_DECAY) for w, p in zip(spec["weights"], near))
+        n = len(spec["weights"])
+        fact = _dist_fact(near[0] if near else None)
+        if n > 1:
+            fact = f"{len(near)} z {n} najbližších započítaných, najbližšie {fact}"
+        rows.append(_row(cat, spec["label"], 100 * got / cat_w, cat_w / total, fact))
         if near:
             count_1km = sum(1 for p in places if p.category == cat and p.distance_m <= 1000)
             facts.append(_fact(spec["label"], near[0], count_1km=count_1km))
         else:
             missing.append(spec["label"])
-    score = round(100 * got / total)
-    return {"score": score, "band": band("walk", score), "facts": facts, "missing": missing}
+    score = round(sum(r["sub_score"] * r["weight"] for r in rows))
+    return {"score": score, "band": band("walk", score), "facts": facts, "missing": missing, "breakdown": rows,
+            "weights_method": "walkscore"}
+
+
+def _ha(area_m2: float) -> str:
+    return f"{area_m2 / 10_000:.1f} ha".replace(".", ",")
+
+
+def _venues(n: int) -> str:
+    return f"{n} {'podnik' if n == 1 else 'podniky' if n < 5 else 'podnikov'}"
 
 
 def _green_public(tags: dict) -> bool:
@@ -285,8 +311,16 @@ def score_green(shapes: Shapes) -> dict:
     within = [(poly, tags) for poly, tags in public if poly.distance(origin) <= M.NATURE_RADIUS_M]
     largest = max(within, key=lambda pt: pt[0].area, default=None)
 
-    parts = M.GREEN_PARTS
-    score = round(100 * (parts["near_green"] * near_part + parts["cover"] * cover_part + parts["nature"] * nature_part))
+    w = M.weights("zelen")
+    subs = {
+        "near_green": (100 * near_part, f"{round(near_d)} m k ploche {_ha(nearest[0].area)}"
+                       if nearest else f"žiadna do {M.GREEN_SEARCH_M} m"),
+        "cover": (100 * cover_part, f"{round(cover * 100)} % plochy kruhu {M.GREEN_COVER_RADIUS_M} m, cieľ "
+                  f"{round(M.GREEN_COVER_TARGET * 100)} %"),
+        "nature": (100 * nature_part, "áno" if nature else "nie"),
+    }
+    rows = [_row(k, M.GREEN_PARTS[k], subs[k][0], w["weights"][k], subs[k][1]) for k in M.GREEN_PARTS]
+    score = round(sum(r["sub_score"] * r["weight"] for r in rows))
     facts = [
         {"label": f"Verejná zeleň aspoň {str(M.GREEN_MIN_HA).replace('.', ',')} ha",
          "name": _green_name(nearest[1]) if nearest else None,
@@ -301,29 +335,32 @@ def score_green(shapes: Shapes) -> dict:
                          "name": _green_name(largest[1]), "distance_m": round(largest[0].distance(origin)),
                          "area_ha": round(largest[0].area / 10_000, 1)})
     missing = [] if nearest else [f"verejná zeleň aspoň {str(M.GREEN_MIN_HA).replace('.', ',')} ha do {M.GREEN_SEARCH_M} m"]
-    return {"score": score, "band": band("green", score), "facts": facts, "missing": missing}
+    return {"score": score, "band": band("green", score), "facts": facts, "missing": missing, "breakdown": rows,
+            "weights_method": w["method"]}
 
 
 def score_family(places: list[Place], green_score: int) -> dict:
-    total = got = 0.0
-    facts, missing = [], []
-    for cat, spec in M.FAMILY_CATEGORIES.items():
+    w = M.weights("rodina")
+    facts, missing, rows = [], [], []
+    for cat, label in M.FAMILY_CATEGORIES.items():
+        if cat == "green":
+            rows.append(_row(cat, label, green_score, w["weights"][cat], f"skóre Zeleň {green_score}"))
+            continue
         near = _nearest(places, cat)
-        total += spec["weight"]
+        sub = 100 * decay(walk_m(near[0].distance_m), M.WALK_DECAY) if near else 0.0
+        rows.append(_row(cat, label, sub, w["weights"][cat], _dist_fact(near[0] if near else None)))
         if near:
-            got += spec["weight"] * decay(walk_m(near[0].distance_m), spec["decay"])
-            facts.append(_fact(spec["label"], near[0]))
+            facts.append(_fact(label, near[0]))
         else:
-            missing.append(spec["label"])
-    total += M.FAMILY_GREEN_WEIGHT
-    got += M.FAMILY_GREEN_WEIGHT * green_score / 100
-    score = round(100 * got / total)
-    return {"score": score, "band": band("family", score), "facts": facts, "missing": missing}
+            missing.append(label)
+    score = round(sum(r["sub_score"] * r["weight"] for r in rows))
+    return {"score": score, "band": band("family", score), "facts": facts, "missing": missing, "breakdown": rows,
+            "weights_method": w["method"]}
 
 
 def score_quiet(places: list[Place], shapes: Shapes) -> dict:
     origin = Point(0, 0)
-    penalty, facts = 0, []
+    penalty, facts, rows = 0, [], []
     for kind, spec in M.QUIET_PENALTIES.items():
         lines = [line for line, k in shapes.traffic if k == kind]
         if not lines:
@@ -333,13 +370,17 @@ def score_quiet(places: list[Place], shapes: Shapes) -> dict:
         if points:
             penalty += points
             facts.append({"label": spec["label"], "distance_m": round(d), "penalty": points})
+            rows.append({"key": kind, "label": spec["label"], "fact": f"{round(d)} m", "points": -points})
     bars = [p for p in places if p.category == "nightlife" and p.distance_m <= M.NIGHTLIFE_RADIUS_M]
     if bars:
         night = min(M.NIGHTLIFE_MAX, sum(M.NIGHTLIFE_PENALTY.get(p.tags.get("amenity"), 0) for p in bars))
         penalty += night
         facts.append({"label": f"Bary a kluby do {M.NIGHTLIFE_RADIUS_M} m", "count": len(bars), "penalty": night})
+        rows.append({"key": "nightlife", "label": f"Bary a kluby do {M.NIGHTLIFE_RADIUS_M} m",
+                     "fact": _venues(len(bars)), "points": -night})
     score = max(0, 100 - penalty)
-    return {"score": score, "band": band("quiet", score), "facts": facts, "missing": []}
+    return {"score": score, "band": band("quiet", score), "facts": facts, "missing": [], "breakdown": rows,
+            "weights_method": "penalties", "status": M.QUIET_STATUS}
 
 
 def compute(osm: dict, lat: float, lon: float) -> dict:

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyFacts, factLine, missingLine } from './facts.js';
+import { breakdownTable, emptyFacts, factLine, missingLine } from './facts.js';
 
 const nb = (s) => s.replace(/ | /g, ' ');
 
@@ -29,5 +29,22 @@ describe('missing and empty', () => {
     expect(missingLine('walk', [])).toBeNull();
     expect(emptyFacts('quiet')).toMatch(/nenašli/);
     expect(emptyFacts('walk')).toBeNull();
+  });
+});
+
+describe('breakdownTable', () => {
+  it('shows sub-score × weight = points and the weights note', () => {
+    const t = breakdownTable({ score: 17, weights_method: 'equal', breakdown: [
+      { label: 'Materská škola', fact: '100 m', sub_score: 100, weight: 0.1667, points: 16.7 },
+      { label: 'Lekár', fact: 'nenájdené', sub_score: 0, weight: 0.1667, points: 0 },
+    ] });
+    expect(t.rows[0]).toEqual({ label: 'Materská škola', fact: '100 m', sub: '100,0', weight: '16,7 %', points: '16,7' });
+    expect(t.total).toBe('17');
+    expect(t.note).toMatch(/rovnaké/);
+  });
+  it('lists deductions for the quiet score', () => {
+    const t = breakdownTable({ score: 70, weights_method: 'penalties', breakdown: [{ label: 'Cesta I. triedy', fact: '40 m', points: -30 }] });
+    expect(t.start).toBe('Začiatok: 100 bodov');
+    expect(t.rows[0].points).toBe('-30');
   });
 });

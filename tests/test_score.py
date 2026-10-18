@@ -92,7 +92,7 @@ def test_green_follows_who_and_3_30_300():
     assert near["facts"][0]["distance_m"] == 100 and near["facts"][0]["area_ha"] == 1.0
     small = compute(square(150, 0, 60, leisure="park"))["green"]               # 0.36 ha: below WHO size
     assert small["missing"] and small["score"] < near["score"]
-    forest = compute(square(0, 0, 400, landuse="forest"))["green"]              # 16 ha around the point
+    forest = compute(square(0, 0, 500, landuse="forest"))["green"]              # 25 ha around the point: ANGSt 20 ha
     assert forest["score"] == 100 and forest["band"] == "Zeleň za rohom"
     private = compute(square(150, 0, 100, leisure="park", access="private"))["green"]
     assert private["missing"]
@@ -179,3 +179,39 @@ def test_trams_and_tertiary_roads_lower_quiet():
     assert tram["score"] == 85 and tram["facts"][0]["label"] == "Električka"
     tertiary = compute(line([(-500, 50), (500, 50)], highway="tertiary"))["quiet"]
     assert tertiary["score"] == 96
+
+
+@pytest.mark.parametrize("kind", ["walk", "green", "family"])
+def test_breakdown_adds_up_to_the_score(kind):
+    els = everything_at(300) + [node(200, 0, amenity="kindergarten"), node(200, 10, leisure="playground"),
+                                node(200, 20, amenity="doctors"), square(150, 0, 100, leisure="park", name="Park")]
+    s = compute(*els)[kind]
+    assert sum(r["weight"] for r in s["breakdown"]) == pytest.approx(1.0, abs=1e-3)
+    assert sum(r["points"] for r in s["breakdown"]) == pytest.approx(s["score"], abs=0.6)
+    assert all(0 <= r["sub_score"] <= 100 and r["fact"] for r in s["breakdown"])
+
+
+def test_quiet_breakdown_lists_the_deductions_and_is_marked_provisional():
+    s = compute(line([(-500, 40), (500, 40)], highway="primary"))["quiet"]
+    assert s["breakdown"] == [{"key": "primary", "label": "Cesta I. triedy", "fact": "40 m", "points": -30}]
+    assert s["status"] == "orientačné"
+
+
+def test_family_uses_equal_weights_until_a_panel_answers():
+    s = compute(node(100, 0, amenity="kindergarten"))["family"]
+    assert s["weights_method"] == "equal"
+    assert {r["weight"] for r in s["breakdown"]} == {round(1 / 6, 4)}
+    assert s["score"] == round(100 / 6)  # only the kindergarten is near: one sixth of the points
+
+
+def test_panel_weights_from_the_file_replace_equal(tmp_path, monkeypatch):
+    panel = {"sets": {"rodina": {"weights": {"kindergarten": 0.5, "primary_school": 0.1, "playground": 0.1,
+                                             "doctors": 0.1, "grocery": 0.1, "green": 0.1},
+                                 "panel": {"experts": 7, "cr": 0.04, "date": "2026-11-20"}}}}
+    f = tmp_path / "weights.json"
+    f.write_text(json.dumps(panel), encoding="utf-8")
+    monkeypatch.setattr(M, "WEIGHTS_FILE", f)
+    s = compute(node(100, 0, amenity="kindergarten"))["family"]
+    assert s["weights_method"] == "ahp" and s["score"] == 50
+    assert "7 expertov" in M.weights("rodina")["source"]
+    assert M.weights("zelen")["method"] == "equal"  # a set the panel did not answer stays equal

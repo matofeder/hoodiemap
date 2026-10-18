@@ -1,7 +1,7 @@
 # HoodieMap skóre for an address (prototype)
 
 **Date:** 2026-10-18
-**Status:** Prototype on `feat/presentation`
+**Status:** Prototype on `feat/presentation`; method 0.2 is documented in `docs/metodika.md` (supersedes the weights below)
 **Context:** "Porovnanie lokalít" proposal (2026-10-18); Walk Score as the reference, Obce v dátach (town-level index for 71 district towns) as the benchmark to go beyond.
 
 ## Goal

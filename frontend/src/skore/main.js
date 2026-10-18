@@ -1,5 +1,5 @@
 import './skore.css';
-import { SCORES, emptyFacts, factLine, missingLine } from './facts.js';
+import { SCORES, breakdownTable, emptyFacts, factLine, missingLine } from './facts.js';
 
 const $ = (id) => document.getElementById(id);
 const fixture = new URLSearchParams(window.location.search).get('fixture') === 'true';
@@ -50,7 +50,7 @@ function render(result, label) {
     meter.setAttribute('role', 'img');
     meter.setAttribute('aria-label', `${s.score} zo 100`);
     return el('article', { className: 'sk-tile' }, [
-      el('span', { className: 'sk-tile-label', textContent: name }),
+      el('span', { className: 'sk-tile-label' }, [name, ...(s.status ? [el('span', { className: 'sk-badge', textContent: s.status })] : [])]),
       el('span', { className: 'sk-tile-q', textContent: question }),
       el('span', { className: 'sk-tile-value' }, [String(s.score), el('small', { textContent: '/100' })]),
       el('span', { className: 'sk-tile-band', textContent: s.band }),
@@ -72,9 +72,29 @@ function render(result, label) {
       ...(facts.length ? [el('ul', { className: 'sk-facts' }, facts)] : []),
       ...(empty ? [el('p', { className: 'sk-muted', textContent: empty })] : []),
       ...(missing ? [el('p', { className: 'sk-missing', textContent: missing })] : []),
+      steps(s),
     ]);
   }));
   $('sk-result').hidden = false;
+}
+
+function steps(s) {
+  const t = breakdownTable(s);
+  const tr = (cells, tag = 'td') => el('tr', {}, cells.map((c) => el(tag, { textContent: c })));
+  const body = [
+    ...(t.start ? [tr([t.start, '', '', '', '100'])] : []),
+    ...t.rows.map((r) => tr([r.label, r.fact, r.sub, r.weight, r.points])),
+  ];
+  const table = el('table', { className: 'sk-steps' }, [
+    el('thead', {}, [tr(t.head, 'th')]),
+    el('tbody', {}, body),
+    el('tfoot', {}, [tr(['Skóre', '', '', '', t.total])]),
+  ]);
+  return el('details', { className: 'sk-steps-box' }, [
+    el('summary', { textContent: 'Výpočet krok za krokom' }),
+    el('div', { className: 'sk-steps-wrap' }, [table]),
+    el('p', { className: 'sk-muted', textContent: t.note }),
+  ]);
 }
 
 async function loadMethod() {
@@ -83,9 +103,9 @@ async function loadMethod() {
     const sections = [
       ['Pešo', 'Za každú kategóriu (potraviny, reštaurácie, kaviarne, obchody, banka, park, škola, lekáreň, kultúra a šport) dostane adresa body podľa vzdialenosti. Do 5 minút chôdze plné, potom menej, po 30 minútach nič.', m.walk.source],
       ['Chôdza', `Vzdušnú vzdialenosť násobíme ${String(m.walking.detour).replace('.', ',')}, aby zodpovedala ceste po uliciach, a rátame ${m.walking.m_per_min} m za minútu.`, m.walking.source],
-      ['Zeleň', `Najviac váži verejná zeleň aspoň ${String(m.green.min_ha).replace('.', ',')} ha do 300 m. Ďalej podiel zelene do ${m.green.cover_radius_m} m (cieľ ${Math.round(m.green.cover_target * 100)} %) a les alebo veľký park do 1 km.`, m.green.source],
-      ['Rodina', 'Materská a základná škola, ihrisko, lekár a potraviny s kratšími vzdialenosťami pre deti, plus skóre Zeleň.', m.family.source],
-      ['Pokoj', 'Od 100 odpočítavame body za blízkosť diaľnice, ciest I. a II. triedy, železnice a barov do 150 m.', m.quiet.source],
+      ['Zeleň', `Tri časti: verejná zeleň aspoň ${String(m.green.min_ha).replace('.', ',')} ha do 300 m, podiel zelene do ${m.green.cover_radius_m} m (cieľ ${Math.round(m.green.cover_target * 100)} %) a les alebo veľký park do 1 km. Váhy: ${m.green.weights.source}.`, m.green.source],
+      ['Rodina', 'Materská a základná škola, ihrisko, lekár, potraviny a skóre Zeleň. Vzdialenosti hodnotíme rovnakou krivkou chôdze ako pri Pešo. Váhy: ' + m.family.weights.source + '.', m.family.source],
+      ['Pokoj (orientačné)', 'Od 100 odpočítavame body za blízkosť diaľnice, ciest I. až III. triedy, železnice, električky a barov do 150 m.', m.quiet.source],
     ];
     $('sk-method-body').replaceChildren(
       ...sections.flatMap(([title, what, source]) => [el('h3', { textContent: title }), el('p', { textContent: `${what} Zdroj: ${source}` })]),

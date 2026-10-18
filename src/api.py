@@ -16,6 +16,7 @@ from admin import admin_token
 from import_api import router as import_router
 from landing_api import router as landing_router
 from score_api import router as score_router
+from ahp_api import router as ahp_router
 from presentation_api import ai_features, router as presentation_router
 from scene_builder import build_scene
 
@@ -36,9 +37,10 @@ app.include_router(presentation_router)
 app.include_router(import_router)
 app.include_router(landing_router)
 app.include_router(score_router)
+app.include_router(ahp_router)
 
 # Presentations are shared by link only (demos are built from other people's listings): keep them out of search engines.
-_PRIVATE_PREFIXES = ("/p/", "/novy", "/upravit/", "/import", "/admin", "/api/presentations", "/api/import", "/api/landing")
+_PRIVATE_PREFIXES = ("/p/", "/novy", "/upravit/", "/import", "/admin", "/ahp", "/api/presentations", "/api/import", "/api/landing", "/api/ahp")
 
 
 @app.middleware("http")
@@ -128,6 +130,10 @@ if _frontend_dist.exists():
     @app.api_route("/p/{pid}", methods=["GET", "HEAD"], include_in_schema=False)
     async def presentation_page(pid: str):
         return FileResponse(_frontend_dist / "presentation.html")
+
+    @app.api_route("/ahp", methods=["GET", "HEAD"], include_in_schema=False)
+    async def ahp_page():
+        return FileResponse(_frontend_dist / "ahp.html")
 
     @app.api_route("/skore", methods=["GET", "HEAD"], include_in_schema=False)
     async def score_page():
