@@ -21,23 +21,30 @@ def main(path: str, label: str) -> None:
     osm = json.loads(Path(path).read_text(encoding="utf-8"))
     r = score.compute(osm, osm["center"]["lat"], osm["center"]["lon"])
     print(f"Adresa: **{label}** ({n(r['lat'], 5)}, {n(r['lon'], 5)}), dáta OpenStreetMap, metodika {M.VERSION}.\n")
-    w = r["whoqol"]
-    print("#### Profil prostredia podľa WHOQOL-BREF\n")
-    print("| Aspekt | Položka | Skóre | Ukazovatele (čiastkové skóre) |\n|---|---|---:|---|")
-    for f in w["facets"]:
-        inds = "; ".join(f"{row['label']} {n(row['sub_score'], 0)}" for row in f["breakdown"]) or f"chýbajú dáta: {f['planned']}"
-        score_txt = "–" if f["score"] is None else str(f["score"])
-        print(f"| {f['id']} {f['label']} | {f['item']} | {score_txt} | {inds} |")
-    idx = "nepočíta sa" if w["index"] is None else str(w["index"])
-    print(f"\n**Index prostredia:** {idx} (dáta pre {w['facets_with_data']} z {w['facets_total']} aspektov, "
-          f"potrebných aspoň {w['min_facets']}).\n")
+    idx = r["index"]
+    print("#### Index HoodieMap po oblastiach\n")
+    print("| Oblasť | Vrstva | Skóre | Ukazovatele (čiastkové skóre) |\n|---|---|---:|---|")
+    for a in idx["areas"]:
+        inds = ("; ".join(f"{row['label']} {n(row['sub_score'], 0)}" for row in a["breakdown"])
+                if a["in_index"] else f"pripravujeme: {a['planned']}")
+        score_txt = "–" if a["score"] is None else str(a["score"])
+        print(f"| {a['label']} | {idx['groups'][a['group']]} | {score_txt} | {inds} |")
+    counted = [a for a in idx["areas"] if a["in_index"]]
+    if idx["index"] is None:
+        print(f"\n**Index HoodieMap:** nepočíta sa, chýbajú dáta pre {', '.join(idx['missing'])}.\n")
+    else:
+        total = sum(a["score"] for a in counted)
+        print(f"\n**Index HoodieMap:** ({' + '.join(str(a['score']) for a in counted)}) / {len(counted)} = "
+              f"{n(total / len(counted))} → **{idx['index']}**\n")
     print("#### Skóre pre používateľa\n")
     for key, s in r["scores"].items():
+        if key == "family" and s["weights_method"] == "equal":
+            print("Profil Rodina sa pri rovnakých váhach rovná indexu, preto ho neuvádzame.\n")
+            continue
         title = "nepočíta sa" if s["score"] is None else f"{s['score']} ({s['band']})"
         print(f"##### {NAMES[key]}: {title}\n")
         if s.get("profile") and s["score"] is None:
-            print(f"Profil sa zatiaľ nepočíta: aspekty s dátami tvoria {n(s['coverage'] * 100, 1)} % váhy, "
-                  f"treba aspoň {n(s['min_coverage'] * 100, 0)} %. Chýbajú: {', '.join(s['missing'])}.\n")
+            print(f"Profil sa nepočíta, chýbajú dáta pre {', '.join(s['missing'])}.\n")
             continue
         if s["weights_method"] == "penalties":
             print("| Zdroj | Vzdialenosť | Body |\n|---|---|---:|\n| Začiatok | | 100 |")

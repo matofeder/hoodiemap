@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HoodieMap skóre adresy</title>
-  <meta name="description" content="Pešo, Zeleň, Rodina, Pokoj: skóre 0 až 100 pre akúkoľvek adresu na Slovensku, z verejných dát a so zdrojmi." />
+  <meta name="description" content="Index HoodieMap, Pešo, Zeleň a Pokoj: skóre 0 až 100 pre akúkoľvek adresu na Slovensku, z verejných dát, s normami a zdrojmi." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Figtree:wght@400;500;600;700&display=swap" />
@@ -18,7 +18,7 @@
   <main class="sk-page">
     <section class="sk-intro">
       <h1>Ako sa tu žije?</h1>
-      <p class="sk-lede">Zadajte adresu. Ukážeme, čo vybavíte pešo, koľko je okolo zelene, ako je miesto vhodné pre rodiny a aký je tam pokoj. Pri každom čísle ukážeme fakty, z ktorých vzniklo.</p>
+      <p class="sk-lede">Zadajte adresu. Ukážeme, čo vybavíte pešo, koľko je okolo zelene, aký je tam pokoj a ako si stojí obec a okres v štatistikách. Pri každom čísle ukážeme fakty a normu, z ktorých vzniklo.</p>
       <form id="sk-form" class="sk-search" role="search" novalidate>
         <label for="sk-q" class="sk-sr">Adresa</label>
         <input id="sk-q" type="search" autocomplete="off" maxlength="200" placeholder="Ulica a číslo, mesto" />
@@ -42,10 +42,10 @@
       <div id="sk-tiles" class="sk-tiles"></div>
       <p id="sk-transit" class="sk-transit"></p>
       <div id="sk-details" class="sk-details"></div>
-      <section class="sk-whoqol" aria-labelledby="whoqol-title">
-        <h3 id="whoqol-title">Profil prostredia podľa WHOQOL</h3>
-        <p class="sk-muted">Osem aspektov oblasti Prostredie z dotazníka kvality života Svetovej zdravotníckej organizácie (WHOQOL-BREF). Meriame objektívne podmienky na adrese.</p>
-        <div id="sk-facets" class="sk-facets"></div>
+      <section class="sk-areas" aria-labelledby="areas-title">
+        <h3 id="areas-title">Index HoodieMap po oblastiach</h3>
+        <p class="sk-muted">Len objektívne údaje, každý ukazovateľ voči norme alebo rámcu: okolie adresy podľa Walk Score a noriem WHO, územie podľa rámca OECD Regional Well-Being. Index je priemer oblastí.</p>
+        <div id="sk-area-list" class="sk-area-list"></div>
         <p id="sk-index" class="sk-index"></p>
       </section>
     </section>

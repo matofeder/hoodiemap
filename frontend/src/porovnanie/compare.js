@@ -39,15 +39,16 @@ function row(id, label, values, extra = {}) {
   return { id, label, cells: values.map((value, i) => ({ value, best: best.includes(i) })), ...extra };
 }
 
-/** The indicators of one facet across the addresses; a regional statistic the addresses share says so. */
-function indicatorRows(facetId, results) {
+const areaOf = (r, id) => r.index.areas.find((a) => a.id === id);
+
+/** The indicators of one area across the addresses; a regional statistic the addresses share says so. */
+function indicatorRows(areaId, results) {
   const keys = [];
   for (const r of results) {
-    const facet = r.whoqol.facets.find((f) => f.id === facetId);
-    for (const b of facet?.breakdown ?? []) if (!keys.some((k) => k.key === b.key)) keys.push({ key: b.key, label: b.label });
+    for (const b of areaOf(r, areaId)?.breakdown ?? []) if (!keys.some((k) => k.key === b.key)) keys.push({ key: b.key, label: b.label });
   }
   return keys.map(({ key, label }) => {
-    const items = results.map((r) => r.whoqol.facets.find((f) => f.id === facetId)?.breakdown.find((b) => b.key === key));
+    const items = results.map((r) => areaOf(r, areaId)?.breakdown.find((b) => b.key === key));
     const values = items.map((b) => (b ? num(b.sub_score) : null));
     const facts = items.map((b) => b?.fact ?? null);
     const shared = facts.length > 1 && facts.every((f) => f != null && f === facts[0]);
@@ -57,32 +58,28 @@ function indicatorRows(facetId, results) {
   });
 }
 
-/** Sections of the comparison table; each row: { id, label, status?, note?, cells: [{ value, best, fact? }] }. */
+/** Sections of the comparison table; each row: { id, label, status?, note?, cells: [{ value, best, fact? }] }.
+ * The index first, then the index areas by group; planned areas are listed in `planned`, not as rows. */
 export function buildTable(results) {
-  const first = results[0];
-  const facets = first.whoqol.facets.map((f) => {
-    const values = results.map((r) => r.whoqol.facets.find((x) => x.id === f.id)?.score ?? null);
-    const statuses = [...new Set(results.map((r) => r.whoqol.facets.find((x) => x.id === f.id)?.status).filter(Boolean))];
-    return row(f.id, `${f.id} ${f.label}`, values, { status: statuses.join(', ') || null, indicators: indicatorRows(f.id, results) });
+  const first = results[0].index;
+  const index = row('index', 'Index HoodieMap', results.map((r) => r.index.index ?? null), {
+    note: `priemer ${first.index_areas} oblastí s rovnakou váhou`,
   });
-  const index = row('index', 'Index prostredia', results.map((r) => r.whoqol.index ?? null), {
-    note: `priemer aspektov s dátami, aspoň ${first.whoqol.min_facets} z ${first.whoqol.facets_total}`,
-  });
-  const scores = [
-    ['walk', 'Pešo', 'Walk Score: služby podľa vzdialenosti chôdzou'],
-    ['green', 'Zeleň', 'WHO 0,5 ha do 300 m, podiel zelene, 20 ha do 2 km'],
-    ['quiet', 'Pokoj', 'cesty, železnica a bary v okolí'],
-  ].map(([key, label, note]) => row(key, label, results.map((r) => r.scores[key]?.score ?? null), {
-    note, status: results.map((r) => r.scores[key]?.status).find(Boolean) ?? null,
-  }));
-  const sections = [
-    { id: 'whoqol', title: 'Prostredie podľa WHOQOL-BREF', rows: [index, ...facets] },
-    { id: 'scores', title: 'Samostatné skóre', rows: scores },
-  ];
-  // A household profile adds information only once a panel set its weights; with equal weights it equals the index.
+  const rows = [index];
   if (results.some((r) => r.scores.family?.weights_method === 'ahp')) {
-    scores.push(row('family', 'Rodina', results.map((r) => r.scores.family?.score ?? null), { note: 'aspekty WHOQOL s váhami expertného panelu (AHP)' }));
+    // A household profile adds information only once a panel set its weights; with equal weights it equals the index.
+    rows.push(row('family-profile', 'Rodina', results.map((r) => r.scores.family?.score ?? null), { note: 'oblasti s váhami expertného panelu (AHP)' }));
   }
+  const sections = [{ id: 'index', title: 'Index', rows }];
+  for (const [gid, title] of Object.entries(first.groups)) {
+    const areas = first.areas.filter((a) => a.group === gid && a.in_index).map((a) => {
+      const values = results.map((r) => areaOf(r, a.id)?.score ?? null);
+      const statuses = [...new Set(results.map((r) => areaOf(r, a.id)?.status).filter(Boolean))];
+      return row(a.id, a.label, values, { status: statuses.join(', ') || null, indicators: indicatorRows(a.id, results) });
+    });
+    sections.push({ id: gid, title, rows: areas });
+  }
+  sections.planned = first.areas.filter((a) => !a.in_index).map((a) => a.label);
   return sections;
 }
 

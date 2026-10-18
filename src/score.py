@@ -342,20 +342,17 @@ def score_green(shapes: Shapes) -> dict:
             "weights_method": "equal_parts"}
 
 
-def score_profile(profile_id: str, facets: list[dict]) -> dict:
-    """A profile: the facets with data, weighted for the household; computed only when they carry at least
-    PROFILE_MIN_WEIGHT of the profile's weight (with equal weights: WHOQOL-BREF's 6 of 8)."""
+def score_profile(profile_id: str, areas: list[dict]) -> dict:
+    """A profile: the index areas weighted for the household; computed only when every index area has data,
+    like the index itself."""
     w = M.weights(profile_id)
-    have = [f for f in facets if f["score"] is not None]
-    covered = sum(w["weights"][f["id"]] for f in have)
-    rows = [_row(f["id"], f"{f['id']} {f['label']}", f["score"], w["weights"][f["id"]] / covered if covered else 0,
-                 f"aspekt {f['score']}") for f in have]
-    missing = [f"{f['id']} {f['label']}" for f in facets if f["score"] is None]
-    ok = covered >= M.PROFILE_MIN_WEIGHT - 1e-9
+    index_areas = [a for a in areas if a["in_index"]]
+    missing = [a["label"] for a in index_areas if a["score"] is None]
+    ok = not missing
+    rows = [_row(a["id"], a["label"], a["score"], w["weights"][a["id"]], f"oblasť {a['score']}") for a in index_areas] if ok else []
     score = round(sum(r["sub_score"] * r["weight"] for r in rows)) if ok else None
     return {"score": score, "band": band("family", score) if ok else None, "facts": [], "missing": missing,
-            "breakdown": rows if ok else [], "weights_method": w["method"], "coverage": round(covered, 3),
-            "min_coverage": M.PROFILE_MIN_WEIGHT, "profile": profile_id}
+            "breakdown": rows, "weights_method": w["method"], "profile": profile_id}
 
 
 def score_quiet(places: list[Place], shapes: Shapes) -> dict:
@@ -389,38 +386,39 @@ def _region_fact(r: dict) -> str:
             f"z {r['n_regions']} území; {r['source']}")
 
 
-def whoqol_profile(places: list[Place], scores: dict, place: dict | None = None) -> dict:
-    """The eight WHOQOL-BREF environment facets: each the mean of its indicators, the index the mean of the
-    facets, computed only when at least 6 of 8 facets have data (WHOQOL-BREF's own rule for domain 4)."""
+def area_index(places: list[Place], scores: dict, place: dict | None = None) -> dict:
+    """The areas of the index: each the mean of its indicators, the index the mean of the areas with
+    indicators (INDEX_AREAS), computed only when every one of them has data."""
     green = {r["key"]: r for r in scores["green"]["breakdown"]}
     subs: dict[str, tuple[float, str]] = {}
-    for key in ("doctors", "pharmacy", "kindergarten", "primary_school", "library", "park", "sports", "culture",
-                "playground", "transit"):
+    for key in ("kindergarten", "primary_school", "playground", "doctors", "pharmacy", "transit"):
         near = _nearest(places, key)
         subs[key] = (100 * decay(walk_m(near[0].distance_m), M.WALK_DECAY) if near else 0.0,
                      _dist_fact(near[0] if near else None))
     for key in ("near_green", "cover", "nature"):
         subs[key] = (green[key]["sub_score"], green[key]["fact"])
     subs["quiet"] = (float(scores["quiet"]["score"]), f"skóre Pokoj {scores['quiet']['score']} (orientačné)")
-    subs["walk"] = (float(scores["walk"]["score"]), f"skóre Pešo {scores['walk']['score']}")
+    subs["walk"] = (float(scores["walk"]["score"]), f"skóre Pešo {scores['walk']['score']} ({scores['walk']['band']})")
     for key in M.REGION_INDICATORS:
         r = regions.indicator(key, place) if place else None
         if r:
             subs[key] = (r["sub_score"], _region_fact(r))
 
-    facets = []
-    for fid, spec in M.WHOQOL_FACETS.items():
+    areas = []
+    for aid, spec in M.AREAS.items():
         keys = [k for k in spec["indicators"] if k in subs]  # regional statistics exist only inside Slovakia
-        rows = [_row(k, M.FACET_INDICATORS[k]["label"], subs[k][0], 1 / len(keys), subs[k][1]) for k in keys]
+        rows = [_row(k, M.INDICATORS[k]["label"], subs[k][0], 1 / len(keys), subs[k][1]) for k in keys]
         score = round(sum(r["sub_score"] * r["weight"] for r in rows)) if rows else None
-        facets.append({"id": fid, "label": spec["label"], "item": spec["item"], "score": score,
-                       "breakdown": rows, "planned": spec["planned"],
-                       "status": "chýbajú dáta" if not rows else ("orientačné" if "quiet" in keys
-                                                                  else "len za kraj" if keys == ["crime"] else None)})
-    have = [f for f in facets if f["score"] is not None]
-    index = round(sum(f["score"] for f in have) / len(have)) if len(have) >= M.WHOQOL_MIN_FACETS else None
-    return {"facets": facets, "index": index, "facets_with_data": len(have), "facets_total": len(facets),
-            "min_facets": M.WHOQOL_MIN_FACETS}
+        in_index = aid in M.INDEX_AREAS
+        status = ("pripravujeme" if not in_index else "chýbajú dáta" if not rows
+                  else "orientačné" if keys == ["quiet"] else "len za kraj" if keys == ["crime"] else None)
+        areas.append({"id": aid, "label": spec["label"], "group": spec["group"], "score": score, "in_index": in_index,
+                      "breakdown": rows, "norm": spec["norm"], "planned": spec["planned"], "status": status})
+    counted = [a for a in areas if a["in_index"]]
+    missing = [a["label"] for a in counted if a["score"] is None]
+    index = None if missing else round(sum(a["score"] for a in counted) / len(counted))
+    return {"areas": areas, "index": index, "missing": missing, "index_areas": len(counted),
+            "groups": M.AREA_GROUPS, "rule": M.INDEX_RULE}
 
 
 def compute(osm: dict, lat: float, lon: float) -> dict:
@@ -429,14 +427,14 @@ def compute(osm: dict, lat: float, lon: float) -> dict:
     transit = _nearest(places, "transit")
     scores = {"walk": score_walk(places), "green": green, "quiet": score_quiet(places, shapes)}
     place = regions.locate(lat, lon)
-    whoqol = whoqol_profile(places, scores, place)
-    profiles = {pid: score_profile(pid, whoqol["facets"]) for pid in M.PROFILES}
+    areas = area_index(places, scores, place)
+    profiles = {pid: score_profile(pid, areas["areas"]) for pid in M.PROFILES}
     scores["family"] = profiles["rodina"]
     scores = {k: scores[k] for k in ("walk", "green", "family", "quiet")}
     return {
         "lat": lat, "lon": lon,
         "scores": scores,
-        "whoqol": whoqol,
+        "index": areas,
         "region": place,
         "profiles": profiles,
         "transit": _fact("Zastávka MHD alebo vlak", transit[0]) if transit else None,

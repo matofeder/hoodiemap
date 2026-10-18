@@ -1,5 +1,5 @@
 import './skore.css';
-import { SCORES, breakdownTable, emptyFacts, factLine, missingLine } from './facts.js';
+import { areaDetail, breakdownTable, emptyFacts, factLine, missingLine, visibleScores } from './facts.js';
 
 const $ = (id) => document.getElementById(id);
 const fixture = new URLSearchParams(window.location.search).get('fixture') === 'true';
@@ -47,23 +47,26 @@ function render(result, label) {
   const cmp = new URLSearchParams({ a: `${result.lat},${result.lon},${label}` });
   if (fixture) cmp.set('fixture', 'true');
   $('sk-compare').href = `/porovnanie?${cmp}`;
-  $('sk-tiles').replaceChildren(...SCORES.map(({ key, label: name, question }) => {
-    const s = result.scores[key];
+  const tiles = visibleScores(result.scores);
+  const idx = result.index;
+  const indexTile = { key: 'index', label: 'Index HoodieMap', question: `Priemer ${idx.index_areas} oblastí okolia a územia`,
+    s: { score: idx.index, band: idx.index == null ? `Nepočítame: chýbajú dáta pre ${idx.missing.join(', ')}.` : 'rozpis po oblastiach nižšie' } };
+  $('sk-tiles').replaceChildren(...[indexTile, ...tiles.map((t) => ({ ...t, s: result.scores[t.key] }))].map(({ key, label: name, question, s }) => {
     const pending = s.score == null;
     const meter = el('div', { className: 'sk-meter' }, [el('i', { style: `width:${s.score ?? 0}%` })]);
     meter.setAttribute('role', 'img');
-    meter.setAttribute('aria-label', pending ? 'zatiaľ nepočítame' : `${s.score} zo 100`);
-    return el('article', { className: 'sk-tile' }, [
+    meter.setAttribute('aria-label', pending ? 'nepočítame' : `${s.score} zo 100`);
+    return el('article', { className: `sk-tile${key === 'index' ? ' is-index' : ''}` }, [
       el('span', { className: 'sk-tile-label' }, [name, ...(s.status ? [el('span', { className: 'sk-badge', textContent: s.status })] : [])]),
       el('span', { className: 'sk-tile-q', textContent: question }),
       el('span', { className: `sk-tile-value${pending ? ' is-pending' : ''}` }, pending ? ['–'] : [String(s.score), el('small', { textContent: '/100' })]),
-      el('span', { className: 'sk-tile-band', textContent: pending ? `Zatiaľ nepočítame (aspekty s dátami tvoria ${Math.round(s.coverage * 100)} % váhy, treba ${Math.round(s.min_coverage * 100)} %)` : s.band }),
+      el('span', { className: 'sk-tile-band', textContent: pending && key !== 'index' ? `Nepočítame: chýbajú dáta pre ${s.missing.join(', ')}.` : s.band }),
       meter,
     ]);
   }));
   const t = result.transit;
-  $('sk-transit').textContent = t ? `Najbližšia zastávka: ${t.name ?? 'MHD'}, ${factLine(t).detail.replace(`${t.name} · `, '')}. Skóre MHD pridáme, keď napojíme cestovné poriadky.` : '';
-  $('sk-details').replaceChildren(...SCORES.map(({ key, label: name }) => {
+  $('sk-transit').textContent = t ? `Najbližšia zastávka: ${t.name ?? 'MHD'}, ${factLine(t).detail.replace(`${t.name} · `, '')}. Zastávka je v oblasti Doprava; frekvenciu spojov pridáme, keď napojíme cestovné poriadky.` : '';
+  $('sk-details').replaceChildren(...tiles.map(({ key, label: name }) => {
     const s = result.scores[key];
     const facts = s.facts.map((f) => {
       const line = factLine(f);
@@ -76,39 +79,36 @@ function render(result, label) {
       ...(facts.length ? [el('ul', { className: 'sk-facts' }, facts)] : []),
       ...(empty ? [el('p', { className: 'sk-muted', textContent: empty })] : []),
       ...(missing ? [el('p', { className: 'sk-missing', textContent: missing })] : []),
-      ...(key === 'family' ? [el('p', { className: 'sk-muted', textContent: s.score == null
-        ? 'Profil Rodina váži 8 aspektov prostredia podľa WHOQOL. Počítame ho, keď aspekty s dátami tvoria aspoň 75 % jeho váhy (ako pravidlo WHOQOL-BREF „6 z 8“). Profil prostredia nižšie ukazuje, čo už máme.'
-        : 'Profil Rodina: vážený priemer aspektov WHOQOL.' })] : []),
-      ...(s.breakdown.length ? [steps(s)] : []),
+      ...(key === 'family' ? [el('p', { className: 'sk-muted', textContent: 'Profil Rodina: oblasti indexu s váhami, ktoré určil expertný panel metódou AHP.' })] : []),
+      ...(s.breakdown?.length ? [steps(s)] : []),
     ]);
   }));
-  renderWhoqol(result.whoqol);
+  renderAreas(result.index);
   $('sk-result').hidden = false;
 }
 
-const REGION_KEYS = new Set(['crime', 'persons_per_dwelling', 'wage', 'unemployment']);
-
-function renderWhoqol(w) {
-  $('sk-facets').replaceChildren(...w.facets.map((f) => {
-    const meter = el('div', { className: 'sk-meter' }, [el('i', { style: `width:${f.score ?? 0}%` })]);
-    meter.setAttribute('role', 'img');
-    meter.setAttribute('aria-label', f.score == null ? 'chýbajú dáta' : `${f.score} zo 100`);
-    const detail = f.score == null
-      ? `Chýbajú dáta. Plán: ${f.planned}.`
-      : f.breakdown.map((r) => (REGION_KEYS.has(r.key)
-        ? `${r.label} ${Math.round(r.sub_score)} (${r.fact.split(';')[0]})`
-        : `${r.label} ${Math.round(r.sub_score)}`)).join(' · ');
-    return el('div', { className: `sk-facet${f.score == null ? ' is-empty' : ''}` }, [
-      el('span', { className: 'sk-facet-id', textContent: f.id }),
-      el('span', { className: 'sk-facet-label' }, [f.label, ...(f.status && f.score != null ? [el('span', { className: 'sk-badge', textContent: f.status })] : [])]),
-      el('span', { className: 'sk-facet-score', textContent: f.score == null ? '–' : String(f.score) }),
-      meter,
-      el('span', { className: 'sk-facet-detail', textContent: detail }),
-    ]);
-  }));
-  $('sk-index').textContent = w.index == null
-    ? `Index prostredia zatiaľ nepočítame: máme dáta pre ${w.facets_with_data} z ${w.facets_total} aspektov a WHOQOL-BREF počíta oblasť len pri aspoň ${w.min_facets}.`
-    : `Index prostredia: ${w.index} (priemer ${w.facets_with_data} aspektov).`;
+function renderAreas(idx) {
+  const groups = Object.entries(idx.groups).map(([gid, title]) => {
+    const rows = idx.areas.filter((a) => a.group === gid).map((a) => {
+      const empty = a.score == null;
+      const meter = el('div', { className: 'sk-meter' }, [el('i', { style: `width:${a.score ?? 0}%` })]);
+      meter.setAttribute('role', 'img');
+      meter.setAttribute('aria-label', empty ? (a.in_index ? 'chýbajú dáta' : 'pripravujeme') : `${a.score} zo 100`);
+      const badge = a.status ? [el('span', { className: 'sk-badge', textContent: a.status })] : [];
+      return el('div', { className: `sk-area${empty ? ' is-empty' : ''}` }, [
+        el('span', { className: 'sk-area-label' }, [a.label, ...badge]),
+        el('span', { className: 'sk-area-score', textContent: empty ? '–' : String(a.score) }),
+        meter,
+        el('span', { className: 'sk-area-detail', textContent: areaDetail(a) }),
+        ...(a.in_index ? [el('span', { className: 'sk-area-norm', textContent: `Norma: ${a.norm}` })] : []),
+      ]);
+    });
+    return el('div', { className: 'sk-area-group' }, [el('h4', { textContent: title }), ...rows]);
+  });
+  $('sk-area-list').replaceChildren(...groups);
+  $('sk-index').textContent = idx.index == null
+    ? `Index nepočítame: chýbajú dáta pre ${idx.missing.join(', ')}. ${idx.rule[0].toUpperCase()}${idx.rule.slice(1)}.`
+    : `Index HoodieMap: ${idx.index}, priemer ${idx.index_areas} oblastí s rovnakou váhou. Oblasti „pripravujeme“ do indexu zatiaľ nevstupujú.`;
 }
 
 function steps(s) {
@@ -137,9 +137,9 @@ async function loadMethod() {
       ['Pešo', 'Za každú kategóriu (potraviny, reštaurácie, kaviarne, obchody, banka, park, škola, lekáreň, kultúra a šport) dostane adresa body podľa vzdialenosti. Do 5 minút chôdze plné, potom menej, po 30 minútach nič.', m.walk.source],
       ['Chôdza', `Vzdušnú vzdialenosť násobíme ${String(m.walking.detour).replace('.', ',')}, aby zodpovedala ceste po uliciach, a rátame ${m.walking.m_per_min} m za minútu.`, m.walking.source],
       ['Zeleň', `Tri časti: verejná zeleň aspoň ${String(m.green.min_ha).replace('.', ',')} ha do 300 m, podiel zelene do ${m.green.cover_radius_m} m (cieľ ${Math.round(m.green.cover_target * 100)} %) a prírodná zeleň aspoň 20 ha do 2 km. Váhy: ${m.green.weights_source}.`, m.green.source],
-      ['Profil prostredia (WHOQOL)', `Osem aspektov oblasti Prostredie z dotazníka WHOQOL-BREF. Aspekt je priemer jeho ukazovateľov, index prostredia priemer aspektov, počítaný len pri dátach pre aspoň ${m.whoqol.min_facets} z 8 aspektov.`, m.whoqol.source],
-      ['Štatistiky území', 'Bezpečnosť (kriminalita za kraj), domáce prostredie (obyvatelia na obývaný byt v obci, sčítanie 2021) a finančné podmienky (mzdy a nezamestnanosť v okrese). Hodnotíme ich poradím medzi všetkými územiami SR: 100 = najlepšie, 0 = najhoršie.', m.whoqol.percentile_source],
-      ['Rodina', `Profil: aspekty WHOQOL vážené pre rodinu s deťmi. Váhy: ${m.profiles.rodina.weights.source}. Počíta sa, keď aspekty s dátami tvoria aspoň ${Math.round(m.profile_min_weight * 100)} % váhy.`, m.whoqol.weights_source],
+      ['Index HoodieMap', `Oblasti okolia adresy (služby pešo, deti a zdravie, doprava, zeleň, pokoj) a územia (príjem, práca, bývanie, bezpečnosť). Oblasť je priemer svojich ukazovateľov, index priemer oblastí. ${m.areas.rule[0].toUpperCase()}${m.areas.rule.slice(1)}. Váhy: ${m.areas.weights_source}.`, m.areas.source],
+      ['Štatistiky území', 'Bezpečnosť (kriminalita za kraj), bývanie (obyvatelia na obývaný byt v obci, sčítanie 2021), príjem (mzdy v okrese) a práca (nezamestnanosť v okrese). Hodnotíme ich poradím medzi všetkými územiami SR: 100 = najlepšie, 0 = najhoršie.', m.areas.percentile_source],
+      ['Profily (Rodina, Senior, Bez auta)', `Tie isté oblasti s váhami pre daný typ domácnosti. Váhy: ${m.profiles.rodina.weights.source}. Kým ich neurčí panel, profil sa rovná indexu a samostatne ho neukazujeme.`, 'metóda AHP (Saaty 1980), panel expertov'],
       ['Pokoj (orientačné)', 'Od 100 odpočítavame body za blízkosť diaľnice, ciest I. až III. triedy, železnice, električky a barov do 150 m.', m.quiet.source],
     ];
     $('sk-method-body').replaceChildren(

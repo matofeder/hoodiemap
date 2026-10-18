@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HoodieMap porovnanie adries</title>
-  <meta name="description" content="Porovnajte 2 až 5 adries: prostredie podľa WHOQOL-BREF, Pešo, Zeleň a Pokoj, každé číslo s výpočtom a zdrojom." />
+  <meta name="description" content="Porovnajte 2 až 5 adries: Index HoodieMap, okolie adresy a štatistiky územia, každé číslo s výpočtom, normou a zdrojom." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Figtree:wght@400;500;600;700&display=swap" />
@@ -18,7 +18,7 @@
   <main class="sk-page">
     <section class="sk-intro">
       <h1>Porovnanie adries</h1>
-      <p class="sk-lede">Pridajte 2 až 5 adries. Pri každej ukážeme rovnaké výpočty: prostredie podľa WHOQOL-BREF, Pešo, Zeleň a Pokoj. Kliknutím na aspekt uvidíte ukazovatele a fakty, z ktorých vznikol.</p>
+      <p class="sk-lede">Pridajte 2 až 5 adries. Pri každej ukážeme rovnaké výpočty: Index HoodieMap, okolie adresy (Pešo, deti a zdravie, doprava, zeleň, pokoj) a štatistiky územia. Kliknutím na oblasť uvidíte ukazovatele a fakty, z ktorých vznikla.</p>
       <form id="cmp-form" class="sk-search" role="search" novalidate>
         <label for="cmp-q" class="sk-sr">Adresa</label>
         <input id="cmp-q" type="search" autocomplete="off" maxlength="200" placeholder="Ulica a číslo, mesto" />
@@ -41,7 +41,7 @@
       <div class="cmp-wrap">
         <table id="cmp-table" class="cmp-table"></table>
       </div>
-      <p class="sk-muted cmp-legend">Čísla sú 0 až 100, viac je lepšie. <b>Tučne</b> je najlepšia hodnota v riadku. Ukazovatele okolia hodnotíme podľa noriem (napr. WHO: zeleň do 300 m), štatistiky území poradím medzi územiami Slovenska. Celý výpočet adresy otvorí odkaz v hlavičke stĺpca.</p>
+      <p class="sk-muted cmp-legend">Čísla sú 0 až 100, viac je lepšie. <b>Tučne</b> je najlepšia hodnota v riadku. Okolie hodnotíme podľa noriem (Walk Score, WHO: zeleň do 300 m), územie podľa rámca OECD Regional Well-Being poradím medzi územiami Slovenska. Normu každej oblasti a celý výpočet adresy otvorí odkaz v hlavičke stĺpca.<span id="cmp-planned"></span></p>
     </section>
   </main>
 

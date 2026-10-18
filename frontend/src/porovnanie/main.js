@@ -100,7 +100,9 @@ function render(results) {
       ]),
     ])),
   ]);
-  const bodies = buildTable(results).flatMap((section) => {
+  const table = buildTable(results);
+  $('cmp-planned').textContent = table.planned.length ? ` Pripravujeme oblasti: ${table.planned.join(', ')}; do indexu zatiaľ nevstupujú.` : '';
+  const bodies = table.flatMap((section) => {
     const title = el('tbody', { className: 'cmp-section' }, [el('tr', {}, [el('th', { colSpan: cols + 1, scope: 'colgroup', textContent: section.title })])]);
     return [title, ...section.rows.map((r) => {
       const subs = (r.indicators ?? []).map((ind) => el('tr', { className: 'cmp-ind', hidden: true }, [

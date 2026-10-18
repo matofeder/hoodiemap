@@ -129,8 +129,8 @@ def test_pezinok_centre_from_real_osm():
     assert s["walk"]["score"] >= 90
     assert any(f["name"] == "Zámocký Park" for f in s["green"]["facts"])
     osm_r = score.compute(osm, osm["center"]["lat"], osm["center"]["lon"])
-    f20 = next(f for f in osm_r["whoqol"]["facets"] if f["id"] == "F20")
-    zs = next(r for r in f20["breakdown"] if r["key"] == "primary_school")
+    fam = next(a for a in osm_r["index"]["areas"] if a["id"] == "family")
+    zs = next(r for r in fam["breakdown"] if r["key"] == "primary_school")
     assert zs["sub_score"] < 100  # the nearest ZŠ (Fándlyho) is ~1.2 km on foot; the gymnázium does not count
 
 
@@ -192,93 +192,95 @@ def test_quiet_breakdown_lists_the_deductions_and_is_marked_provisional():
 
 @pytest.fixture
 def outside_sk(monkeypatch):
-    """An address outside Slovakia: no regional statistics, so F16–F18 have no data."""
+    """An address outside Slovakia: no regional statistics, so the territory areas have no data."""
     monkeypatch.setattr(score.regions, "locate", lambda lat, lon: {"kraj": None, "okres": None, "zuj": None})
 
 
-def test_whoqol_profile_has_the_eight_environment_facets(outside_sk):
-    r = score.compute({"elements": everything_at(100)}, LAT, LON)["whoqol"]
-    assert [f["id"] for f in r["facets"]] == ["F16", "F17", "F18", "F19", "F20", "F21", "F22", "F23"]
-    assert [f["item"] for f in r["facets"]] == ["Q8", "Q23", "Q12", "Q24", "Q13", "Q14", "Q9", "Q25"]
-    missing = [f["id"] for f in r["facets"] if f["score"] is None]
-    assert missing == ["F16", "F17", "F18"] and all(f["status"] == "chýbajú dáta" for f in r["facets"][:3])
-    # WHOQOL-BREF's own rule: the domain needs at least 6 of 8; we have 5
-    assert r["facets_with_data"] == 5 and r["index"] is None
+def area(r, aid):
+    return next(a for a in r["index"]["areas"] if a["id"] == aid)
 
 
-def test_facet_is_the_mean_of_its_indicators():
-    r = score.compute({"elements": [node(100, 0, amenity="doctors")]}, LAT, LON)["whoqol"]
-    f19 = next(f for f in r["facets"] if f["id"] == "F19")
-    assert f19["score"] == 50  # doctor near (100), pharmacy not found (0)
-    assert [row["weight"] for row in f19["breakdown"]] == [0.5, 0.5]
-
-
-def test_index_is_the_mean_of_facets_once_six_have_data(monkeypatch, outside_sk):
-    facets = {k: dict(v) for k, v in M.WHOQOL_FACETS.items()}
-    facets["F16"]["indicators"] = ["walk"]  # pretend a sixth facet has data
-    monkeypatch.setattr(M, "WHOQOL_FACETS", facets)
-    r = score.compute({"elements": everything_at(100)}, LAT, LON)["whoqol"]
-    have = [f["score"] for f in r["facets"] if f["score"] is not None]
-    assert len(have) == 6 and r["index"] == round(sum(have) / 6)
-
-
-
-def test_primary_school_counts_in_f20_but_a_gymnazium_does_not():
-    def f20(*els):
-        r = score.compute({"elements": list(els)}, LAT, LON)["whoqol"]
-        return next(f for f in r["facets"] if f["id"] == "F20")["breakdown"]
-    gym = {r["key"]: r["sub_score"] for r in f20(node(300, 0, amenity="school", name="Gymnázium"))}
-    zs = {r["key"]: r["sub_score"] for r in f20(node(300, 0, amenity="school", name="ZŠ Hroznová"))}
-    assert gym["primary_school"] == 0 and zs["primary_school"] == 100
-
-
-def _six_facets(monkeypatch):
-    facets = {k: dict(v) for k, v in M.WHOQOL_FACETS.items()}
-    facets["F16"]["indicators"] = ["walk"]  # pretend a sixth facet has data
-    monkeypatch.setattr(M, "WHOQOL_FACETS", facets)
-
-
-def test_family_profile_waits_for_six_of_eight_facets(outside_sk):
-    fam = compute(*everything_at(100))["family"]
-    assert fam["score"] is None and fam["coverage"] == 0.625 and fam["min_coverage"] == 0.75
-    assert fam["missing"] == ["F16 Bezpečnosť", "F17 Domáce prostredie", "F18 Finančné podmienky"]
-
-
-def test_family_profile_is_the_weighted_mean_of_facets(monkeypatch, outside_sk):
-    _six_facets(monkeypatch)
+def test_areas_are_the_address_and_the_territory(outside_sk):
     r = score.compute({"elements": everything_at(100)}, LAT, LON)
+    ids = [a["id"] for a in r["index"]["areas"]]
+    assert ids == ["walk", "family", "transport", "green", "quiet", "air",
+                   "income", "jobs", "housing", "safety", "health", "education", "civic"]
+    assert {a["group"] for a in r["index"]["areas"]} == {"okolie", "uzemie"}
+    # outside Slovakia the territory statistics are missing, so no index
+    assert r["index"]["missing"] == ["Príjem", "Práca", "Bývanie", "Bezpečnosť"] and r["index"]["index"] is None
+    assert area(r, "income")["status"] == "chýbajú dáta"
+
+
+def test_planned_areas_are_listed_but_not_counted(outside_sk):
+    r = score.compute({"elements": everything_at(100)}, LAT, LON)
+    for aid in ("air", "health", "education", "civic"):
+        a = area(r, aid)
+        assert a["score"] is None and not a["in_index"] and a["status"] == "pripravujeme" and a["planned"]
+    assert r["index"]["index_areas"] == 9 and M.INDEX_AREAS == [
+        "walk", "family", "transport", "green", "quiet", "income", "jobs", "housing", "safety"]
+
+
+def test_every_area_names_its_norm():
+    assert all(spec["norm"] for spec in M.AREAS.values())
+    assert "WHO" in M.AREAS["green"]["norm"] and "Walk Score" in M.AREAS["walk"]["norm"]
+    assert all("OECD" in M.AREAS[a]["norm"] for a in ("income", "jobs", "housing", "safety"))
+
+
+def test_area_is_the_mean_of_its_indicators():
+    r = score.compute({"elements": [node(100, 0, amenity="doctors")]}, LAT, LON)
+    fam = area(r, "family")
+    assert fam["score"] == 20  # doctor near (100); kindergarten, school, playground, pharmacy not found (0)
+    assert [row["weight"] for row in fam["breakdown"]] == [0.2] * 5
+
+
+def test_walk_and_green_areas_are_their_scores():
+    r = score.compute({"elements": everything_at(100)}, LAT, LON)
+    assert area(r, "walk")["score"] == r["scores"]["walk"]["score"]
+    assert area(r, "green")["score"] == r["scores"]["green"]["score"]
+    assert area(r, "quiet")["status"] == "orientačné"
+
+
+def test_primary_school_counts_but_a_gymnazium_does_not():
+    def fam(*els):
+        return {row["key"]: row["sub_score"] for row in area(score.compute({"elements": list(els)}, LAT, LON), "family")["breakdown"]}
+    assert fam(node(300, 0, amenity="school", name="Gymnázium"))["primary_school"] == 0
+    assert fam(node(300, 0, amenity="school", name="ZŠ Hroznová"))["primary_school"] == 100
+
+
+def test_profile_waits_for_every_index_area(outside_sk):
+    fam = compute(*everything_at(100))["family"]
+    assert fam["score"] is None and fam["missing"] == ["Príjem", "Práca", "Bývanie", "Bezpečnosť"]
+
+
+def test_profile_with_equal_weights_equals_the_index():
+    r = score.compute({"elements": everything_at(100)}, 48.28646, 17.27221)  # Pezinok
     fam = r["scores"]["family"]
-    have = [f["score"] for f in r["whoqol"]["facets"] if f["score"] is not None]
-    assert fam["weights_method"] == "equal" and fam["score"] == round(sum(have) / len(have))
+    assert fam["weights_method"] == "equal" and fam["score"] == r["index"]["index"]
     assert sum(row["weight"] for row in fam["breakdown"]) == pytest.approx(1.0, abs=1e-3)
-    assert r["profiles"]["senior"]["score"] == fam["score"]  # equal weights: profiles don't differ yet
+    assert r["profiles"]["senior"]["score"] == fam["score"]
 
 
-def test_panel_weights_from_the_file_shape_the_profile(tmp_path, monkeypatch, outside_sk):
-    _six_facets(monkeypatch)
-    weights = {"F16": 0.05, "F17": 0.05, "F18": 0.05, "F19": 0.1, "F20": 0.45, "F21": 0.1, "F22": 0.1, "F23": 0.1}
+def test_panel_weights_from_the_file_shape_the_profile(tmp_path, monkeypatch):
+    weights = {a: 0.05 for a in M.INDEX_AREAS}
+    weights["family"] = 0.6
     f = tmp_path / "weights.json"
     f.write_text(json.dumps({"sets": {"rodina": {"weights": weights, "panel": {"experts": 7, "cr": 0.04,
                                                                               "date": "2026-11-20"}}}}), encoding="utf-8")
     monkeypatch.setattr(M, "WEIGHTS_FILE", f)
-    r = score.compute({"elements": [node(100, 0, amenity="kindergarten"), node(100, 5, amenity="school", name="ZŠ"),
-                                    node(100, 9, amenity="library")]}, LAT, LON)
+    r = score.compute({"elements": everything_at(100)}, 48.28646, 17.27221)
     fam = r["profiles"]["rodina"]
-    # F17, F18 have no data: covered weight 0.9 ≥ 0.75; F20 (all three near = 100) dominates
-    assert fam["weights_method"] == "ahp" and fam["coverage"] == 0.9
-    f20 = next(row for row in fam["breakdown"] if row["key"] == "F20")
-    assert f20["weight"] == pytest.approx(0.5, abs=1e-3) and f20["sub_score"] == 100
+    row = next(x for x in fam["breakdown"] if x["key"] == "family")
+    assert fam["weights_method"] == "ahp" and row["weight"] == 0.6
+    assert fam["score"] == round(sum(x["sub_score"] * x["weight"] for x in fam["breakdown"]))
     assert "7 expertov" in M.weights("rodina")["source"] and M.weights("senior")["method"] == "equal"
 
 
-
-def test_inside_slovakia_all_eight_facets_have_data_and_the_index_is_computed():
+def test_inside_slovakia_every_index_area_has_data_and_the_index_is_computed():
     r = score.compute({"elements": everything_at(100)}, 48.28646, 17.27221)  # Pezinok
-    w = r["whoqol"]
-    assert w["facets_with_data"] == 8 and w["index"] == round(sum(f["score"] for f in w["facets"]) / 8)
+    idx = r["index"]
+    counted = [a for a in idx["areas"] if a["in_index"]]
+    assert not idx["missing"] and idx["index"] == round(sum(a["score"] for a in counted) / 9)
     assert r["region"]["zuj"]["code"] == "508179" and r["region"]["okres"]["code"] == "SK0107"
-    f16 = next(f for f in w["facets"] if f["id"] == "F16")
-    assert f16["status"] == "len za kraj" and "Bratislavský kraj" in f16["breakdown"][0]["fact"]
-    f18 = next(f for f in w["facets"] if f["id"] == "F18")
-    assert [row["key"] for row in f18["breakdown"]] == ["wage", "unemployment"]
-    assert r["scores"]["family"]["score"] == w["index"]  # equal weights: the profile equals the index
+    safety = area(r, "safety")
+    assert safety["status"] == "len za kraj" and "Bratislavský kraj" in safety["breakdown"][0]["fact"]
+    assert [row["key"] for row in area(r, "income")["breakdown"]] == ["wage"]

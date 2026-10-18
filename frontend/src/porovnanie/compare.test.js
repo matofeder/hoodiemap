@@ -1,17 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { bestOf, buildTable, parseAddresses, placeLine, serializeAddresses } from './compare.js';
 
-const facet = (id, score, breakdown = [], status = null) => ({ id, label: `aspekt ${id}`, score, status, breakdown });
-const result = (over = {}) => ({
-  scores: { walk: { score: 69 }, green: { score: 45 }, quiet: { score: 100, status: 'orientačné' }, family: { score: 59, weights_method: 'equal' } },
-  whoqol: {
-    index: 59, min_facets: 6, facets_total: 2,
-    facets: [
-      facet('F16', 14, [{ key: 'crime', label: 'Kriminalita (kraj)', sub_score: 14.3, fact: 'Bratislavský kraj: 10,12' }], 'len za kraj'),
-      facet('F20', 42, [{ key: 'kindergarten', label: 'Materská škola', sub_score: 80.2, fact: '526 m' }]),
+const area = (id, group, score, breakdown = [], status = null, inIndex = true) => ({ id, label: `oblasť ${id}`, group, score, status, breakdown, in_index: inIndex });
+const result = ({ index = 59, family = 50, fam = { score: 59, weights_method: 'equal' }, safety = 14 } = {}) => ({
+  scores: { family: fam },
+  index: {
+    index, index_areas: 3, groups: { okolie: 'Okolie adresy', uzemie: 'Územie (štatistiky)' },
+    areas: [
+      area('walk', 'okolie', 69),
+      area('family', 'okolie', family, [{ key: 'kindergarten', label: 'Materská škola', sub_score: family, fact: `${family} m` }]),
+      area('air', 'okolie', null, [], 'pripravujeme', false),
+      area('safety', 'uzemie', safety, [{ key: 'crime', label: 'Kriminalita (kraj)', sub_score: 14.3, fact: 'Bratislavský kraj: 10,12' }], 'len za kraj'),
     ],
   },
-  ...over,
 });
 
 describe('addresses in the URL', () => {
@@ -38,31 +39,33 @@ describe('bestOf', () => {
 
 describe('buildTable', () => {
   const a = result();
-  const b = result({
-    scores: { walk: { score: 80 }, green: { score: 45 }, quiet: { score: 70, status: 'orientačné' }, family: { score: 72, weights_method: 'equal' } },
-    whoqol: { ...result().whoqol, index: 72, facets: [result().whoqol.facets[0], facet('F20', 80, [{ key: 'kindergarten', label: 'Materská škola', sub_score: 99.6, fact: '120 m' }])] },
-  });
-  const [whoqol, scores] = buildTable([a, b]);
+  const b = result({ index: 72, family: 80 });
+  const sections = buildTable([a, b]);
+  const [idx, okolie, uzemie] = sections;
 
-  it('starts with the index, then the facets with their indicators', () => {
-    expect(whoqol.rows.map((r) => r.id)).toEqual(['index', 'F16', 'F20']);
-    expect(whoqol.rows[0].cells.map((c) => c.best)).toEqual([false, true]);
-    const [kg] = whoqol.rows[2].indicators;
-    expect(kg.cells.map((c) => [c.value, c.fact])).toEqual([[80, '526 m'], [100, '120 m']]);
+  it('starts with the index, then the index areas by group', () => {
+    expect(sections.map((x) => x.title)).toEqual(['Index', 'Okolie adresy', 'Územie (štatistiky)']);
+    expect(idx.rows.map((r) => r.id)).toEqual(['index']);
+    expect(idx.rows[0].cells.map((c) => c.best)).toEqual([false, true]);
+    expect(okolie.rows.map((r) => r.id)).toEqual(['walk', 'family']);
+    const [kg] = okolie.rows[1].indicators;
+    expect(kg.cells.map((c) => [c.value, c.fact])).toEqual([[50, '50 m'], [80, '80 m']]);
+  });
+
+  it('lists planned areas apart, not as rows', () => {
+    expect(sections.planned).toEqual(['oblasť air']);
   });
 
   it('says when a regional statistic is the same for every address', () => {
-    const f16 = whoqol.rows[1];
-    expect(f16.status).toBe('len za kraj');
-    expect(f16.indicators[0].shared).toBe(true);
-    expect(f16.cells.every((c) => !c.best)).toBe(true);
+    const safety = uzemie.rows[0];
+    expect(safety.status).toBe('len za kraj');
+    expect(safety.indicators[0].shared).toBe(true);
+    expect(safety.cells.every((c) => !c.best)).toBe(true);
   });
 
-  it('leaves out Rodina while its weights are equal: it would repeat the index', () => {
-    expect(scores.rows.map((r) => r.id)).toEqual(['walk', 'green', 'quiet']);
-    expect(scores.rows[2].status).toBe('orientačné');
-    const ahp = result({ scores: { ...a.scores, family: { score: 61, weights_method: 'ahp' } } });
-    expect(buildTable([ahp, b])[1].rows.map((r) => r.id)).toContain('family');
+  it('adds Rodina only once a panel set its weights: with equal weights it repeats the index', () => {
+    const ahp = result({ fam: { score: 61, weights_method: 'ahp' } });
+    expect(buildTable([ahp, b])[0].rows.map((r) => r.id)).toEqual(['index', 'family-profile']);
   });
 });
 

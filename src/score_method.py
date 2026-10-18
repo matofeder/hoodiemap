@@ -12,9 +12,9 @@ from pathlib import Path
 
 import ahp
 
-VERSION = "0.5 (2026-10-18)"
+VERSION = "0.6 (2026-10-18)"
 WEIGHTS_FILE = Path(__file__).parent.parent / "methodology" / "weights.json"
-EQUAL_SOURCE = ("rovnaké váhy aspektov (ako index WHOQOL-BREF a predvolený postup OECD/JRC 2008), "
+EQUAL_SOURCE = ("rovnaké váhy oblastí (predvolený postup OECD/JRC 2008 a OECD Better Life Index), "
                 "kým neodpovie expertný panel metódou AHP")
 
 # Straight-line distance is turned into a walking estimate the same way the map's tooltips do it.
@@ -61,7 +61,7 @@ GREEN_SOURCE = ("prahy: WHO Európa 2016 (aspoň 0,5 ha do 300 m); štúdia PHEN
                 "zelených plôch); Natural England ANGSt (prírodná zeleň aspoň 20 ha do 2 km).")
 
 # --- Rodina (families) ------------------------------------------------------------------------
-# Rodina is a profile: the eight WHOQOL facets weighted for a family with children (PROFILES below).
+# Rodina is a profile: the index areas weighted for a family with children (PROFILES below).
 
 # --- Pokoj (quiet) ----------------------------------------------------------------------------
 # A proxy for noise from distance to traffic, rail and nightlife: no Slovak noise model covers every address.
@@ -105,64 +105,87 @@ def method() -> dict:
         "walk": {"categories": WALK_CATEGORIES, "source": WALK_SOURCE},
         "green": {"min_ha": GREEN_MIN_HA, "decay": GREEN_DECAY, "cover_radius_m": GREEN_COVER_RADIUS_M,
                   "cover_target": GREEN_COVER_TARGET, "parts": GREEN_PARTS, "source": GREEN_SOURCE,
-                  "weights_source": "tri časti s rovnakou váhou, rovnako ako ukazovatele v aspektoch WHOQOL"},
+                  "weights_source": "tri časti s rovnakou váhou (OECD/JRC 2008)"},
         "profiles": {pid: {**spec, "weights": weights(pid)} for pid, spec in PROFILES.items()},
-        "profile_min_weight": PROFILE_MIN_WEIGHT,
         "quiet": {"penalties": QUIET_PENALTIES, "nightlife": NIGHTLIFE_PENALTY, "nightlife_radius_m": NIGHTLIFE_RADIUS_M,
                   "source": QUIET_SOURCE, "status": QUIET_STATUS},
         "ahp_sets": AHP_SETS,
         "bands": BANDS, "bands_source": BANDS_SOURCE,
-        "whoqol": {"facets": WHOQOL_FACETS, "indicators": FACET_INDICATORS, "min_facets": WHOQOL_MIN_FACETS,
-                   "source": WHOQOL_SOURCE, "weights_source": FACET_WEIGHTS_SOURCE,
-                   "percentile_source": PERCENTILE_SOURCE},
-        "data": "Dáta: OpenStreetMap (© prispievatelia OpenStreetMap, ODbL). Chýbajúce alebo neoznačené miesta skóre znižujú.",
+        "areas": {"areas": AREAS, "groups": AREA_GROUPS, "index_areas": INDEX_AREAS, "indicators": INDICATORS,
+                  "source": AREAS_SOURCE, "weights_source": AREA_WEIGHTS_SOURCE, "rule": INDEX_RULE,
+                  "percentile_source": PERCENTILE_SOURCE},
+        "data": "Dáta: OpenStreetMap (© prispievatelia OpenStreetMap, ODbL), ŠÚ SR, ÚPSVaR. Chýbajúce alebo neoznačené miesta skóre znižujú.",
     }
 
 
-# --- WHOQOL framework (method 0.3) -----------------------------------------------------------------
-# The structure of what we measure follows the Environment domain of the WHOQOL-BREF (WHO 1996,
-# Field Trial Version): eight facets, each covered there by one questionnaire item. We measure the
-# objective conditions of each facet at an address; the questionnaire itself measures how people
-# perceive them and is used only to validate (docs/metodika.md, part 9). Item wording is not reproduced.
-WHOQOL_SOURCE = ("WHOQOL-BREF, oblasť 4 Prostredie (WHO, Programme on Mental Health, 1996): 8 aspektov F16–F23; "
-                 "skóre oblasti = priemer položiek, nepočíta sa, ak chýbajú viac ako 2 z 8")
-WHOQOL_MIN_FACETS = 6   # WHOQOL-BREF computes domain 4 with MEAN.6: at least 6 of its 8 items
+# --- areas (method 0.6) -------------------------------------------------------------------------------
+# The index measures objective conditions only, each against a published norm or framework:
+#   okolie  – what differs between two flats in one town: services on foot (Walk Score), children and
+#             health care within walking distance, public transport, green space (WHO), quiet (WHO, planned);
+#   územie  – the region's statistics in the dimensions of the OECD Regional Well-Being framework
+#             (How's Life in Your Region?, OECD 2014), ranked among Slovak regions.
+# No questionnaire is part of the score; a perception survey can only validate it (docs/metodika.md, part 9).
+AREAS_SOURCE = ("oblasti okolia: normy Walk Score a WHO (zeleň, hluk, ovzdušie); oblasti územia: rozmery rámca "
+                "OECD Regional Well-Being (How's Life in Your Region?, OECD 2014), len objektívne ukazovatele")
+AREA_GROUPS = {"okolie": "Okolie adresy", "uzemie": "Územie (štatistiky)"}
 
-WHOQOL_FACETS = {
-    "F16": {"label": "Bezpečnosť", "item": "Q8", "indicators": ["crime"],
-            "planned": "kriminalita podľa okresov (MV SR ju v tabuľkách nezverejňuje), dopravné nehody (po overení ukazovateľov)"},
-    "F17": {"label": "Domáce prostredie", "item": "Q23", "indicators": ["persons_per_dwelling"],
-            "planned": "údaje o dome a byte z inzerátu (energetická trieda, rok, stav)"},
-    "F18": {"label": "Finančné podmienky", "item": "Q12", "indicators": ["wage", "unemployment"],
-            "planned": "ceny bývania oproti príjmu (ceny len za kraje)"},
-    "F19": {"label": "Zdravotná a sociálna starostlivosť", "item": "Q24", "indicators": ["doctors", "pharmacy"],
-            "planned": "nemocnica, zariadenia sociálnych služieb"},
-    "F20": {"label": "Informácie a vzdelávanie", "item": "Q13",
-            "indicators": ["kindergarten", "primary_school", "library"], "planned": "rýchlosť internetu"},
-    "F21": {"label": "Rekreácia a voľný čas", "item": "Q14",
-            "indicators": ["park", "sports", "culture", "playground", "nature"], "planned": None},
-    "F22": {"label": "Fyzické prostredie", "item": "Q9", "indicators": ["near_green", "cover", "quiet"],
-            "planned": "hlukové mapy s krivkami WHO, kvalita ovzdušia (SHMÚ, EEA)"},
-    "F23": {"label": "Doprava", "item": "Q25", "indicators": ["walk", "transit"],
-            "planned": "frekvencia spojov MHD a vlakov (cestovné poriadky GTFS)"},
+AREAS = {
+    "walk":      {"label": "Služby pešo", "group": "okolie", "indicators": ["walk"],
+                  "norm": "Walk Score (Brewster a kol. 2009): 9 kategórií služieb, body podľa vzdialenosti chôdzou",
+                  "planned": None},
+    "family":    {"label": "Deti a zdravie", "group": "okolie",
+                  "indicators": ["kindergarten", "primary_school", "playground", "doctors", "pharmacy"],
+                  "norm": "vzdialenosť chôdzou s krivkou Walk Score: plné body do 5 minút, nula po 30 minútach",
+                  "planned": None},
+    "transport": {"label": "Doprava", "group": "okolie", "indicators": ["transit"],
+                  "norm": "vzdialenosť k zastávke MHD alebo vlaku s krivkou Walk Score",
+                  "planned": "frekvencia spojov z cestovných poriadkov (GTFS)"},
+    "green":     {"label": "Zeleň", "group": "okolie", "indicators": ["near_green", "cover", "nature"],
+                  "norm": "WHO Európa 2016 (0,5 ha do 300 m), pravidlo 3-30-300, Natural England ANGSt (20 ha do 2 km)",
+                  "planned": None},
+    "quiet":     {"label": "Pokoj", "group": "okolie", "indicators": ["quiet"],
+                  "norm": "orientačné zrážky za cesty, železnicu a bary; nahradí ich hluková mapa s limitmi WHO 2018",
+                  "planned": "strategické hlukové mapy (MŽP SR, EEA) a limity WHO pre hluk v prostredí (2018)"},
+    "air":       {"label": "Ovzdušie", "group": "okolie", "indicators": [],
+                  "norm": "WHO Air Quality Guidelines 2021 (PM2,5 5 µg/m³, NO₂ 10 µg/m³ ročne)",
+                  "planned": "ročné koncentrácie PM2,5 a NO₂ (SHMÚ, EEA)"},
+    "income":    {"label": "Príjem", "group": "uzemie", "indicators": ["wage"],
+                  "norm": "OECD: príjem domácností na osobu; u nás priemerná mzda v okrese (príjem za okresy ŠÚ SR nezverejňuje)",
+                  "planned": None},
+    "jobs":      {"label": "Práca", "group": "uzemie", "indicators": ["unemployment"],
+                  "norm": "OECD: miera nezamestnanosti; u nás evidovaná nezamestnanosť v okrese (ÚPSVaR)",
+                  "planned": None},
+    "housing":   {"label": "Bývanie", "group": "uzemie", "indicators": ["persons_per_dwelling"],
+                  "norm": "OECD: obytné miestnosti na osobu; u nás obyvatelia na trvalo obývaný byt v obci (sčítanie 2021)",
+                  "planned": None},
+    "safety":    {"label": "Bezpečnosť", "group": "uzemie", "indicators": ["crime"],
+                  "norm": "OECD: vraždy na 100 000 obyvateľov; u nás všetky zistené trestné činy na 1 000 obyvateľov v kraji",
+                  "planned": "kriminalita za okresy (MV SR ju v tabuľkách nezverejňuje)"},
+    "health":    {"label": "Zdravie", "group": "uzemie", "indicators": [],
+                  "norm": "OECD: stredná dĺžka života pri narodení, úmrtnosť",
+                  "planned": "stredná dĺžka života v okrese (ŠÚ SR)"},
+    "education": {"label": "Vzdelanie", "group": "uzemie", "indicators": [],
+                  "norm": "OECD: podiel pracovnej sily aspoň so stredoškolským vzdelaním",
+                  "planned": "najvyššie dosiahnuté vzdelanie v obci (sčítanie 2021)"},
+    "civic":     {"label": "Občianska angažovanosť", "group": "uzemie", "indicators": [],
+                  "norm": "OECD: volebná účasť",
+                  "planned": "účasť vo voľbách v obci (ŠÚ SR, volby.statistics.sk)"},
 }
+# Only areas with data for every Slovak address enter the index; the others are listed as planned.
+INDEX_AREAS = [a for a, spec in AREAS.items() if spec["indicators"]]
 
-FACET_INDICATORS = {
-    "doctors":        {"label": "Lekár", "how": "vzdialenosť, krivka chôdze"},
-    "pharmacy":       {"label": "Lekáreň", "how": "vzdialenosť, krivka chôdze"},
+INDICATORS = {
+    "walk":           {"label": "Skóre Pešo (Walk Score)", "how": "skóre Pešo"},
     "kindergarten":   {"label": "Materská škola", "how": "vzdialenosť, krivka chôdze"},
     "primary_school": {"label": "Základná škola", "how": "vzdialenosť, krivka chôdze"},
-    "library":        {"label": "Knižnica", "how": "vzdialenosť, krivka chôdze"},
-    "park":           {"label": "Park (pomenovaný)", "how": "vzdialenosť k okraju, krivka chôdze"},
-    "sports":         {"label": "Športovisko", "how": "vzdialenosť, krivka chôdze"},
-    "culture":        {"label": "Kultúra (divadlo, kino, kultúrne centrum)", "how": "vzdialenosť, krivka chôdze"},
     "playground":     {"label": "Detské ihrisko", "how": "vzdialenosť, krivka chôdze"},
-    "nature":         {"label": "Prírodná zeleň aspoň 20 ha do 2 km", "how": "ANGSt: áno 100, nie 0"},
+    "doctors":        {"label": "Lekár", "how": "vzdialenosť, krivka chôdze"},
+    "pharmacy":       {"label": "Lekáreň", "how": "vzdialenosť, krivka chôdze"},
+    "transit":        {"label": "Zastávka MHD alebo vlak", "how": "vzdialenosť, krivka chôdze"},
     "near_green":     {"label": "Verejná zeleň aspoň 0,5 ha", "how": "WHO: 300 m plné body"},
     "cover":          {"label": "Podiel zelene do 300 m", "how": "3-30-300: 30 % = plné body"},
-    "quiet":          {"label": "Pokoj (orientačné)", "how": "skóre Pokoj"},
-    "walk":           {"label": "Pešia dostupnosť služieb", "how": "skóre Pešo"},
-    "transit":        {"label": "Zastávka MHD alebo vlak", "how": "vzdialenosť, krivka chôdze"},
+    "nature":         {"label": "Prírodná zeleň aspoň 20 ha do 2 km", "how": "ANGSt: áno 100, nie 0"},
+    "quiet":          {"label": "Skóre Pokoj (orientačné)", "how": "skóre Pokoj"},
     "crime":          {"label": "Trestné činy na 1 000 obyvateľov (kraj)", "how": "percentil medzi krajmi, menej = lepšie"},
     "persons_per_dwelling": {"label": "Obyvatelia na obývaný byt (obec)", "how": "percentil medzi obcami, menej = lepšie"},
     "wage":           {"label": "Priemerná mzda (okres)", "how": "percentil medzi okresmi, viac = lepšie"},
@@ -171,26 +194,25 @@ FACET_INDICATORS = {
 REGION_INDICATORS = ("crime", "persons_per_dwelling", "wage", "unemployment")
 PERCENTILE_SOURCE = ("štatistiky bez normy hodnotíme percentilom medzi všetkými územiami SR rovnakej úrovne: "
                      "0 = najhoršie, 100 = najlepšie územie (rovnaké hodnoty dostanú stredné poradie)")
-FACET_WEIGHTS_SOURCE = ("indikátory v aspekte aj aspekty v indexe s rovnakou váhou: WHOQOL-BREF počíta oblasť ako priemer "
-                        "položiek; váhy vnútri aspektu môže neskôr určiť AHP panel")
+AREA_WEIGHTS_SOURCE = ("ukazovatele v oblasti aj oblasti v indexe s rovnakou váhou: predvolený postup príručky OECD/JRC "
+                       "(2008) a OECD Better Life Index, kým nie je dôvod vážiť inak")
+INDEX_RULE = ("index počítame len vtedy, keď majú dáta všetky oblasti indexu; mimo Slovenska chýbajú štatistiky "
+              "územia, preto index nepočítame")
 
 
-# --- profiles: the facets weighted for a kind of household (AHP panel or equal) ----------------------
-# The environment index weighs all facets equally (WHOQOL-BREF). A profile asks a different question
-# ("how good is this place for a family with children?") and weighs the same facets differently. The
-# weights come from an AHP expert panel (src/ahp.py, /ahp, methodology/weights.json); until the panel has
-# answered a profile, its facets weigh equally and profiles do not differ yet.
+# --- profiles: the index areas weighted for a kind of household (AHP panel or equal) ------------------
+# The index weighs all areas equally. A profile asks a different question ("how good is this place for a
+# family with children?") and weighs the same areas differently. The weights come from an AHP expert panel
+# (src/ahp.py, /ahp, methodology/weights.json); until the panel has answered a profile, its areas weigh
+# equally, so the profile equals the index and is not shown on its own.
 PROFILES = {
     "rodina":   {"label": "Rodina s deťmi", "question": "Čo je pre rodinu s deťmi dôležitejšie v okolí domova?"},
     "senior":   {"label": "Senior", "question": "Čo je pre staršieho človeka dôležitejšie v okolí domova?"},
     "bez_auta": {"label": "Bez auta", "question": "Čo je dôležitejšie pre domácnosť, ktorá nemá auto?"},
 }
-# A profile is computed when the facets with data carry at least this share of its weight. With equal
-# weights it is WHOQOL-BREF's "6 of 8"; with panel weights it keeps the same meaning.
-PROFILE_MIN_WEIGHT = WHOQOL_MIN_FACETS / 8
 
 AHP_SETS = {pid: {"title": f"{spec['label']}: {spec['question']}",
-                  "criteria": {fid: f"{fid} {f['label']}" for fid, f in WHOQOL_FACETS.items()}}
+                  "criteria": {aid: AREAS[aid]["label"] for aid in INDEX_AREAS}}
             for pid, spec in PROFILES.items()}
 
 
@@ -202,7 +224,7 @@ def _load_panel() -> dict:
 
 
 def weights(set_id: str) -> dict:
-    """{"weights": {facet: share}, "method": "ahp" | "equal", "source": text, "panel": {...} | None}."""
+    """{"weights": {area: share}, "method": "ahp" | "equal", "source": text, "panel": {...} | None}."""
     criteria = list(AHP_SETS[set_id]["criteria"])
     panel = _load_panel().get(set_id)
     if panel and set(panel.get("weights", {})) == set(criteria):

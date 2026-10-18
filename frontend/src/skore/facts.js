@@ -1,11 +1,28 @@
 import { formatDistance } from '../format.js';
 
 export const SCORES = [
-  { key: 'walk', label: 'Pešo', question: 'Čo vybavíte bez auta' },
-  { key: 'green', label: 'Zeleň', question: 'Park, les a zeleň okolo' },
-  { key: 'family', label: 'Rodina', question: 'Profil z 8 aspektov WHOQOL' },
+  { key: 'walk', label: 'Pešo', question: 'Čo vybavíte bez auta (Walk Score)' },
+  { key: 'green', label: 'Zeleň', question: 'Park, les a zeleň okolo (WHO)' },
   { key: 'quiet', label: 'Pokoj', question: 'Hlavné cesty, železnica, bary' },
+  { key: 'family', label: 'Rodina', question: 'Oblasti indexu s váhami pre rodiny' },
 ];
+
+/** The score tiles to show: a household profile only once a panel set its weights (with equal weights it
+ * equals the index). */
+export function visibleScores(scores) {
+  return SCORES.filter(({ key }) => key !== 'family' || scores.family?.weights_method === 'ahp');
+}
+
+const REGION_KEYS = new Set(['crime', 'persons_per_dwelling', 'wage', 'unemployment']);
+
+/** One line under an area: its indicators and their sub-scores, or what is planned. */
+export function areaDetail(area) {
+  if (!area.in_index) return `Pripravujeme: ${area.planned}. Norma: ${area.norm}.`;
+  if (area.score == null) return 'Chýbajú dáta: štatistiky územia máme len pre Slovensko.';
+  return area.breakdown.map((r) => (REGION_KEYS.has(r.key)
+    ? `${r.label} ${Math.round(r.sub_score)} (${r.fact.split(';')[0]})`
+    : `${r.label} ${Math.round(r.sub_score)}`)).join(' · ');
+}
 
 const ha = (v) => `${String(v).replace('.', ',')} ha`;
 const pct = (v) => `${Math.round(v * 100)} %`;
@@ -34,7 +51,7 @@ export function factLine(fact) {
 
 export function missingLine(kind, missing) {
   if (!missing?.length) return null;
-  if (kind === 'family') return `Chýbajú dáta pre aspekty: ${missing.join(', ')}.`;
+  if (kind === 'family') return `Chýbajú dáta pre oblasti: ${missing.join(', ')}.`;
   if (kind === 'green') return `Nenašli sme ${missing.join(', ')}.`;
   return `Do 2,5 km sme nenašli: ${missing.join(', ').toLowerCase()}.`;
 }
@@ -48,8 +65,8 @@ const num = (v, digits = 1) => v.toFixed(digits).replace('.', ',');
 
 export const WEIGHTS_NOTE = {
   walkscore: 'Váhy kategórií: Walk Score (Brewster a kol. 2009).',
-  equal: 'Váhy aspektov: rovnaké (ako index WHOQOL-BREF), kým neodpovie expertný panel (AHP).',
-  ahp: 'Váhy aspektov: expertný panel metódou AHP.',
+  equal: 'Váhy oblastí: rovnaké (OECD/JRC 2008), kým neodpovie expertný panel (AHP).',
+  ahp: 'Váhy oblastí: expertný panel metódou AHP.',
   equal_parts: 'Tri časti s rovnakou váhou.',
   penalties: 'Od 100 bodov odpočítavame zrážky. Orientačný odhad, nie hlukový model.',
 };

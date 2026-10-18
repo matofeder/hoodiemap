@@ -1,4 +1,4 @@
-"""Regional statistics for the WHOQOL facets F16–F18 -> regions/stats.json (committed).
+"""Regional statistics for the index areas Príjem, Práca, Bývanie and Bezpečnosť -> regions/stats.json (committed).
 
 Downloads public tables, keeps the raw values per region code with their source, period and the date they
 were retrieved. Nothing is estimated here: a value is either taken from a table or computed from two tables
@@ -69,7 +69,7 @@ def main(out: str) -> None:
     today = date.today().isoformat()
     indicators = {}
 
-    # --- F18: wages (okres) ---------------------------------------------------------------------
+    # --- Príjem: wages (okres) -------------------------------------------------------------------
     year = 2025
     wages, labels, url = jsonstat("np3110rr", str(year), "E_PRIEM_MZDA", "3", "SPOLU")
     okres_names = {c: labels[c] for c in labels if c.startswith("SK0") and len(c) == 6}
@@ -78,7 +78,7 @@ def main(out: str) -> None:
         "better": "higher", "source": "ŠÚ SR, DATAcube np3110rr (pracovisková metóda: podľa miesta práce)",
         "url": url, "retrieved": today, "values": {c: wages[c] for c in okres_names if c in wages}}
 
-    # --- F18: registered unemployment (okres) ----------------------------------------------------
+    # --- Práca: registered unemployment (okres) --------------------------------------------------
     period, url, data = latest_upsvr()
     ws = load_workbook(io.BytesIO(data), read_only=True, data_only=True)["Tab1"]
     by_name = {norm(n): c for c, n in okres_names.items()}
@@ -96,7 +96,7 @@ def main(out: str) -> None:
         "better": "lower", "source": "ÚPSVaR, mesačná štatistika, tabuľka 1: podiel disponibilných UoZ na obyvateľstve v produktívnom veku",
         "url": url, "retrieved": today, "values": unemp}
 
-    # --- F16: crime per 1 000 inhabitants (kraj) -------------------------------------------------
+    # --- Bezpečnosť: crime per 1 000 inhabitants (kraj) -----------------------------------------------
     year = 2025
     crimes, klabels, curl = jsonstat("sk3003rr", str(year), "TREST_CINY", "t1")
     pop, _, purl = jsonstat("om7102rr", str(year), "IN010114", "SPOLU")
@@ -109,7 +109,7 @@ def main(out: str) -> None:
         "url": f"{curl} ; {purl}", "retrieved": today,
         "values": {c: round(crimes[c] / pop[c] * 1000, 2) for c in kraje if c in crimes and c in pop}}
 
-    # --- F17: persons per permanently occupied dwelling (obec / mestská časť) --------------------
+    # --- Bývanie: persons per permanently occupied dwelling (obec / mestská časť) ------------------
     wb = load_workbook(io.BytesIO(get(CENSUS)), read_only=True, data_only=True)
     ws = wb["KAP_IV_ZÚJ_ČO_ZSJ"]
     dens = {}

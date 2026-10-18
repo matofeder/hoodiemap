@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { breakdownTable, emptyFacts, factLine, missingLine } from './facts.js';
+import { areaDetail, breakdownTable, emptyFacts, factLine, missingLine, visibleScores } from './facts.js';
 
 const nb = (s) => s.replace(/ | /g, ' ');
 
@@ -26,7 +26,7 @@ describe('factLine', () => {
 describe('missing and empty', () => {
   it('words what was not found', () => {
     expect(missingLine('walk', ['Potraviny'])).toBe('Do 2,5 km sme nenašli: potraviny.');
-    expect(missingLine('family', ['F16 Bezpečnosť'])).toBe('Chýbajú dáta pre aspekty: F16 Bezpečnosť.');
+    expect(missingLine('family', ['Bezpečnosť'])).toBe('Chýbajú dáta pre oblasti: Bezpečnosť.');
     expect(missingLine('walk', [])).toBeNull();
     expect(emptyFacts('quiet')).toMatch(/nenašli/);
     expect(emptyFacts('walk')).toBeNull();
@@ -47,5 +47,21 @@ describe('breakdownTable', () => {
     const t = breakdownTable({ score: 70, weights_method: 'penalties', breakdown: [{ label: 'Cesta I. triedy', fact: '40 m', points: -30 }] });
     expect(t.start).toBe('Začiatok: 100 bodov');
     expect(t.rows[0].points).toBe('-30');
+  });
+});
+
+describe('areas and tiles', () => {
+  it('shows Rodina only with panel weights', () => {
+    const keys = (fam) => visibleScores({ walk: {}, green: {}, quiet: {}, family: fam }).map((x) => x.key);
+    expect(keys({ weights_method: 'equal' })).toEqual(['walk', 'green', 'quiet']);
+    expect(keys({ weights_method: 'ahp' })).toEqual(['walk', 'green', 'quiet', 'family']);
+  });
+  it('lists indicators, regional facts without the source, and planned areas', () => {
+    expect(areaDetail({ in_index: true, score: 58, breakdown: [
+      { key: 'wage', label: 'Priemerná mzda (okres)', sub_score: 39.7, fact: 'okres Pezinok: 1579 € (2025); ŠÚ SR' },
+      { key: 'doctors', label: 'Lekár', sub_score: 16.9, fact: '1269 m' }] }))
+      .toBe('Priemerná mzda (okres) 40 (okres Pezinok: 1579 € (2025)) · Lekár 17');
+    expect(areaDetail({ in_index: false, planned: 'PM2,5 (SHMÚ)', norm: 'WHO 2021' })).toBe('Pripravujeme: PM2,5 (SHMÚ). Norma: WHO 2021.');
+    expect(areaDetail({ in_index: true, score: null })).toMatch(/len pre Slovensko/);
   });
 });

@@ -1,6 +1,6 @@
 # regions/
 
-Committed, versioned data behind the WHOQOL facets F16–F18 (see `docs/metodika.md`).
+Committed, versioned data behind the index areas Príjem, Práca, Bývanie and Bezpečnosť (see `docs/metodika.md`).
 
 | file | built by | contents |
 |---|---|---|
