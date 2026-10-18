@@ -12,9 +12,9 @@ from pathlib import Path
 
 import ahp
 
-VERSION = "0.3 (2026-10-18)"
+VERSION = "0.4 (2026-10-18)"
 WEIGHTS_FILE = Path(__file__).parent.parent / "methodology" / "weights.json"
-EQUAL_SOURCE = ("rovnaké váhy (predvolený postup podľa OECD/JRC Handbook on Constructing Composite Indicators, 2008), "
+EQUAL_SOURCE = ("rovnaké váhy aspektov (ako index WHOQOL-BREF a predvolený postup OECD/JRC 2008), "
                 "kým neodpovie expertný panel metódou AHP")
 
 # Straight-line distance is turned into a walking estimate the same way the map's tooltips do it.
@@ -61,17 +61,7 @@ GREEN_SOURCE = ("prahy: WHO Európa 2016 (aspoň 0,5 ha do 300 m); štúdia PHEN
                 "zelených plôch); Natural England ANGSt (prírodná zeleň aspoň 20 ha do 2 km).")
 
 # --- Rodina (families) ------------------------------------------------------------------------
-# Every place uses the same walking curve as Pešo (Walk Score). A child-specific curve needs a cited norm
-# or Slovak data (percentiles of all addresses); until then we don't invent one.
-FAMILY_CATEGORIES = {
-    "kindergarten":   "Materská škola",
-    "primary_school": "Základná škola",
-    "playground":     "Detské ihrisko",
-    "doctors":        "Lekár",
-    "grocery":        "Potraviny",
-    "green":          "Zeleň (skóre Zeleň)",
-}
-FAMILY_SOURCE = "vzdialenosti: krivka chôdze Walk Score; výber ukazovateľov: každodenné potreby rodiny s deťmi."
+# Rodina is a profile: the eight WHOQOL facets weighted for a family with children (PROFILES below).
 
 # --- Pokoj (quiet) ----------------------------------------------------------------------------
 # A proxy for noise from distance to traffic, rail and nightlife: no Slovak noise model covers every address.
@@ -115,8 +105,9 @@ def method() -> dict:
         "walk": {"categories": WALK_CATEGORIES, "source": WALK_SOURCE},
         "green": {"min_ha": GREEN_MIN_HA, "decay": GREEN_DECAY, "cover_radius_m": GREEN_COVER_RADIUS_M,
                   "cover_target": GREEN_COVER_TARGET, "parts": GREEN_PARTS, "source": GREEN_SOURCE,
-                  "weights": weights("zelen")},
-        "family": {"categories": FAMILY_CATEGORIES, "source": FAMILY_SOURCE, "weights": weights("rodina")},
+                  "weights_source": "tri časti s rovnakou váhou, rovnako ako ukazovatele v aspektoch WHOQOL"},
+        "profiles": {pid: {**spec, "weights": weights(pid)} for pid, spec in PROFILES.items()},
+        "profile_min_weight": PROFILE_MIN_WEIGHT,
         "quiet": {"penalties": QUIET_PENALTIES, "nightlife": NIGHTLIFE_PENALTY, "nightlife_radius_m": NIGHTLIFE_RADIUS_M,
                   "source": QUIET_SOURCE, "status": QUIET_STATUS},
         "ahp_sets": AHP_SETS,
@@ -125,32 +116,6 @@ def method() -> dict:
                    "source": WHOQOL_SOURCE, "weights_source": FACET_WEIGHTS_SOURCE},
         "data": "Dáta: OpenStreetMap (© prispievatelia OpenStreetMap, ODbL). Chýbajúce alebo neoznačené miesta skóre znižujú.",
     }
-
-
-# --- weights: AHP panel or equal ---------------------------------------------------------------
-# The sets an expert panel compares (src/ahp.py, /ahp). Keys are criteria ids, values what the expert reads.
-AHP_SETS = {
-    "rodina": {"title": "Rodina s deťmi: čo je dôležitejšie v blízkosti domova?", "criteria": FAMILY_CATEGORIES},
-    "zelen": {"title": "Zeleň: čo z toho viac prispieva ku kvalite bývania?", "criteria": GREEN_PARTS},
-}
-
-
-def _load_panel() -> dict:
-    try:
-        return json.loads(WEIGHTS_FILE.read_text(encoding="utf-8")).get("sets", {})
-    except (OSError, ValueError):
-        return {}
-
-
-def weights(set_id: str) -> dict:
-    """{"weights": {criterion: share}, "method": "ahp" | "equal", "source": text, "panel": {...} | None}."""
-    criteria = list(AHP_SETS[set_id]["criteria"])
-    panel = _load_panel().get(set_id)
-    if panel and set(panel.get("weights", {})) == set(criteria):
-        return {"weights": panel["weights"], "method": "ahp", "panel": panel.get("panel"),
-                "source": f"AHP expertný panel ({panel.get('panel', {}).get('experts', '?')} expertov, "
-                          f"CR {panel.get('panel', {}).get('cr', '?')}), {panel.get('panel', {}).get('date', '')}"}
-    return {"weights": ahp.equal(criteria), "method": "equal", "panel": None, "source": EQUAL_SOURCE}
 
 
 # --- WHOQOL framework (method 0.3) -----------------------------------------------------------------
@@ -200,3 +165,41 @@ FACET_INDICATORS = {
 }
 FACET_WEIGHTS_SOURCE = ("indikátory v aspekte aj aspekty v indexe s rovnakou váhou: WHOQOL-BREF počíta oblasť ako priemer "
                         "položiek; váhy vnútri aspektu môže neskôr určiť AHP panel")
+
+
+# --- profiles: the facets weighted for a kind of household (AHP panel or equal) ----------------------
+# The environment index weighs all facets equally (WHOQOL-BREF). A profile asks a different question
+# ("how good is this place for a family with children?") and weighs the same facets differently. The
+# weights come from an AHP expert panel (src/ahp.py, /ahp, methodology/weights.json); until the panel has
+# answered a profile, its facets weigh equally and profiles do not differ yet.
+PROFILES = {
+    "rodina":   {"label": "Rodina s deťmi", "question": "Čo je pre rodinu s deťmi dôležitejšie v okolí domova?"},
+    "senior":   {"label": "Senior", "question": "Čo je pre staršieho človeka dôležitejšie v okolí domova?"},
+    "bez_auta": {"label": "Bez auta", "question": "Čo je dôležitejšie pre domácnosť, ktorá nemá auto?"},
+}
+# A profile is computed when the facets with data carry at least this share of its weight. With equal
+# weights it is WHOQOL-BREF's "6 of 8"; with panel weights it keeps the same meaning.
+PROFILE_MIN_WEIGHT = WHOQOL_MIN_FACETS / 8
+
+AHP_SETS = {pid: {"title": f"{spec['label']}: {spec['question']}",
+                  "criteria": {fid: f"{fid} {f['label']}" for fid, f in WHOQOL_FACETS.items()}}
+            for pid, spec in PROFILES.items()}
+
+
+def _load_panel() -> dict:
+    try:
+        return json.loads(WEIGHTS_FILE.read_text(encoding="utf-8")).get("sets", {})
+    except (OSError, ValueError):
+        return {}
+
+
+def weights(set_id: str) -> dict:
+    """{"weights": {facet: share}, "method": "ahp" | "equal", "source": text, "panel": {...} | None}."""
+    criteria = list(AHP_SETS[set_id]["criteria"])
+    panel = _load_panel().get(set_id)
+    if panel and set(panel.get("weights", {})) == set(criteria):
+        info = panel.get("panel") or {}
+        return {"weights": panel["weights"], "method": "ahp", "panel": info,
+                "source": f"AHP expertný panel ({info.get('experts', '?')} expertov, CR {info.get('cr', '?')}), "
+                          f"{info.get('date', '')}"}
+    return {"weights": ahp.equal(criteria), "method": "equal", "panel": None, "source": EQUAL_SOURCE}

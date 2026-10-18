@@ -313,7 +313,7 @@ def score_green(shapes: Shapes) -> dict:
     within = [(poly, tags) for poly, tags in public if poly.distance(origin) <= M.NATURE_RADIUS_M]
     largest = max(within, key=lambda pt: pt[0].area, default=None)
 
-    w = M.weights("zelen")
+    w = {k: 1 / len(M.GREEN_PARTS) for k in M.GREEN_PARTS}
     subs = {
         "near_green": (100 * near_part, f"{round(near_d)} m k ploche {_ha(nearest[0].area)}"
                        if nearest else f"žiadna do {M.GREEN_SEARCH_M} m"),
@@ -321,7 +321,7 @@ def score_green(shapes: Shapes) -> dict:
                   f"{round(M.GREEN_COVER_TARGET * 100)} %"),
         "nature": (100 * nature_part, "áno" if nature else "nie"),
     }
-    rows = [_row(k, M.GREEN_PARTS[k], subs[k][0], w["weights"][k], subs[k][1]) for k in M.GREEN_PARTS]
+    rows = [_row(k, M.GREEN_PARTS[k], subs[k][0], w[k], subs[k][1]) for k in M.GREEN_PARTS]
     score = round(sum(r["sub_score"] * r["weight"] for r in rows))
     facts = [
         {"label": f"Verejná zeleň aspoň {str(M.GREEN_MIN_HA).replace('.', ',')} ha",
@@ -338,26 +338,23 @@ def score_green(shapes: Shapes) -> dict:
                          "area_ha": round(largest[0].area / 10_000, 1)})
     missing = [] if nearest else [f"verejná zeleň aspoň {str(M.GREEN_MIN_HA).replace('.', ',')} ha do {M.GREEN_SEARCH_M} m"]
     return {"score": score, "band": band("green", score), "facts": facts, "missing": missing, "breakdown": rows,
-            "weights_method": w["method"]}
+            "weights_method": "equal_parts"}
 
 
-def score_family(places: list[Place], green_score: int) -> dict:
-    w = M.weights("rodina")
-    facts, missing, rows = [], [], []
-    for cat, label in M.FAMILY_CATEGORIES.items():
-        if cat == "green":
-            rows.append(_row(cat, label, green_score, w["weights"][cat], f"skóre Zeleň {green_score}"))
-            continue
-        near = _nearest(places, cat)
-        sub = 100 * decay(walk_m(near[0].distance_m), M.WALK_DECAY) if near else 0.0
-        rows.append(_row(cat, label, sub, w["weights"][cat], _dist_fact(near[0] if near else None)))
-        if near:
-            facts.append(_fact(label, near[0]))
-        else:
-            missing.append(label)
-    score = round(sum(r["sub_score"] * r["weight"] for r in rows))
-    return {"score": score, "band": band("family", score), "facts": facts, "missing": missing, "breakdown": rows,
-            "weights_method": w["method"]}
+def score_profile(profile_id: str, facets: list[dict]) -> dict:
+    """A profile: the facets with data, weighted for the household; computed only when they carry at least
+    PROFILE_MIN_WEIGHT of the profile's weight (with equal weights: WHOQOL-BREF's 6 of 8)."""
+    w = M.weights(profile_id)
+    have = [f for f in facets if f["score"] is not None]
+    covered = sum(w["weights"][f["id"]] for f in have)
+    rows = [_row(f["id"], f"{f['id']} {f['label']}", f["score"], w["weights"][f["id"]] / covered if covered else 0,
+                 f"aspekt {f['score']}") for f in have]
+    missing = [f"{f['id']} {f['label']}" for f in facets if f["score"] is None]
+    ok = covered >= M.PROFILE_MIN_WEIGHT - 1e-9
+    score = round(sum(r["sub_score"] * r["weight"] for r in rows)) if ok else None
+    return {"score": score, "band": band("family", score) if ok else None, "facts": [], "missing": missing,
+            "breakdown": rows if ok else [], "weights_method": w["method"], "coverage": round(covered, 3),
+            "min_coverage": M.PROFILE_MIN_WEIGHT, "profile": profile_id}
 
 
 def score_quiet(places: list[Place], shapes: Shapes) -> dict:
@@ -418,16 +415,16 @@ def compute(osm: dict, lat: float, lon: float) -> dict:
     places, shapes = parse(osm, lat, lon)
     green = score_green(shapes)
     transit = _nearest(places, "transit")
-    scores = {
-        "walk": score_walk(places),
-        "green": green,
-        "family": score_family(places, green["score"]),
-        "quiet": score_quiet(places, shapes),
-    }
+    scores = {"walk": score_walk(places), "green": green, "quiet": score_quiet(places, shapes)}
+    whoqol = whoqol_profile(places, scores)
+    profiles = {pid: score_profile(pid, whoqol["facets"]) for pid in M.PROFILES}
+    scores["family"] = profiles["rodina"]
+    scores = {k: scores[k] for k in ("walk", "green", "family", "quiet")}
     return {
         "lat": lat, "lon": lon,
         "scores": scores,
-        "whoqol": whoqol_profile(places, scores),
+        "whoqol": whoqol,
+        "profiles": profiles,
         "transit": _fact("Zastávka MHD alebo vlak", transit[0]) if transit else None,
         "method_version": M.VERSION,
     }

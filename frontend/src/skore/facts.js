@@ -3,7 +3,7 @@ import { formatDistance } from '../format.js';
 export const SCORES = [
   { key: 'walk', label: 'Pešo', question: 'Čo vybavíte bez auta' },
   { key: 'green', label: 'Zeleň', question: 'Park, les a zeleň okolo' },
-  { key: 'family', label: 'Rodina', question: 'Škôlka, škola, ihrisko, lekár' },
+  { key: 'family', label: 'Rodina', question: 'Profil z 8 aspektov WHOQOL' },
   { key: 'quiet', label: 'Pokoj', question: 'Hlavné cesty, železnica, bary' },
 ];
 
@@ -34,6 +34,7 @@ export function factLine(fact) {
 
 export function missingLine(kind, missing) {
   if (!missing?.length) return null;
+  if (kind === 'family') return `Chýbajú dáta pre aspekty: ${missing.join(', ')}.`;
   if (kind === 'green') return `Nenašli sme ${missing.join(', ')}.`;
   return `Do 2,5 km sme nenašli: ${missing.join(', ').toLowerCase()}.`;
 }
@@ -47,8 +48,9 @@ const num = (v, digits = 1) => v.toFixed(digits).replace('.', ',');
 
 export const WEIGHTS_NOTE = {
   walkscore: 'Váhy kategórií: Walk Score (Brewster a kol. 2009).',
-  equal: 'Váhy: rovnaké pre všetky ukazovatele (OECD/JRC 2008), kým neodpovie expertný panel (AHP).',
-  ahp: 'Váhy: expertný panel metódou AHP.',
+  equal: 'Váhy aspektov: rovnaké (ako index WHOQOL-BREF), kým neodpovie expertný panel (AHP).',
+  ahp: 'Váhy aspektov: expertný panel metódou AHP.',
+  equal_parts: 'Tri časti s rovnakou váhou.',
   penalties: 'Od 100 bodov odpočítavame zrážky. Orientačný odhad, nie hlukový model.',
 };
 

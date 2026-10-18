@@ -25,7 +25,8 @@ describe('factLine', () => {
 
 describe('missing and empty', () => {
   it('words what was not found', () => {
-    expect(missingLine('family', ['Základná škola'])).toBe('Do 2,5 km sme nenašli: základná škola.');
+    expect(missingLine('walk', ['Potraviny'])).toBe('Do 2,5 km sme nenašli: potraviny.');
+    expect(missingLine('family', ['F16 Bezpečnosť'])).toBe('Chýbajú dáta pre aspekty: F16 Bezpečnosť.');
     expect(missingLine('walk', [])).toBeNull();
     expect(emptyFacts('quiet')).toMatch(/nenašli/);
     expect(emptyFacts('walk')).toBeNull();

@@ -110,15 +110,6 @@ def test_quiet_penalties_by_distance_and_nightlife():
     assert bars["score"] == 100 - M.NIGHTLIFE_MAX
 
 
-def test_family_needs_a_primary_school():
-    els = [node(200, 0, amenity="kindergarten"), node(200, 10, leisure="playground"),
-           node(200, 20, amenity="doctors"), node(200, 30, shop="supermarket")]
-    without = compute(*els, node(300, 0, amenity="school", name="Gymnázium"))["family"]
-    assert "Základná škola" in without["missing"]
-    with_zs = compute(*els, node(300, 0, amenity="school", name="ZŠ Hroznová"))["family"]
-    assert with_zs["score"] > without["score"] and not with_zs["missing"]
-
-
 def test_bands():
     assert score.band("walk", 90) == "Všetko vybavíte pešo"
     assert score.band("walk", 89) == "Väčšinu vybavíte pešo"
@@ -137,8 +128,10 @@ def test_pezinok_centre_from_real_osm():
     s = score.compute(osm, osm["center"]["lat"], osm["center"]["lon"])["scores"]
     assert s["walk"]["score"] >= 90
     assert any(f["name"] == "Zámocký Park" for f in s["green"]["facts"])
-    zs = next(f for f in s["family"]["facts"] if f["label"] == "Základná škola")
-    assert zs["name"] and "Gymn" not in zs["name"]
+    osm_r = score.compute(osm, osm["center"]["lat"], osm["center"]["lon"])
+    f20 = next(f for f in osm_r["whoqol"]["facets"] if f["id"] == "F20")
+    zs = next(r for r in f20["breakdown"] if r["key"] == "primary_school")
+    assert zs["sub_score"] < 100  # the nearest ZŠ (Fándlyho) is ~1.2 km on foot; the gymnázium does not count
 
 
 @pytest.mark.skipif(not (FIXTURES / "score-vinicne.json").exists(), reason="no fixture")
@@ -181,7 +174,7 @@ def test_trams_and_tertiary_roads_lower_quiet():
     assert tertiary["score"] == 96
 
 
-@pytest.mark.parametrize("kind", ["walk", "green", "family"])
+@pytest.mark.parametrize("kind", ["walk", "green"])
 def test_breakdown_adds_up_to_the_score(kind):
     els = everything_at(300) + [node(200, 0, amenity="kindergarten"), node(200, 10, leisure="playground"),
                                 node(200, 20, amenity="doctors"), square(150, 0, 100, leisure="park", name="Park")]
@@ -195,26 +188,6 @@ def test_quiet_breakdown_lists_the_deductions_and_is_marked_provisional():
     s = compute(line([(-500, 40), (500, 40)], highway="primary"))["quiet"]
     assert s["breakdown"] == [{"key": "primary", "label": "Cesta I. triedy", "fact": "40 m", "points": -30}]
     assert s["status"] == "orientačné"
-
-
-def test_family_uses_equal_weights_until_a_panel_answers():
-    s = compute(node(100, 0, amenity="kindergarten"))["family"]
-    assert s["weights_method"] == "equal"
-    assert {r["weight"] for r in s["breakdown"]} == {round(1 / 6, 4)}
-    assert s["score"] == round(100 / 6)  # only the kindergarten is near: one sixth of the points
-
-
-def test_panel_weights_from_the_file_replace_equal(tmp_path, monkeypatch):
-    panel = {"sets": {"rodina": {"weights": {"kindergarten": 0.5, "primary_school": 0.1, "playground": 0.1,
-                                             "doctors": 0.1, "grocery": 0.1, "green": 0.1},
-                                 "panel": {"experts": 7, "cr": 0.04, "date": "2026-11-20"}}}}
-    f = tmp_path / "weights.json"
-    f.write_text(json.dumps(panel), encoding="utf-8")
-    monkeypatch.setattr(M, "WEIGHTS_FILE", f)
-    s = compute(node(100, 0, amenity="kindergarten"))["family"]
-    assert s["weights_method"] == "ahp" and s["score"] == 50
-    assert "7 expertov" in M.weights("rodina")["source"]
-    assert M.weights("zelen")["method"] == "equal"  # a set the panel did not answer stays equal
 
 
 def test_whoqol_profile_has_the_eight_environment_facets():
@@ -241,3 +214,52 @@ def test_index_is_the_mean_of_facets_once_six_have_data(monkeypatch):
     r = score.compute({"elements": everything_at(100)}, LAT, LON)["whoqol"]
     have = [f["score"] for f in r["facets"] if f["score"] is not None]
     assert len(have) == 6 and r["index"] == round(sum(have) / 6)
+
+
+
+def test_primary_school_counts_in_f20_but_a_gymnazium_does_not():
+    def f20(*els):
+        r = score.compute({"elements": list(els)}, LAT, LON)["whoqol"]
+        return next(f for f in r["facets"] if f["id"] == "F20")["breakdown"]
+    gym = {r["key"]: r["sub_score"] for r in f20(node(300, 0, amenity="school", name="Gymnázium"))}
+    zs = {r["key"]: r["sub_score"] for r in f20(node(300, 0, amenity="school", name="ZŠ Hroznová"))}
+    assert gym["primary_school"] == 0 and zs["primary_school"] == 100
+
+
+def _six_facets(monkeypatch):
+    facets = {k: dict(v) for k, v in M.WHOQOL_FACETS.items()}
+    facets["F16"]["indicators"] = ["walk"]  # pretend a sixth facet has data
+    monkeypatch.setattr(M, "WHOQOL_FACETS", facets)
+
+
+def test_family_profile_waits_for_six_of_eight_facets():
+    fam = compute(*everything_at(100))["family"]
+    assert fam["score"] is None and fam["coverage"] == 0.625 and fam["min_coverage"] == 0.75
+    assert fam["missing"] == ["F16 Bezpečnosť", "F17 Domáce prostredie", "F18 Finančné podmienky"]
+
+
+def test_family_profile_is_the_weighted_mean_of_facets(monkeypatch):
+    _six_facets(monkeypatch)
+    r = score.compute({"elements": everything_at(100)}, LAT, LON)
+    fam = r["scores"]["family"]
+    have = [f["score"] for f in r["whoqol"]["facets"] if f["score"] is not None]
+    assert fam["weights_method"] == "equal" and fam["score"] == round(sum(have) / len(have))
+    assert sum(row["weight"] for row in fam["breakdown"]) == pytest.approx(1.0, abs=1e-3)
+    assert r["profiles"]["senior"]["score"] == fam["score"]  # equal weights: profiles don't differ yet
+
+
+def test_panel_weights_from_the_file_shape_the_profile(tmp_path, monkeypatch):
+    _six_facets(monkeypatch)
+    weights = {"F16": 0.05, "F17": 0.05, "F18": 0.05, "F19": 0.1, "F20": 0.45, "F21": 0.1, "F22": 0.1, "F23": 0.1}
+    f = tmp_path / "weights.json"
+    f.write_text(json.dumps({"sets": {"rodina": {"weights": weights, "panel": {"experts": 7, "cr": 0.04,
+                                                                              "date": "2026-11-20"}}}}), encoding="utf-8")
+    monkeypatch.setattr(M, "WEIGHTS_FILE", f)
+    r = score.compute({"elements": [node(100, 0, amenity="kindergarten"), node(100, 5, amenity="school", name="ZŠ"),
+                                    node(100, 9, amenity="library")]}, LAT, LON)
+    fam = r["profiles"]["rodina"]
+    # F17, F18 have no data: covered weight 0.9 ≥ 0.75; F20 (all three near = 100) dominates
+    assert fam["weights_method"] == "ahp" and fam["coverage"] == 0.9
+    f20 = next(row for row in fam["breakdown"] if row["key"] == "F20")
+    assert f20["weight"] == pytest.approx(0.5, abs=1e-3) and f20["sub_score"] == 100
+    assert "7 expertov" in M.weights("rodina")["source"] and M.weights("senior")["method"] == "equal"

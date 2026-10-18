@@ -85,9 +85,22 @@ function renderSets() {
       row.dataset.key = key;
       return row;
     });
+    const reset = el('button', { type: 'button', className: 'ed-quiet', textContent: 'Vymazať odpovede v tomto profile' });
+    reset.addEventListener('click', () => {
+      answers[setId] = {};
+      delete results[setId];
+      document.querySelectorAll(`[data-set="${setId}"].ahp-pair`).forEach((row) => {
+        row.classList.remove('is-off');
+        row.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', 'false'));
+        row.querySelector('.ahp-say').textContent = 'Vyberte, čo je dôležitejšie.';
+      });
+      check(setId);
+    });
     return el('fieldset', { className: 'ahp-set' }, [
       el('legend', { textContent: s.title }),
+      el('p', { className: 'ed-hint', textContent: `${s.pairs.length} porovnaní. Vyplniť môžete len profily, ku ktorým sa cítite povolaný; ostatné nechajte prázdne.` }),
       ...pairs,
+      reset,
       el('div', { id: `res-${setId}`, className: 'ahp-result' }, [el('p', { className: 'ed-muted', textContent: `Zostáva porovnaní: ${s.pairs.length}.` })]),
     ]);
   }));
@@ -99,8 +112,11 @@ $('ahp-form').addEventListener('submit', async (e) => {
   if ($('a-name').value.trim().length < 2) problems.push('Vyplňte meno.');
   if ($('a-role').value.trim().length < 2) problems.push('Vyplňte rolu.');
   if (!$('a-code').value.trim()) problems.push('Vyplňte kód panelu, ktorý ste dostali v pozvánke.');
-  for (const [setId, s] of Object.entries(config.sets)) {
-    if (!complete(setId)) problems.push(`Dokončite porovnania v časti „${s.title}“.`);
+  const started = Object.keys(config.sets).filter((id) => Object.keys(answers[id]).length);
+  if (!started.length) problems.push('Vyplňte aspoň jeden profil.');
+  for (const setId of started) {
+    const s = config.sets[setId];
+    if (!complete(setId)) problems.push(`Dokončite porovnania v časti „${s.title}“, alebo ju vymažte.`);
     else if (!results[setId]?.consistent) problems.push(`V časti „${s.title}“ si odpovede protirečia: upravte zvýraznené porovnanie.`);
   }
   $('ahp-problems').replaceChildren(...problems.map((p) => el('li', { textContent: p })));
@@ -109,7 +125,7 @@ $('ahp-form').addEventListener('submit', async (e) => {
   $('ahp-submit').disabled = true;
   $('ahp-state').textContent = 'Odosielam…';
   try {
-    for (const setId of Object.keys(config.sets)) {
+    for (const setId of started) {
       const res = await fetch('/api/ahp/responses', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ set_id: setId, judgments: judgments(setId), code: $('a-code').value.trim(),

@@ -33,7 +33,12 @@ def main(path: str, label: str) -> None:
           f"potrebných aspoň {w['min_facets']}).\n")
     print("#### Skóre pre používateľa\n")
     for key, s in r["scores"].items():
-        print(f"##### {NAMES[key]}: {s['score']} ({s['band']})\n")
+        title = "nepočíta sa" if s["score"] is None else f"{s['score']} ({s['band']})"
+        print(f"##### {NAMES[key]}: {title}\n")
+        if s.get("profile") and s["score"] is None:
+            print(f"Profil sa zatiaľ nepočíta: aspekty s dátami tvoria {n(s['coverage'] * 100, 1)} % váhy, "
+                  f"treba aspoň {n(s['min_coverage'] * 100, 0)} %. Chýbajú: {', '.join(s['missing'])}.\n")
+            continue
         if s["weights_method"] == "penalties":
             print("| Zdroj | Vzdialenosť | Body |\n|---|---|---:|\n| Začiatok | | 100 |")
             for row in s["breakdown"]:

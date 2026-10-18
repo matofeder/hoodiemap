@@ -1,6 +1,6 @@
 # HoodieMap skóre: metodika
 
-**Verzia metodiky:** 0.3 (18. 10. 2026) · **Stav:** prototyp · **Kód:** `src/score.py`, `src/score_method.py`, `src/ahp.py`
+**Verzia metodiky:** 0.4 (18. 10. 2026) · **Stav:** prototyp · **Kód:** `src/score.py`, `src/score_method.py`, `src/ahp.py`
 
 Tento dokument popisuje, ako HoodieMap počíta skóre adresy, aby si výpočet mohol ktokoľvek overiť a zopakovať. Každé číslo v ňom má zdroj. Kde zdroj zatiaľ chýba, je to výslovne napísané a uvedené v časti [Otvorené body](#11-otvorené-body).
 
@@ -20,7 +20,7 @@ Tento dokument popisuje, ako HoodieMap počíta skóre adresy, aby si výpočet 
 
 **WHOQOL-BREF** je dotazník kvality života Svetovej zdravotníckej organizácie (WHO, Programme on Mental Health, 1996). Má 26 otázok, overený bol v 20 centrách v 18 krajinách. Kvalitu života delí na 4 oblasti: fyzické zdravie, psychické zdravie, sociálne vzťahy a **prostredie**.
 
-**Oblasť Prostredie má 8 aspektov** a každý pokrýva v dotazníku jedna otázka. My **meriame objektívne podmienky** každého aspektu na adrese. Dotazník meria, ako ich ľudia **vnímajú**, a slúži nám na overenie (časť 9). Znenie otázok nepreberáme.
+**Oblasť Prostredie má 8 aspektov** a každý pokrýva v dotazníku jedna otázka. My **meriame objektívne podmienky** každého aspektu na adrese. Dotazník samotný **nepoužívame**: z WHOQOL-BREF preberáme len členenie na aspekty a pravidlá výpočtu oblasti, nie znenie otázok. Výpočet skóre od dotazníka nezávisí.
 
 | Aspekt (WHOQOL) | Otázka | Čo meriame na adrese | Stav |
 |---|---|---|---|
@@ -52,7 +52,7 @@ WHOQOL-BREF prepočítava oblasť na 0–100 vzorcom (priemer × 4 − 4) × 100
 |---|---|---|
 | **Pešo** | Čo vybavím bez auta? | F23 (a služby z F19, F21) |
 | **Zeleň** | Koľko je okolo verejnej zelene a prírody? | F21, F22 |
-| **Rodina** | Ako je miesto vybavené pre rodinu s deťmi? | F19, F20, F21, F22 (profil pre rodiny) |
+| **Rodina** | Ako dobré je miesto pre rodinu s deťmi? | profil: všetkých 8 aspektov vážených pre rodinu (časť 6) |
 | **Pokoj** | Ako ďaleko sú zdroje hluku? *(orientačné)* | F22 |
 
 ## 3. Dáta
@@ -146,13 +146,30 @@ Za každú kategóriu sa započíta najbližších N miest, každé s vlastnou v
 
 Zdroj: váhy Walk Score podľa Brewster a kol. (2009). Potraviny vážia najviac, lebo sú najčastejším cieľom chôdze (Lee a Moudon, 2006). Pôvodné kategórie „kníhkupectvo“ a „zábava“ sme nahradili lekárňou a kultúrou a športom.
 
-### Zeleň a Rodina: AHP panel, dovtedy rovnaké váhy
+### Zeleň: tri časti s rovnakou váhou
 
-Kým panel neodpovie, má každý ukazovateľ rovnakú váhu: Zeleň 3 × 33,3 %, Rodina 6 × 16,7 %.
+Verejná zeleň blízko, podiel zelene a prírodná zeleň vážia po 33,3 %, rovnako ako ukazovatele vnútri aspektov WHOQOL.
+
+### Profily: AHP panel, dovtedy rovnaké váhy
+
+Index prostredia váži 8 aspektov rovnako (časť 2). **Profil** odpovedá na inú otázku: ako dobré je miesto pre konkrétny typ domácnosti. Tie isté aspekty preto váži inak.
+
+| Profil | Otázka pre panel |
+|---|---|
+| Rodina s deťmi | Čo je pre rodinu s deťmi dôležitejšie v okolí domova? |
+| Senior | Čo je pre staršieho človeka dôležitejšie v okolí domova? |
+| Bez auta | Čo je dôležitejšie pre domácnosť, ktorá nemá auto? |
+
+- **Skóre profilu** = Σ (skóre aspektu × váha aspektu v profile) cez aspekty s dátami. Váhy týchto aspektov sa prepočítajú na súčet 1.
+- **Profil sa počíta, len ak aspekty s dátami tvoria aspoň 75 % jeho váhy.** Pri rovnakých váhach je to presne pravidlo WHOQOL-BREF „6 z 8“. Pri váhach z panelu má rovnaký význam: chýbať smie najviac štvrtina toho, na čom profilu záleží.
+- **Kým panel neodpovie, majú aspekty v profile rovnakú váhu** a profily sa od seba ani od indexu nelíšia.
+- **Skóre Rodina** na stránke je profil Rodina s deťmi. Zatiaľ sa nepočíta, lebo máme dáta pre 5 z 8 aspektov (62,5 % váhy).
+
+AHP sa teda nepoužíva na samotný index ani na profil prostredia, ktoré vychádzajú z WHOQOL. Používa sa len na **rozdiely medzi profilmi**.
 
 ### Metóda AHP (Analytic Hierarchy Process, Saaty 1980)
 
-1. **Porovnanie dvojíc.** Expert pri každej dvojici kritérií (napr. škôlka a ihrisko) povie, ktoré je dôležitejšie a o koľko, na Saatyho škále: 1 rovnako, 3 mierne, 5 výrazne, 7 veľmi výrazne, 9 extrémne. Opačný smer je prevrátená hodnota (1/3, 1/5…). Pri *n* kritériách je to n·(n−1)/2 otázok: Rodina 15, Zeleň 3.
+1. **Porovnanie dvojíc.** Expert pri každej dvojici kritérií (napr. škôlka a ihrisko) povie, ktoré je dôležitejšie a o koľko, na Saatyho škále: 1 rovnako, 3 mierne, 5 výrazne, 7 veľmi výrazne, 9 extrémne. Opačný smer je prevrátená hodnota (1/3, 1/5…). Pri *n* kritériách je to n·(n−1)/2 otázok: profil s 8 aspektmi má 28 porovnaní.
 2. **Matica.** Odpovede tvoria recipročnú maticu A: a<sub>ij</sub> = úsudok „i oproti j“, a<sub>ji</sub> = 1/a<sub>ij</sub>, a<sub>ii</sub> = 1.
 3. **Váhy** sú hlavný vlastný vektor matice A, normalizovaný na súčet 1 (počítaný mocninovou metódou).
 4. **Konzistencia.** λ<sub>max</sub> je hlavné vlastné číslo, **CI = (λ<sub>max</sub> − n) / (n − 1)**, **CR = CI / RI**. RI je náhodný index (Saaty): n = 3: 0,58 · 4: 0,90 · 5: 1,12 · 6: 1,24 · 7: 1,32 · 8: 1,41 · 9: 1,45 · 10: 1,49. **Odpovede s CR ≥ 0,10 nepoužijeme.** Dotazník expertovi rovno ukáže, ktoré porovnanie najviac nesedí.
@@ -172,7 +189,7 @@ Váhy: škôlka 39,4 %, škola 39,4 %, ihrisko 13,7 %, lekár 7,5 %. λ<sub>max<
 ### Postup panelu
 
 1. **Zloženie:** 5 až 9 expertov z rôznych odborov (urbanista, realitný znalec, hypotekárny špecialista, sociológ, odborník na verejné zdravie, zástupca samosprávy, rodič).
-2. **Odpovede:** experti odpovedajú online na `/ahp` s kódom panelu. Kontrolu konzistencie vidia hneď.
+2. **Odpovede:** experti odpovedajú online na `/ahp` s kódom panelu, každý na profily, ku ktorým sa cíti povolaný. Kontrolu konzistencie vidia hneď.
 3. **Výsledok:** správca v `/admin` vidí CR každého experta a skupinové váhy a stiahne súbor `methodology/weights.json`.
 4. **Zverejnenie:** súbor sa commitne a zvýši sa verzia metodiky. V metodike zverejníme roly expertov (nie mená), ich počet, skupinové CR a dátum.
 
@@ -201,7 +218,7 @@ Nahradiť zrážky meraným alebo modelovaným hlukom:
 Vygenerované skriptom `scripts/method_example.py` z rovnakého kódu, aký počíta stránku.
 
 <!-- EXAMPLE:START -->
-Adresa: **Záhradná, Pezinok** (48,28646, 17,27221), dáta OpenStreetMap, metodika 0.3 (2026-10-18).
+Adresa: **Záhradná, Pezinok** (48,28646, 17,27221), dáta OpenStreetMap, metodika 0.4 (2026-10-18).
 
 #### Profil prostredia podľa WHOQOL-BREF
 
@@ -244,17 +261,9 @@ Adresa: **Záhradná, Pezinok** (48,28646, 17,27221), dáta OpenStreetMap, metod
 | Les alebo veľký park (20 ha) do 2 km | nie | 0,0 | 33,3 % | 0,0 |
 | **Skóre** | | | | **36,5 → 36** |
 
-##### Rodina: 79 (Dobré pre rodiny)
+##### Rodina: nepočíta sa
 
-| Ukazovateľ | Fakt | Čiastkové skóre | Váha | Body |
-|---|---|---:|---:|---:|
-| Materská škola | 281 m vzdušne = 366 m chôdze | 100,0 | 16,7 % | 16,7 |
-| Základná škola | 953 m vzdušne = 1239 m chôdze | 39,6 | 16,7 % | 6,6 |
-| Detské ihrisko | 51 m vzdušne = 67 m chôdze | 100,0 | 16,7 % | 16,7 |
-| Lekár | 124 m vzdušne = 161 m chôdze | 100,0 | 16,7 % | 16,7 |
-| Potraviny | 71 m vzdušne = 92 m chôdze | 100,0 | 16,7 % | 16,7 |
-| Zeleň (skóre Zeleň) | skóre Zeleň 36 | 36,0 | 16,7 % | 6,0 |
-| **Skóre** | | | | **79,4 → 79** |
+Profil sa zatiaľ nepočíta: aspekty s dátami tvoria 62,5 % váhy, treba aspoň 75 %. Chýbajú: F16 Bezpečnosť, F17 Domáce prostredie, F18 Finančné podmienky.
 
 ##### Pokoj: 82 (Pokojné)
 
@@ -267,9 +276,9 @@ Adresa: **Záhradná, Pezinok** (48,28646, 17,27221), dáta OpenStreetMap, metod
 | **Skóre** | | **82** |
 <!-- EXAMPLE:END -->
 
-## 9. Overenie: súvisí skóre s tým, ako ľudia kvalitu prostredia prežívajú?
+## 9. Neskôr (voliteľné): overenie dotazníkom
 
-Objektívne skóre má zmysel, ak súvisí s tým, ako miesto prežívajú jeho obyvatelia. Plán overovacej štúdie (s univerzitným partnerom):
+**Výpočet skóre od tejto štúdie nezávisí a teraz ju nerobíme.** Zapisujeme ju ako možný budúci krok: ak by sme chceli dokázať, že objektívne skóre súvisí s tým, ako miesto prežívajú jeho obyvatelia, plán by bol takýto (s univerzitným partnerom):
 
 | | |
 |---|---|
@@ -304,18 +313,20 @@ Objektívne skóre má zmysel, ak súvisí s tým, ako miesto prežívajú jeho 
 | Koeficient trasy 1,3 a rýchlosť 80 m/min | predpoklad | skutočné trasy (OSRM) |
 | Body krivky chôdze 800/1 200/1 600 m | podľa publikovaného tvaru | overiť v prílohe E a v patente Walk Score (US 8738422) |
 | Váhy Walk Score | prevzaté z citácie | overiť v pôvodnom článku Brewster a kol. (2009) |
-| Váhy Zeleň a Rodina | rovnaké | AHP panel |
+| Váhy profilov (rodina, senior, bez auta) | rovnaké | AHP panel |
 | Pokoj | orientačný odhad | hlukové mapy, CNOSSOS-EU |
 | Zelené plochy namiesto korún stromov | náhrada | dáta o korunách stromov (Copernicus, Urban Atlas) |
 | Vážený alebo geometrický priemer | vážený | rozhodnutie panelu, citlivostná analýza |
 | Aspekty F16, F17, F18 | chýbajú dáta, index sa nepočíta | Polícia SR, údaje z inzerátu, ŠÚ SR, ÚPSVaR, NBS |
 | F19 len pešo | na vidieku je lekár ďaleko pešo a skóre 0 | dostupnosť autom a MHD (čas jazdy), nemocnice |
-| Slovenská verzia WHOQOL-BREF | nenašli sme overenú | česká verzia alebo preklad podľa postupu WHO |
+| Slovenská verzia WHOQOL-BREF | nenašli sme overenú; týka sa len voliteľnej štúdie | česká verzia alebo preklad podľa postupu WHO |
+| Profil Rodina | zatiaľ sa nepočíta (62,5 % váhy) | doplniť F16–F18 |
 
 ## 12. Verzie
 
 | Verzia | Dátum | Zmena |
 |---|---|---|
+| 0.4 | 18. 10. 2026 | Rodina je profil nad 8 aspektmi WHOQOL (počíta sa pri aspoň 75 % váhy); AHP určuje len rozdiely medzi profilmi (rodina, senior, bez auta), nie index; Zeleň s rovnakými váhami troch častí; overovacia štúdia presunutá medzi voliteľné budúce kroky. |
 | 0.3 | 18. 10. 2026 | Rámec podľa oblasti Prostredie WHOQOL-BREF: profil 8 aspektov F16–F23, aspekt = priemer ukazovateľov, index = priemer aspektov, len pri aspoň 6 z 8 (pravidlo WHOQOL-BREF); nové ukazovatele knižnica, športovisko, kultúra; návrh overovacej štúdie; licencia. |
 | 0.2 | 18. 10. 2026 | Rovnaké váhy namiesto odhadu pre Zeleň a Rodinu; pre deti rovnaká krivka chôdze ako pre dospelých (bez vymyslených prahov); les alebo park podľa ANGSt (20 ha do 2 km) namiesto 10 ha do 1 km; Pokoj označený ako orientačný; električky a cesty III. triedy; rozpis výpočtu; AHP panel. |
 | 0.1 | 18. 10. 2026 | Prvý prototyp. |

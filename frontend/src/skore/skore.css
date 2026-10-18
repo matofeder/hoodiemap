@@ -119,3 +119,5 @@ body.sk { margin: 0; padding: 0 20px; background: var(--sk-paper); color: var(--
   .sk-facet { grid-template-columns: 36px minmax(0, 1fr) 36px; }
   .sk-facet .sk-meter { grid-column: 2 / -1; }
 }
+
+.sk-tile-value.is-pending { color: var(--sk-muted); }
