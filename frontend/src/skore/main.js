@@ -44,6 +44,9 @@ async function show({ lat, lon, label }) {
 function render(result, label) {
   $('sk-title').textContent = label;
   $('sk-map').href = `/?lat=${result.lat}&lon=${result.lon}&label=${encodeURIComponent(label)}${fixture ? '&fixture=true' : ''}`;
+  const cmp = new URLSearchParams({ a: `${result.lat},${result.lon},${label}` });
+  if (fixture) cmp.set('fixture', 'true');
+  $('sk-compare').href = `/porovnanie?${cmp}`;
   $('sk-tiles').replaceChildren(...SCORES.map(({ key, label: name, question }) => {
     const s = result.scores[key];
     const pending = s.score == null;

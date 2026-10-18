@@ -1,0 +1,47 @@
+/* Porovnanie: one column per address, one row per score; the label column stays put while the table
+   scrolls sideways on a phone. Magnitude is one hue (the score page's meter); the best value is bold. */
+.sk-brand { color: inherit; text-decoration: none; }
+.cmp-result { display: grid; gap: 14px; }
+.cmp-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+.cmp-head h2 { font-size: 28px; }
+.cmp-share, .cmp-remove { font: inherit; font-size: 14px; color: var(--sk-coral-strong); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+.cmp-share { font-weight: 600; }
+.cmp-remove { color: var(--sk-muted); }
+
+.cmp-wrap { overflow-x: auto; border: 1px solid var(--sk-line); border-radius: 14px; background: #fff; }
+.cmp-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.cmp-table th, .cmp-table td { padding: 10px 14px; text-align: left; vertical-align: top; border-top: 1px solid var(--sk-line); }
+.cmp-table thead th, .cmp-table thead td { border-top: 0; vertical-align: bottom; }
+.cmp-table th[scope="row"], .cmp-corner { position: sticky; left: 0; z-index: 1; background: #fff; min-width: 190px; max-width: 260px; font-weight: 500; }
+.cmp-col { min-width: 150px; font-weight: 400; }
+.cmp-col-name { display: block; font: 600 16px/1.25 var(--sk-display); }
+.cmp-col-links { display: flex; gap: 12px; margin-top: 6px; font-size: 14px; }
+.cmp-note { display: block; font-size: 13px; font-weight: 400; color: var(--sk-muted); }
+
+.cmp-section th { background: var(--sk-panel); font: 600 13px/1.2 var(--sk-body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--sk-muted); position: sticky; left: 0; }
+.cmp-row.is-index th, .cmp-row.is-index .cmp-num { font-weight: 700; }
+.cmp-row.is-index .cmp-num { font-size: 20px; }
+.cmp-toggle { font: inherit; font-weight: 500; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; display: flex; align-items: baseline; gap: 4px; }
+.cmp-toggle::before { content: "▸"; color: var(--sk-muted); flex: none; width: 1em; }
+.cmp-toggle[aria-expanded="true"]::before { content: "▾"; }
+.cmp-label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+.cmp-cell { white-space: nowrap; }
+.cmp-num { font-variant-numeric: tabular-nums; font-size: 17px; }
+.cmp-cell.is-best .cmp-num { font-weight: 800; }
+.cmp-cell.is-empty { color: var(--sk-muted); }
+.cmp-bar { display: block; width: 100%; max-width: 120px; height: 6px; margin-top: 4px; border-radius: 3px; background: var(--sk-meter-track); overflow: hidden; }
+.cmp-bar i { display: block; height: 100%; background: var(--sk-meter); }
+.cmp-fact { display: block; margin-top: 4px; font-size: 12.5px; color: var(--sk-muted); white-space: normal; max-width: 220px; }
+
+.cmp-ind th[scope="row"] { padding-left: 34px; font-size: 14px; }
+.cmp-ind .cmp-num { font-size: 15px; }
+.cmp-ind th, .cmp-ind td { background: #FCFBF8; }
+.cmp-legend { font-size: 14px; max-width: 760px; }
+
+@media (max-width: 560px) {
+  .cmp-table th[scope="row"], .cmp-corner { min-width: 130px; }
+  .cmp-ind th[scope="row"] { padding-left: 20px; }
+}
+.cmp-swipe { display: none; font-size: 14px; }
+@media (max-width: 760px) { .cmp-swipe { display: block; } }

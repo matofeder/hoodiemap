@@ -47,6 +47,7 @@ body.sk { margin: 0; padding: 0 20px; background: var(--sk-paper); color: var(--
 .sk-result-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
 .sk-result-head h2 { font-size: 28px; }
 .sk-link { font-weight: 600; text-decoration: none; }
+.sk-links { display: flex; flex-wrap: wrap; gap: 6px 18px; }
 
 /* stat tiles: label, value (sans, proportional), band, meter */
 .sk-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }

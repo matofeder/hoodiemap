@@ -7,6 +7,7 @@ const PAGES = [
   [/^\/import\/?$/, '/import.html'],
   [/^\/prever\/?$/, '/prever.html'],
   [/^\/skore\/?$/, '/skore.html'],
+  [/^\/porovnanie\/?$/, '/porovnanie.html'],
   [/^\/ahp\/?$/, '/ahp.html'],
   [/^\/admin\/?$/, '/admin.html'],
 ];
@@ -40,6 +41,7 @@ export default defineConfig({
         import: 'import.html',
         prever: 'prever.html',
         skore: 'skore.html',
+        porovnanie: 'porovnanie.html',
         ahp: 'ahp.html',
         admin: 'admin.html',
       },

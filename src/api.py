@@ -139,6 +139,10 @@ if _frontend_dist.exists():
     async def score_page():
         return FileResponse(_frontend_dist / "skore.html")
 
+    @app.api_route("/porovnanie", methods=["GET", "HEAD"], include_in_schema=False)
+    async def compare_page():
+        return FileResponse(_frontend_dist / "porovnanie.html")
+
     @app.api_route("/prever", methods=["GET", "HEAD"], include_in_schema=False)
     async def landing_page():
         return FileResponse(_frontend_dist / "prever.html")
