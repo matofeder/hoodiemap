@@ -97,6 +97,7 @@ def place_categories(tags: dict) -> list[str]:
         cats.append("doctors")
     elif amenity in ("library", "theatre", "cinema", "arts_centre", "community_centre"):
         cats.append("leisure")
+        cats.append("library" if amenity == "library" else "culture")
     elif amenity in ("bar", "pub", "nightclub"):
         cats.append("nightlife")
     if tags.get("healthcare") == "doctor" and "doctors" not in cats:
@@ -107,6 +108,7 @@ def place_categories(tags: dict) -> list[str]:
         cats.append("playground")
     elif leisure in ("sports_centre", "fitness_centre", "swimming_pool"):
         cats.append("leisure")
+        cats.append("sports")
     if tags.get("highway") == "bus_stop" or tags.get("railway") in ("station", "halt", "tram_stop"):
         cats.append("transit")
     return cats
@@ -383,18 +385,49 @@ def score_quiet(places: list[Place], shapes: Shapes) -> dict:
             "weights_method": "penalties", "status": M.QUIET_STATUS}
 
 
+def whoqol_profile(places: list[Place], scores: dict) -> dict:
+    """The eight WHOQOL-BREF environment facets: each the mean of its indicators, the index the mean of the
+    facets, computed only when at least 6 of 8 facets have data (WHOQOL-BREF's own rule for domain 4)."""
+    green = {r["key"]: r for r in scores["green"]["breakdown"]}
+    subs: dict[str, tuple[float, str]] = {}
+    for key in ("doctors", "pharmacy", "kindergarten", "primary_school", "library", "park", "sports", "culture",
+                "playground", "transit"):
+        near = _nearest(places, key)
+        subs[key] = (100 * decay(walk_m(near[0].distance_m), M.WALK_DECAY) if near else 0.0,
+                     _dist_fact(near[0] if near else None))
+    for key in ("near_green", "cover", "nature"):
+        subs[key] = (green[key]["sub_score"], green[key]["fact"])
+    subs["quiet"] = (float(scores["quiet"]["score"]), f"skóre Pokoj {scores['quiet']['score']} (orientačné)")
+    subs["walk"] = (float(scores["walk"]["score"]), f"skóre Pešo {scores['walk']['score']}")
+
+    facets = []
+    for fid, spec in M.WHOQOL_FACETS.items():
+        keys = spec["indicators"]
+        rows = [_row(k, M.FACET_INDICATORS[k]["label"], subs[k][0], 1 / len(keys), subs[k][1]) for k in keys]
+        score = round(sum(r["sub_score"] * r["weight"] for r in rows)) if rows else None
+        facets.append({"id": fid, "label": spec["label"], "item": spec["item"], "score": score,
+                       "breakdown": rows, "planned": spec["planned"],
+                       "status": "chýbajú dáta" if not rows else ("orientačné" if "quiet" in keys else None)})
+    have = [f for f in facets if f["score"] is not None]
+    index = round(sum(f["score"] for f in have) / len(have)) if len(have) >= M.WHOQOL_MIN_FACETS else None
+    return {"facets": facets, "index": index, "facets_with_data": len(have), "facets_total": len(facets),
+            "min_facets": M.WHOQOL_MIN_FACETS}
+
+
 def compute(osm: dict, lat: float, lon: float) -> dict:
     places, shapes = parse(osm, lat, lon)
     green = score_green(shapes)
     transit = _nearest(places, "transit")
+    scores = {
+        "walk": score_walk(places),
+        "green": green,
+        "family": score_family(places, green["score"]),
+        "quiet": score_quiet(places, shapes),
+    }
     return {
         "lat": lat, "lon": lon,
-        "scores": {
-            "walk": score_walk(places),
-            "green": green,
-            "family": score_family(places, green["score"]),
-            "quiet": score_quiet(places, shapes),
-        },
+        "scores": scores,
+        "whoqol": whoqol_profile(places, scores),
         "transit": _fact("Zastávka MHD alebo vlak", transit[0]) if transit else None,
         "method_version": M.VERSION,
     }

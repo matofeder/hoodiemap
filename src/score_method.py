@@ -12,7 +12,7 @@ from pathlib import Path
 
 import ahp
 
-VERSION = "0.2 (2026-10-18)"
+VERSION = "0.3 (2026-10-18)"
 WEIGHTS_FILE = Path(__file__).parent.parent / "methodology" / "weights.json"
 EQUAL_SOURCE = ("rovnaké váhy (predvolený postup podľa OECD/JRC Handbook on Constructing Composite Indicators, 2008), "
                 "kým neodpovie expertný panel metódou AHP")
@@ -121,6 +121,8 @@ def method() -> dict:
                   "source": QUIET_SOURCE, "status": QUIET_STATUS},
         "ahp_sets": AHP_SETS,
         "bands": BANDS, "bands_source": BANDS_SOURCE,
+        "whoqol": {"facets": WHOQOL_FACETS, "indicators": FACET_INDICATORS, "min_facets": WHOQOL_MIN_FACETS,
+                   "source": WHOQOL_SOURCE, "weights_source": FACET_WEIGHTS_SOURCE},
         "data": "Dáta: OpenStreetMap (© prispievatelia OpenStreetMap, ODbL). Chýbajúce alebo neoznačené miesta skóre znižujú.",
     }
 
@@ -149,3 +151,52 @@ def weights(set_id: str) -> dict:
                 "source": f"AHP expertný panel ({panel.get('panel', {}).get('experts', '?')} expertov, "
                           f"CR {panel.get('panel', {}).get('cr', '?')}), {panel.get('panel', {}).get('date', '')}"}
     return {"weights": ahp.equal(criteria), "method": "equal", "panel": None, "source": EQUAL_SOURCE}
+
+
+# --- WHOQOL framework (method 0.3) -----------------------------------------------------------------
+# The structure of what we measure follows the Environment domain of the WHOQOL-BREF (WHO 1996,
+# Field Trial Version): eight facets, each covered there by one questionnaire item. We measure the
+# objective conditions of each facet at an address; the questionnaire itself measures how people
+# perceive them and is used only to validate (docs/metodika.md, part 9). Item wording is not reproduced.
+WHOQOL_SOURCE = ("WHOQOL-BREF, oblasť 4 Prostredie (WHO, Programme on Mental Health, 1996): 8 aspektov F16–F23; "
+                 "skóre oblasti = priemer položiek, nepočíta sa, ak chýbajú viac ako 2 z 8")
+WHOQOL_MIN_FACETS = 6   # WHOQOL-BREF computes domain 4 with MEAN.6: at least 6 of its 8 items
+
+WHOQOL_FACETS = {
+    "F16": {"label": "Bezpečnosť", "item": "Q8", "indicators": [],
+            "planned": "kriminalita a dopravné nehody podľa okresov (Polícia SR)"},
+    "F17": {"label": "Domáce prostredie", "item": "Q23", "indicators": [],
+            "planned": "údaje o dome a byte z inzerátu (energetická trieda, rok, stav)"},
+    "F18": {"label": "Finančné podmienky", "item": "Q12", "indicators": [],
+            "planned": "mzdy a nezamestnanosť v okrese, ceny bývania oproti príjmu (ŠÚ SR, ÚPSVaR, NBS)"},
+    "F19": {"label": "Zdravotná a sociálna starostlivosť", "item": "Q24", "indicators": ["doctors", "pharmacy"],
+            "planned": "nemocnica, zariadenia sociálnych služieb"},
+    "F20": {"label": "Informácie a vzdelávanie", "item": "Q13",
+            "indicators": ["kindergarten", "primary_school", "library"], "planned": "rýchlosť internetu"},
+    "F21": {"label": "Rekreácia a voľný čas", "item": "Q14",
+            "indicators": ["park", "sports", "culture", "playground", "nature"], "planned": None},
+    "F22": {"label": "Fyzické prostredie", "item": "Q9", "indicators": ["near_green", "cover", "quiet"],
+            "planned": "hlukové mapy s krivkami WHO, kvalita ovzdušia (SHMÚ, EEA)"},
+    "F23": {"label": "Doprava", "item": "Q25", "indicators": ["walk", "transit"],
+            "planned": "frekvencia spojov MHD a vlakov (cestovné poriadky GTFS)"},
+}
+
+FACET_INDICATORS = {
+    "doctors":        {"label": "Lekár", "how": "vzdialenosť, krivka chôdze"},
+    "pharmacy":       {"label": "Lekáreň", "how": "vzdialenosť, krivka chôdze"},
+    "kindergarten":   {"label": "Materská škola", "how": "vzdialenosť, krivka chôdze"},
+    "primary_school": {"label": "Základná škola", "how": "vzdialenosť, krivka chôdze"},
+    "library":        {"label": "Knižnica", "how": "vzdialenosť, krivka chôdze"},
+    "park":           {"label": "Park (pomenovaný)", "how": "vzdialenosť k okraju, krivka chôdze"},
+    "sports":         {"label": "Športovisko", "how": "vzdialenosť, krivka chôdze"},
+    "culture":        {"label": "Kultúra (divadlo, kino, kultúrne centrum)", "how": "vzdialenosť, krivka chôdze"},
+    "playground":     {"label": "Detské ihrisko", "how": "vzdialenosť, krivka chôdze"},
+    "nature":         {"label": "Prírodná zeleň aspoň 20 ha do 2 km", "how": "ANGSt: áno 100, nie 0"},
+    "near_green":     {"label": "Verejná zeleň aspoň 0,5 ha", "how": "WHO: 300 m plné body"},
+    "cover":          {"label": "Podiel zelene do 300 m", "how": "3-30-300: 30 % = plné body"},
+    "quiet":          {"label": "Pokoj (orientačné)", "how": "skóre Pokoj"},
+    "walk":           {"label": "Pešia dostupnosť služieb", "how": "skóre Pešo"},
+    "transit":        {"label": "Zastávka MHD alebo vlak", "how": "vzdialenosť, krivka chôdze"},
+}
+FACET_WEIGHTS_SOURCE = ("indikátory v aspekte aj aspekty v indexe s rovnakou váhou: WHOQOL-BREF počíta oblasť ako priemer "
+                        "položiek; váhy vnútri aspektu môže neskôr určiť AHP panel")

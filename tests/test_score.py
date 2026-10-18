@@ -215,3 +215,29 @@ def test_panel_weights_from_the_file_replace_equal(tmp_path, monkeypatch):
     assert s["weights_method"] == "ahp" and s["score"] == 50
     assert "7 expertov" in M.weights("rodina")["source"]
     assert M.weights("zelen")["method"] == "equal"  # a set the panel did not answer stays equal
+
+
+def test_whoqol_profile_has_the_eight_environment_facets():
+    r = score.compute({"elements": everything_at(100)}, LAT, LON)["whoqol"]
+    assert [f["id"] for f in r["facets"]] == ["F16", "F17", "F18", "F19", "F20", "F21", "F22", "F23"]
+    assert [f["item"] for f in r["facets"]] == ["Q8", "Q23", "Q12", "Q24", "Q13", "Q14", "Q9", "Q25"]
+    missing = [f["id"] for f in r["facets"] if f["score"] is None]
+    assert missing == ["F16", "F17", "F18"] and all(f["status"] == "chýbajú dáta" for f in r["facets"][:3])
+    # WHOQOL-BREF's own rule: the domain needs at least 6 of 8; we have 5
+    assert r["facets_with_data"] == 5 and r["index"] is None
+
+
+def test_facet_is_the_mean_of_its_indicators():
+    r = score.compute({"elements": [node(100, 0, amenity="doctors")]}, LAT, LON)["whoqol"]
+    f19 = next(f for f in r["facets"] if f["id"] == "F19")
+    assert f19["score"] == 50  # doctor near (100), pharmacy not found (0)
+    assert [row["weight"] for row in f19["breakdown"]] == [0.5, 0.5]
+
+
+def test_index_is_the_mean_of_facets_once_six_have_data(monkeypatch):
+    facets = {k: dict(v) for k, v in M.WHOQOL_FACETS.items()}
+    facets["F16"]["indicators"] = ["walk"]  # pretend a sixth facet has data
+    monkeypatch.setattr(M, "WHOQOL_FACETS", facets)
+    r = score.compute({"elements": everything_at(100)}, LAT, LON)["whoqol"]
+    have = [f["score"] for f in r["facets"] if f["score"] is not None]
+    assert len(have) == 6 and r["index"] == round(sum(have) / 6)

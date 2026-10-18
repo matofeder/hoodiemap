@@ -103,3 +103,19 @@ body.sk { margin: 0; padding: 0 20px; background: var(--sk-paper); color: var(--
 .sk-steps td:nth-child(n+3), .sk-steps th:nth-child(n+3) { text-align: right; white-space: nowrap; }
 .sk-steps td:nth-child(2) { color: var(--sk-muted); }
 .sk-steps tfoot td { font-weight: 700; border-bottom: 0; }
+
+/* WHOQOL facet profile */
+.sk-whoqol { display: grid; gap: 10px; padding-top: 14px; border-top: 2px solid var(--sk-ink); }
+.sk-whoqol h3 { font-size: 19px; }
+.sk-facets { display: grid; gap: 0; }
+.sk-facet { display: grid; grid-template-columns: 44px minmax(0, 1fr) 40px minmax(120px, 220px); gap: 2px 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--sk-line); }
+.sk-facet-id { font-weight: 700; color: var(--sk-muted); font-variant-numeric: tabular-nums; }
+.sk-facet-label { font-weight: 600; }
+.sk-facet-score { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.sk-facet-detail { grid-column: 2 / -1; font-size: 13px; color: var(--sk-muted); }
+.sk-facet.is-empty .sk-facet-label, .sk-facet.is-empty .sk-facet-score { color: var(--sk-muted); }
+.sk-index { font-weight: 600; }
+@media (max-width: 560px) {
+  .sk-facet { grid-template-columns: 36px minmax(0, 1fr) 36px; }
+  .sk-facet .sk-meter { grid-column: 2 / -1; }
+}

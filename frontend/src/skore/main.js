@@ -75,7 +75,29 @@ function render(result, label) {
       steps(s),
     ]);
   }));
+  renderWhoqol(result.whoqol);
   $('sk-result').hidden = false;
+}
+
+function renderWhoqol(w) {
+  $('sk-facets').replaceChildren(...w.facets.map((f) => {
+    const meter = el('div', { className: 'sk-meter' }, [el('i', { style: `width:${f.score ?? 0}%` })]);
+    meter.setAttribute('role', 'img');
+    meter.setAttribute('aria-label', f.score == null ? 'chýbajú dáta' : `${f.score} zo 100`);
+    const detail = f.score == null
+      ? `Chýbajú dáta. Plán: ${f.planned}.`
+      : f.breakdown.map((r) => `${r.label} ${Math.round(r.sub_score)}`).join(' · ');
+    return el('div', { className: `sk-facet${f.score == null ? ' is-empty' : ''}` }, [
+      el('span', { className: 'sk-facet-id', textContent: f.id }),
+      el('span', { className: 'sk-facet-label' }, [f.label, ...(f.status && f.score != null ? [el('span', { className: 'sk-badge', textContent: f.status })] : [])]),
+      el('span', { className: 'sk-facet-score', textContent: f.score == null ? '–' : String(f.score) }),
+      meter,
+      el('span', { className: 'sk-facet-detail', textContent: detail }),
+    ]);
+  }));
+  $('sk-index').textContent = w.index == null
+    ? `Index prostredia zatiaľ nepočítame: máme dáta pre ${w.facets_with_data} z ${w.facets_total} aspektov a WHOQOL-BREF počíta oblasť len pri aspoň ${w.min_facets}.`
+    : `Index prostredia: ${w.index} (priemer ${w.facets_with_data} aspektov).`;
 }
 
 function steps(s) {

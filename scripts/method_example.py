@@ -21,8 +21,19 @@ def main(path: str, label: str) -> None:
     osm = json.loads(Path(path).read_text(encoding="utf-8"))
     r = score.compute(osm, osm["center"]["lat"], osm["center"]["lon"])
     print(f"Adresa: **{label}** ({n(r['lat'], 5)}, {n(r['lon'], 5)}), dáta OpenStreetMap, metodika {M.VERSION}.\n")
+    w = r["whoqol"]
+    print("#### Profil prostredia podľa WHOQOL-BREF\n")
+    print("| Aspekt | Položka | Skóre | Ukazovatele (čiastkové skóre) |\n|---|---|---:|---|")
+    for f in w["facets"]:
+        inds = "; ".join(f"{row['label']} {n(row['sub_score'], 0)}" for row in f["breakdown"]) or f"chýbajú dáta: {f['planned']}"
+        score_txt = "–" if f["score"] is None else str(f["score"])
+        print(f"| {f['id']} {f['label']} | {f['item']} | {score_txt} | {inds} |")
+    idx = "nepočíta sa" if w["index"] is None else str(w["index"])
+    print(f"\n**Index prostredia:** {idx} (dáta pre {w['facets_with_data']} z {w['facets_total']} aspektov, "
+          f"potrebných aspoň {w['min_facets']}).\n")
+    print("#### Skóre pre používateľa\n")
     for key, s in r["scores"].items():
-        print(f"#### {NAMES[key]}: {s['score']} ({s['band']})\n")
+        print(f"##### {NAMES[key]}: {s['score']} ({s['band']})\n")
         if s["weights_method"] == "penalties":
             print("| Zdroj | Vzdialenosť | Body |\n|---|---|---:|\n| Začiatok | | 100 |")
             for row in s["breakdown"]:
