@@ -2,7 +2,7 @@
 
 For offline development and tests when no Overpass is reachable (fixtures/score-*.json):
 
-    .venv/bin/pip install osmium
+    .venv/bin/pip install "osmium>=4.0"
     .venv/bin/python scripts/osm_fixture.py --pbf slovakia-latest.osm.pbf \
         --point 48.28646,17.27221,fixtures/score-pezinok-centrum.json --point …
 

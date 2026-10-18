@@ -190,7 +190,13 @@ def test_quiet_breakdown_lists_the_deductions_and_is_marked_provisional():
     assert s["status"] == "orientačné"
 
 
-def test_whoqol_profile_has_the_eight_environment_facets():
+@pytest.fixture
+def outside_sk(monkeypatch):
+    """An address outside Slovakia: no regional statistics, so F16–F18 have no data."""
+    monkeypatch.setattr(score.regions, "locate", lambda lat, lon: {"kraj": None, "okres": None, "zuj": None})
+
+
+def test_whoqol_profile_has_the_eight_environment_facets(outside_sk):
     r = score.compute({"elements": everything_at(100)}, LAT, LON)["whoqol"]
     assert [f["id"] for f in r["facets"]] == ["F16", "F17", "F18", "F19", "F20", "F21", "F22", "F23"]
     assert [f["item"] for f in r["facets"]] == ["Q8", "Q23", "Q12", "Q24", "Q13", "Q14", "Q9", "Q25"]
@@ -207,7 +213,7 @@ def test_facet_is_the_mean_of_its_indicators():
     assert [row["weight"] for row in f19["breakdown"]] == [0.5, 0.5]
 
 
-def test_index_is_the_mean_of_facets_once_six_have_data(monkeypatch):
+def test_index_is_the_mean_of_facets_once_six_have_data(monkeypatch, outside_sk):
     facets = {k: dict(v) for k, v in M.WHOQOL_FACETS.items()}
     facets["F16"]["indicators"] = ["walk"]  # pretend a sixth facet has data
     monkeypatch.setattr(M, "WHOQOL_FACETS", facets)
@@ -232,13 +238,13 @@ def _six_facets(monkeypatch):
     monkeypatch.setattr(M, "WHOQOL_FACETS", facets)
 
 
-def test_family_profile_waits_for_six_of_eight_facets():
+def test_family_profile_waits_for_six_of_eight_facets(outside_sk):
     fam = compute(*everything_at(100))["family"]
     assert fam["score"] is None and fam["coverage"] == 0.625 and fam["min_coverage"] == 0.75
     assert fam["missing"] == ["F16 Bezpečnosť", "F17 Domáce prostredie", "F18 Finančné podmienky"]
 
 
-def test_family_profile_is_the_weighted_mean_of_facets(monkeypatch):
+def test_family_profile_is_the_weighted_mean_of_facets(monkeypatch, outside_sk):
     _six_facets(monkeypatch)
     r = score.compute({"elements": everything_at(100)}, LAT, LON)
     fam = r["scores"]["family"]
@@ -248,7 +254,7 @@ def test_family_profile_is_the_weighted_mean_of_facets(monkeypatch):
     assert r["profiles"]["senior"]["score"] == fam["score"]  # equal weights: profiles don't differ yet
 
 
-def test_panel_weights_from_the_file_shape_the_profile(tmp_path, monkeypatch):
+def test_panel_weights_from_the_file_shape_the_profile(tmp_path, monkeypatch, outside_sk):
     _six_facets(monkeypatch)
     weights = {"F16": 0.05, "F17": 0.05, "F18": 0.05, "F19": 0.1, "F20": 0.45, "F21": 0.1, "F22": 0.1, "F23": 0.1}
     f = tmp_path / "weights.json"
@@ -263,3 +269,16 @@ def test_panel_weights_from_the_file_shape_the_profile(tmp_path, monkeypatch):
     f20 = next(row for row in fam["breakdown"] if row["key"] == "F20")
     assert f20["weight"] == pytest.approx(0.5, abs=1e-3) and f20["sub_score"] == 100
     assert "7 expertov" in M.weights("rodina")["source"] and M.weights("senior")["method"] == "equal"
+
+
+
+def test_inside_slovakia_all_eight_facets_have_data_and_the_index_is_computed():
+    r = score.compute({"elements": everything_at(100)}, 48.28646, 17.27221)  # Pezinok
+    w = r["whoqol"]
+    assert w["facets_with_data"] == 8 and w["index"] == round(sum(f["score"] for f in w["facets"]) / 8)
+    assert r["region"]["zuj"]["code"] == "508179" and r["region"]["okres"]["code"] == "SK0107"
+    f16 = next(f for f in w["facets"] if f["id"] == "F16")
+    assert f16["status"] == "len za kraj" and "Bratislavský kraj" in f16["breakdown"][0]["fact"]
+    f18 = next(f for f in w["facets"] if f["id"] == "F18")
+    assert [row["key"] for row in f18["breakdown"]] == ["wage", "unemployment"]
+    assert r["scores"]["family"]["score"] == w["index"]  # equal weights: the profile equals the index

@@ -14,6 +14,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ src/
 COPY migrations/ migrations/
 COPY fixtures/ fixtures/
+COPY regions/ regions/
+COPY methodology/ methodology/
 COPY config.yaml ./
 COPY --from=frontend /build/frontend/dist frontend/dist
 # data/ (photos) and .cache/ (OSM + geocoding) are relative to the working directory: mount volumes there.

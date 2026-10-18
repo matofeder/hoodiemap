@@ -1,6 +1,6 @@
 # HoodieMap skóre: metodika
 
-**Verzia metodiky:** 0.4 (18. 10. 2026) · **Stav:** prototyp · **Kód:** `src/score.py`, `src/score_method.py`, `src/ahp.py`
+**Verzia metodiky:** 0.5 (18. 10. 2026) · **Stav:** prototyp · **Kód:** `src/score.py`, `src/score_method.py`, `src/ahp.py`
 
 Tento dokument popisuje, ako HoodieMap počíta skóre adresy, aby si výpočet mohol ktokoľvek overiť a zopakovať. Každé číslo v ňom má zdroj. Kde zdroj zatiaľ chýba, je to výslovne napísané a uvedené v časti [Otvorené body](#11-otvorené-body).
 
@@ -24,9 +24,9 @@ Tento dokument popisuje, ako HoodieMap počíta skóre adresy, aby si výpočet 
 
 | Aspekt (WHOQOL) | Otázka | Čo meriame na adrese | Stav |
 |---|---|---|---|
-| F16 Bezpečnosť | Q8 | kriminalita a dopravné nehody podľa okresov (Polícia SR) | plán |
-| F17 Domáce prostredie | Q23 | údaje o dome a byte (z inzerátu: energetická trieda, rok, stav) | plán |
-| F18 Finančné podmienky | Q12 | mzdy a nezamestnanosť v okrese, ceny bývania oproti príjmu (ŠÚ SR, ÚPSVaR, NBS) | plán |
+| F16 Bezpečnosť | Q8 | zistené trestné činy na 1 000 obyvateľov | áno, **len za kraj** (za okresy nie sú verejné tabuľky) |
+| F17 Domáce prostredie | Q23 | obyvatelia na trvalo obývaný byt v obci alebo mestskej časti (sčítanie 2021) | čiastočne (chýbajú údaje o samotnom dome a byte) |
+| F18 Finančné podmienky | Q12 | priemerná mesačná mzda a miera evidovanej nezamestnanosti v okrese | áno (chýbajú ceny bývania oproti príjmu) |
 | F19 Zdravotná a sociálna starostlivosť | Q24 | lekár, lekáreň | čiastočne (chýba nemocnica, sociálne služby, dostupnosť autom) |
 | F20 Informácie a vzdelávanie | Q13 | materská škola, základná škola, knižnica | čiastočne (chýba rýchlosť internetu) |
 | F21 Rekreácia a voľný čas | Q14 | pomenovaný park, športovisko, kultúra, ihrisko, prírodná zeleň ≥ 20 ha do 2 km | áno |
@@ -40,7 +40,7 @@ Pešia dostupnosť je pod F23, lebo aspekt Doprava hodnotí, ako sa človek dost
 1. **Ukazovateľ → čiastkové skóre 0–100** podľa normy alebo publikovanej krivky (časť 5).
 2. **Aspekt = priemer jeho ukazovateľov s rovnakou váhou.** Vnútri aspektu môže váhy neskôr určiť AHP panel (časť 6).
 3. **Index prostredia = priemer aspektov s rovnakou váhou.** Tak počíta oblasť aj samotný WHOQOL-BREF: priemerom položiek s rovnakou váhou (syntax `MEAN.6(Q8, Q9, Q12, Q13, Q14, Q23, Q24, Q25) × 4`).
-4. **Index sa nepočíta, ak má dáta menej ako 6 z 8 aspektov.** Je to rovnaké pravidlo, aké WHOQOL-BREF používa pre túto oblasť (aspoň 6 z 8 položiek). Kým nemáme dáta pre bezpečnosť, domáce prostredie a financie, zobrazujeme len profil aspektov a index nie.
+4. **Index sa nepočíta, ak má dáta menej ako 6 z 8 aspektov.** Je to rovnaké pravidlo, aké WHOQOL-BREF používa pre túto oblasť (aspoň 6 z 8 položiek). Na Slovensku majú dáta všetky aspekty, takže index sa počíta. Mimo Slovenska chýbajú štatistiky území (F16–F18) a index sa nepočíta.
 
 WHOQOL-BREF prepočítava oblasť na 0–100 vzorcom (priemer × 4 − 4) × 100/16, lebo jeho položky majú škálu 1–5. Naše čiastkové skóre sú už 0–100, preto ďalšie prepočítanie netreba.
 
@@ -64,6 +64,23 @@ WHOQOL-BREF prepočítava oblasť na 0–100 vzorcom (priemer × 4 − 4) × 100
   - cesty a železnica do **600 m** s geometriou čiar,
   - bary do **200 m**.
 - **Kvalita:** chýbajúce alebo neoznačené miesto v OSM skóre zníži. Stránka vždy uvedie, čo sa nenašlo.
+
+### Štatistiky území (F16–F18)
+
+Adresu priradíme k **obci alebo mestskej časti, okresu a kraju** podľa hraníc z OpenStreetMap (`regions/boundaries.json`, skript `scripts/build_regions.py`). Hranice nesú **úradné kódy**: kódy okresov a krajov sú rovnaké ako v DATAcube ŠÚ SR, obce a mestské časti majú kód ZÚJ zo sčítania (napr. Pezinok 508179). Štatistiky sa preto párujú cez kód, nie cez názov. Extrakt má 8 krajov, 79 okresov a 2 927 obcí a mestských častí, presne toľko, koľko ich má sčítanie 2021.
+
+| Ukazovateľ | Úroveň | Obdobie | Zdroj | Výpočet |
+|---|---|---|---|---|
+| Zistené trestné činy na 1 000 obyvateľov | kraj (8) | 2025 | ŠÚ SR, DATAcube sk3003rr (trestné činy spolu, údaje MV SR) / om7102rr (stredný stav obyvateľstva) | trestné činy / stredný stav obyvateľstva × 1 000 |
+| Obyvatelia na trvalo obývaný byt | obec / mestská časť (2926) | 2021 | ŠÚ SR, Sčítanie obyvateľov, domov a bytov 2021, Štatistický lexikón obcí (kap. IV) | počet obyvateľov / počet trvalo obývaných bytov |
+| Priemerná mesačná mzda zamestnanca | okres (79) | 2025 | ŠÚ SR, DATAcube np3110rr (pracovisková metóda: podľa miesta práce) | hodnota z tabuľky |
+| Miera evidovanej nezamestnanosti (PDU) | okres (79) | 2026-08 | ÚPSVaR, mesačná štatistika, tabuľka 1: podiel disponibilných UoZ na obyvateľstve v produktívnom veku | hodnota z tabuľky |
+
+Hodnoty so zdrojom, obdobím a dátumom stiahnutia (2026-10-18) sú v `regions/stats.json` (skript `scripts/build_region_stats.py`). Kontrola: kriminalita v Bratislavskom kraji vychádza 10,12 a v Košickom 10,29 na 1 000 obyvateľov. SITA podľa MV SR uvádza 10,14 a 10,28; rozdiel je v tom, či sa delí stredným, alebo koncoročným stavom obyvateľstva.
+
+**Zámerne nepoužité:**
+- **Kriminalita za okresy:** MV SR ju zverejňuje len v mapách s rozpätiami (napr. „539–619 činov“), nie v tabuľke.
+- **Dopravná nehodovosť** (DATAcube do3806rr): ukazovatele nemajú v tabuľke popisy (`NEH_ZRANENI`, `POC_USMRT`…) a ich význam by sme museli hádať.
 
 ### Ako rozpoznávame miesta (značky OSM)
 
@@ -112,6 +129,16 @@ Zdroj: walkscore.com/methodology (5 min = plné body, 30 min = nula); tvar krivk
 | Verejná zeleň ≥ 0,5 ha blízko | 100 do 300 m vzdušne, 70 pri 500 m, 20 pri 1 000 m, 0 od 1 500 m | WHO Európa 2016 (≥ 0,5 ha do 300 m); Berlín a Holandsko (500 m) |
 | Podiel zelene do 300 m | podiel zelených plôch v kruhu s polomerom 300 m / 30 %, najviac 100 | pravidlo 3-30-300 (30 % korún stromov); zelené plochy sú náhrada, kým nemáme dáta o korunách stromov |
 | Les alebo veľký park | 100, ak je do 2 km plocha ≥ 20 ha; inak 0 | Natural England, ANGSt |
+
+### Štatistiky území: percentil
+
+Pre mzdy, nezamestnanosť, kriminalitu ani zahustenie bytov neexistuje norma ako pri zeleni („do 300 m“). Preto ich hodnotíme **poradím medzi všetkými územiami Slovenska rovnakej úrovne** (percentil):
+
+**čiastkové skóre = 100 × poradie / (počet území − 1)**, kde poradie je 0 pre najhoršie územie; rovnaké hodnoty dostanú priemerné poradie. Pri ukazovateľoch, kde je menej lepšie (nezamestnanosť, kriminalita, obyvatelia na byt), sa poradie počíta od najvyššej hodnoty.
+
+Príklad: okres Pezinok má mzdu 1 579 € (2025). Nižšiu má 31 zo 79 okresov, preto je čiastkové skóre 100 × 31 / 78 = 39,7.
+
+Percentil hovorí, **ako je územie na tom oproti ostatným na Slovensku**, nie či je hodnota „dobrá“ v absolútnom zmysle. Pri F16 (8 krajov) je hrubý: všetky adresy v jednom kraji majú rovnakú hodnotu.
 
 ### Pokoj
 
@@ -163,7 +190,7 @@ Index prostredia váži 8 aspektov rovnako (časť 2). **Profil** odpovedá na i
 - **Skóre profilu** = Σ (skóre aspektu × váha aspektu v profile) cez aspekty s dátami. Váhy týchto aspektov sa prepočítajú na súčet 1.
 - **Profil sa počíta, len ak aspekty s dátami tvoria aspoň 75 % jeho váhy.** Pri rovnakých váhach je to presne pravidlo WHOQOL-BREF „6 z 8“. Pri váhach z panelu má rovnaký význam: chýbať smie najviac štvrtina toho, na čom profilu záleží.
 - **Kým panel neodpovie, majú aspekty v profile rovnakú váhu** a profily sa od seba ani od indexu nelíšia.
-- **Skóre Rodina** na stránke je profil Rodina s deťmi. Zatiaľ sa nepočíta, lebo máme dáta pre 5 z 8 aspektov (62,5 % váhy).
+- **Skóre Rodina** na stránke je profil Rodina s deťmi. Na Slovensku má dáta všetkých 8 aspektov. Kým panel neodpovie, sa rovná indexu prostredia.
 
 AHP sa teda nepoužíva na samotný index ani na profil prostredia, ktoré vychádzajú z WHOQOL. Používa sa len na **rozdiely medzi profilmi**.
 
@@ -218,22 +245,22 @@ Nahradiť zrážky meraným alebo modelovaným hlukom:
 Vygenerované skriptom `scripts/method_example.py` z rovnakého kódu, aký počíta stránku.
 
 <!-- EXAMPLE:START -->
-Adresa: **Záhradná, Pezinok** (48,28646, 17,27221), dáta OpenStreetMap, metodika 0.4 (2026-10-18).
+Adresa: **Záhradná, Pezinok** (48,28646, 17,27221), dáta OpenStreetMap, metodika 0.5 (2026-10-18).
 
 #### Profil prostredia podľa WHOQOL-BREF
 
 | Aspekt | Položka | Skóre | Ukazovatele (čiastkové skóre) |
 |---|---|---:|---|
-| F16 Bezpečnosť | Q8 | – | chýbajú dáta: kriminalita a dopravné nehody podľa okresov (Polícia SR) |
-| F17 Domáce prostredie | Q23 | – | chýbajú dáta: údaje o dome a byte z inzerátu (energetická trieda, rok, stav) |
-| F18 Finančné podmienky | Q12 | – | chýbajú dáta: mzdy a nezamestnanosť v okrese, ceny bývania oproti príjmu (ŠÚ SR, ÚPSVaR, NBS) |
+| F16 Bezpečnosť | Q8 | 14 | Trestné činy na 1 000 obyvateľov (kraj) 14 |
+| F17 Domáce prostredie | Q23 | 89 | Obyvatelia na obývaný byt (obec) 89 |
+| F18 Finančné podmienky | Q12 | 58 | Priemerná mzda (okres) 40; Nezamestnanosť (okres) 77 |
 | F19 Zdravotná a sociálna starostlivosť | Q24 | 100 | Lekár 100; Lekáreň 100 |
 | F20 Informácie a vzdelávanie | Q13 | 80 | Materská škola 100; Základná škola 40; Knižnica 100 |
 | F21 Rekreácia a voľný čas | Q14 | 74 | Park (pomenovaný) 86; Športovisko 84; Kultúra (divadlo, kino, kultúrne centrum) 100; Detské ihrisko 100; Prírodná zeleň aspoň 20 ha do 2 km 0 |
 | F22 Fyzické prostredie | Q9 | 64 | Verejná zeleň aspoň 0,5 ha 92; Podiel zelene do 300 m 17; Pokoj (orientačné) 82 |
 | F23 Doprava | Q25 | 100 | Pešia dostupnosť služieb 99; Zastávka MHD alebo vlak 100 |
 
-**Index prostredia:** nepočíta sa (dáta pre 5 z 8 aspektov, potrebných aspoň 6).
+**Index prostredia:** 72 (dáta pre 8 z 8 aspektov, potrebných aspoň 6).
 
 #### Skóre pre používateľa
 
@@ -261,9 +288,19 @@ Adresa: **Záhradná, Pezinok** (48,28646, 17,27221), dáta OpenStreetMap, metod
 | Les alebo veľký park (20 ha) do 2 km | nie | 0,0 | 33,3 % | 0,0 |
 | **Skóre** | | | | **36,5 → 36** |
 
-##### Rodina: nepočíta sa
+##### Rodina: 72 (Dobré pre rodiny)
 
-Profil sa zatiaľ nepočíta: aspekty s dátami tvoria 62,5 % váhy, treba aspoň 75 %. Chýbajú: F16 Bezpečnosť, F17 Domáce prostredie, F18 Finančné podmienky.
+| Ukazovateľ | Fakt | Čiastkové skóre | Váha | Body |
+|---|---|---:|---:|---:|
+| F16 Bezpečnosť | aspekt 14 | 14,0 | 12,5 % | 1,8 |
+| F17 Domáce prostredie | aspekt 89 | 89,0 | 12,5 % | 11,1 |
+| F18 Finančné podmienky | aspekt 58 | 58,0 | 12,5 % | 7,2 |
+| F19 Zdravotná a sociálna starostlivosť | aspekt 100 | 100,0 | 12,5 % | 12,5 |
+| F20 Informácie a vzdelávanie | aspekt 80 | 80,0 | 12,5 % | 10,0 |
+| F21 Rekreácia a voľný čas | aspekt 74 | 74,0 | 12,5 % | 9,2 |
+| F22 Fyzické prostredie | aspekt 64 | 64,0 | 12,5 % | 8,0 |
+| F23 Doprava | aspekt 100 | 100,0 | 12,5 % | 12,5 |
+| **Skóre** | | | | **72,3 → 72** |
 
 ##### Pokoj: 82 (Pokojné)
 
@@ -303,7 +340,9 @@ Profil sa zatiaľ nepočíta: aspekty s dátami tvoria 62,5 % váhy, treba aspo�
 - Zeleň počíta verejnú zeleň. Vinohrady a polia okolo dedín sa nezapočítavajú.
 - Skóre MHD zatiaľ chýba (potrebuje cestovné poriadky). Ukazujeme len najbližšiu zastávku.
 - Zdravotnú starostlivosť (F19) zatiaľ hodnotíme len pešo. Na vidieku, kde sa k lekárovi chodí autom, je preto nízka.
-- Index prostredia sa zatiaľ nepočíta (dáta pre 5 z 8 aspektov).
+- Bezpečnosť (F16) je len za kraj, finančné podmienky (F18) za okres. Adresy v jednom kraji alebo okrese sa v nich nelíšia.
+- Mzdy sú podľa miesta práce (pracovisková metóda), nie podľa bydliska. V okresoch okolo Bratislavy preto podhodnocujú príjmy obyvateľov.
+- Obyvatelia na byt hovoria o zahustení bytov v obci, nie o konkrétnom byte. Nízka hodnota môže znamenať aj veľa jednočlenných domácností.
 - V hustých centrách miest sa Pešo blíži k 100, rovnako ako Walk Score.
 
 ## 11. Otvorené body
@@ -320,18 +359,26 @@ Profil sa zatiaľ nepočíta: aspekty s dátami tvoria 62,5 % váhy, treba aspo�
 | Aspekty F16, F17, F18 | chýbajú dáta, index sa nepočíta | Polícia SR, údaje z inzerátu, ŠÚ SR, ÚPSVaR, NBS |
 | F19 len pešo | na vidieku je lekár ďaleko pešo a skóre 0 | dostupnosť autom a MHD (čas jazdy), nemocnice |
 | Slovenská verzia WHOQOL-BREF | nenašli sme overenú; týka sa len voliteľnej štúdie | česká verzia alebo preklad podľa postupu WHO |
-| Profil Rodina | zatiaľ sa nepočíta (62,5 % váhy) | doplniť F16–F18 |
+| F16 za okresy | len za kraj | tabuľky MV SR podľa okresov (žiadosť podľa zákona o slobodnom prístupe k informáciám) |
+| Dopravná nehodovosť | nepoužitá, chýbajú popisy ukazovateľov | overiť význam kódov do3806rr u ŠÚ SR alebo MV SR |
+| Ceny bývania oproti príjmu (F18) | chýba | ceny NBS sú len za kraje; zvážiť Realitný barometer pre ~30 miest |
+| Údaje o dome a byte (F17) | chýba | z inzerátu (energetická trieda, rok, stav) |
 
 ## 12. Verzie
 
 | Verzia | Dátum | Zmena |
 |---|---|---|
+| 0.5 | 18. 10. 2026 | Doplnené F16 (kriminalita za kraj), F17 (obyvatelia na obývaný byt v obci, sčítanie 2021), F18 (mzda a nezamestnanosť v okrese); štatistiky hodnotené percentilom medzi územiami SR; adresy priradené k územiam cez hranice OSM s úradnými kódmi; index prostredia a profil Rodina sa na Slovensku počítajú. |
 | 0.4 | 18. 10. 2026 | Rodina je profil nad 8 aspektmi WHOQOL (počíta sa pri aspoň 75 % váhy); AHP určuje len rozdiely medzi profilmi (rodina, senior, bez auta), nie index; Zeleň s rovnakými váhami troch častí; overovacia štúdia presunutá medzi voliteľné budúce kroky. |
 | 0.3 | 18. 10. 2026 | Rámec podľa oblasti Prostredie WHOQOL-BREF: profil 8 aspektov F16–F23, aspekt = priemer ukazovateľov, index = priemer aspektov, len pri aspoň 6 z 8 (pravidlo WHOQOL-BREF); nové ukazovatele knižnica, športovisko, kultúra; návrh overovacej štúdie; licencia. |
 | 0.2 | 18. 10. 2026 | Rovnaké váhy namiesto odhadu pre Zeleň a Rodinu; pre deti rovnaká krivka chôdze ako pre dospelých (bez vymyslených prahov); les alebo park podľa ANGSt (20 ha do 2 km) namiesto 10 ha do 1 km; Pokoj označený ako orientačný; električky a cesty III. triedy; rozpis výpočtu; AHP panel. |
 | 0.1 | 18. 10. 2026 | Prvý prototyp. |
 
 ## Literatúra
+
+- ŠÚ SR, DATAcube: np3110rr (mzdy podľa okresov), om7102rr (obyvateľstvo), sk3003rr (kriminalita podľa krajov).
+- ÚPSVaR: mesačná štatistika o počte a štruktúre uchádzačov o zamestnanie (tabuľka 1).
+- ŠÚ SR: Sčítanie obyvateľov, domov a bytov 2021, Štatistický lexikón obcí Slovenskej republiky.
 
 - WHO, Programme on Mental Health (1996): *WHOQOL-BREF: Introduction, Administration, Scoring and Generic Version of the Assessment. Field Trial Version.* Ženeva.
 - The WHOQOL Group (1998): Development of the World Health Organization WHOQOL-BREF quality of life assessment. *Psychological Medicine* 28(3).

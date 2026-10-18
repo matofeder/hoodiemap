@@ -83,6 +83,8 @@ function render(result, label) {
   $('sk-result').hidden = false;
 }
 
+const REGION_KEYS = new Set(['crime', 'persons_per_dwelling', 'wage', 'unemployment']);
+
 function renderWhoqol(w) {
   $('sk-facets').replaceChildren(...w.facets.map((f) => {
     const meter = el('div', { className: 'sk-meter' }, [el('i', { style: `width:${f.score ?? 0}%` })]);
@@ -90,7 +92,9 @@ function renderWhoqol(w) {
     meter.setAttribute('aria-label', f.score == null ? 'chýbajú dáta' : `${f.score} zo 100`);
     const detail = f.score == null
       ? `Chýbajú dáta. Plán: ${f.planned}.`
-      : f.breakdown.map((r) => `${r.label} ${Math.round(r.sub_score)}`).join(' · ');
+      : f.breakdown.map((r) => (REGION_KEYS.has(r.key)
+        ? `${r.label} ${Math.round(r.sub_score)} (${r.fact.split(';')[0]})`
+        : `${r.label} ${Math.round(r.sub_score)}`)).join(' · ');
     return el('div', { className: `sk-facet${f.score == null ? ' is-empty' : ''}` }, [
       el('span', { className: 'sk-facet-id', textContent: f.id }),
       el('span', { className: 'sk-facet-label' }, [f.label, ...(f.status && f.score != null ? [el('span', { className: 'sk-badge', textContent: f.status })] : [])]),
@@ -131,6 +135,7 @@ async function loadMethod() {
       ['Chôdza', `Vzdušnú vzdialenosť násobíme ${String(m.walking.detour).replace('.', ',')}, aby zodpovedala ceste po uliciach, a rátame ${m.walking.m_per_min} m za minútu.`, m.walking.source],
       ['Zeleň', `Tri časti: verejná zeleň aspoň ${String(m.green.min_ha).replace('.', ',')} ha do 300 m, podiel zelene do ${m.green.cover_radius_m} m (cieľ ${Math.round(m.green.cover_target * 100)} %) a prírodná zeleň aspoň 20 ha do 2 km. Váhy: ${m.green.weights_source}.`, m.green.source],
       ['Profil prostredia (WHOQOL)', `Osem aspektov oblasti Prostredie z dotazníka WHOQOL-BREF. Aspekt je priemer jeho ukazovateľov, index prostredia priemer aspektov, počítaný len pri dátach pre aspoň ${m.whoqol.min_facets} z 8 aspektov.`, m.whoqol.source],
+      ['Štatistiky území', 'Bezpečnosť (kriminalita za kraj), domáce prostredie (obyvatelia na obývaný byt v obci, sčítanie 2021) a finančné podmienky (mzdy a nezamestnanosť v okrese). Hodnotíme ich poradím medzi všetkými územiami SR: 100 = najlepšie, 0 = najhoršie.', m.whoqol.percentile_source],
       ['Rodina', `Profil: aspekty WHOQOL vážené pre rodinu s deťmi. Váhy: ${m.profiles.rodina.weights.source}. Počíta sa, keď aspekty s dátami tvoria aspoň ${Math.round(m.profile_min_weight * 100)} % váhy.`, m.whoqol.weights_source],
       ['Pokoj (orientačné)', 'Od 100 odpočítavame body za blízkosť diaľnice, ciest I. až III. triedy, železnice, električky a barov do 150 m.', m.quiet.source],
     ];

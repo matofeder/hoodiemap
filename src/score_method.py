@@ -12,7 +12,7 @@ from pathlib import Path
 
 import ahp
 
-VERSION = "0.4 (2026-10-18)"
+VERSION = "0.5 (2026-10-18)"
 WEIGHTS_FILE = Path(__file__).parent.parent / "methodology" / "weights.json"
 EQUAL_SOURCE = ("rovnaké váhy aspektov (ako index WHOQOL-BREF a predvolený postup OECD/JRC 2008), "
                 "kým neodpovie expertný panel metódou AHP")
@@ -113,7 +113,8 @@ def method() -> dict:
         "ahp_sets": AHP_SETS,
         "bands": BANDS, "bands_source": BANDS_SOURCE,
         "whoqol": {"facets": WHOQOL_FACETS, "indicators": FACET_INDICATORS, "min_facets": WHOQOL_MIN_FACETS,
-                   "source": WHOQOL_SOURCE, "weights_source": FACET_WEIGHTS_SOURCE},
+                   "source": WHOQOL_SOURCE, "weights_source": FACET_WEIGHTS_SOURCE,
+                   "percentile_source": PERCENTILE_SOURCE},
         "data": "Dáta: OpenStreetMap (© prispievatelia OpenStreetMap, ODbL). Chýbajúce alebo neoznačené miesta skóre znižujú.",
     }
 
@@ -128,12 +129,12 @@ WHOQOL_SOURCE = ("WHOQOL-BREF, oblasť 4 Prostredie (WHO, Programme on Mental He
 WHOQOL_MIN_FACETS = 6   # WHOQOL-BREF computes domain 4 with MEAN.6: at least 6 of its 8 items
 
 WHOQOL_FACETS = {
-    "F16": {"label": "Bezpečnosť", "item": "Q8", "indicators": [],
-            "planned": "kriminalita a dopravné nehody podľa okresov (Polícia SR)"},
-    "F17": {"label": "Domáce prostredie", "item": "Q23", "indicators": [],
+    "F16": {"label": "Bezpečnosť", "item": "Q8", "indicators": ["crime"],
+            "planned": "kriminalita podľa okresov (MV SR ju v tabuľkách nezverejňuje), dopravné nehody (po overení ukazovateľov)"},
+    "F17": {"label": "Domáce prostredie", "item": "Q23", "indicators": ["persons_per_dwelling"],
             "planned": "údaje o dome a byte z inzerátu (energetická trieda, rok, stav)"},
-    "F18": {"label": "Finančné podmienky", "item": "Q12", "indicators": [],
-            "planned": "mzdy a nezamestnanosť v okrese, ceny bývania oproti príjmu (ŠÚ SR, ÚPSVaR, NBS)"},
+    "F18": {"label": "Finančné podmienky", "item": "Q12", "indicators": ["wage", "unemployment"],
+            "planned": "ceny bývania oproti príjmu (ceny len za kraje)"},
     "F19": {"label": "Zdravotná a sociálna starostlivosť", "item": "Q24", "indicators": ["doctors", "pharmacy"],
             "planned": "nemocnica, zariadenia sociálnych služieb"},
     "F20": {"label": "Informácie a vzdelávanie", "item": "Q13",
@@ -162,7 +163,14 @@ FACET_INDICATORS = {
     "quiet":          {"label": "Pokoj (orientačné)", "how": "skóre Pokoj"},
     "walk":           {"label": "Pešia dostupnosť služieb", "how": "skóre Pešo"},
     "transit":        {"label": "Zastávka MHD alebo vlak", "how": "vzdialenosť, krivka chôdze"},
+    "crime":          {"label": "Trestné činy na 1 000 obyvateľov (kraj)", "how": "percentil medzi krajmi, menej = lepšie"},
+    "persons_per_dwelling": {"label": "Obyvatelia na obývaný byt (obec)", "how": "percentil medzi obcami, menej = lepšie"},
+    "wage":           {"label": "Priemerná mzda (okres)", "how": "percentil medzi okresmi, viac = lepšie"},
+    "unemployment":   {"label": "Nezamestnanosť (okres)", "how": "percentil medzi okresmi, menej = lepšie"},
 }
+REGION_INDICATORS = ("crime", "persons_per_dwelling", "wage", "unemployment")
+PERCENTILE_SOURCE = ("štatistiky bez normy hodnotíme percentilom medzi všetkými územiami SR rovnakej úrovne: "
+                     "0 = najhoršie, 100 = najlepšie územie (rovnaké hodnoty dostanú stredné poradie)")
 FACET_WEIGHTS_SOURCE = ("indikátory v aspekte aj aspekty v indexe s rovnakou váhou: WHOQOL-BREF počíta oblasť ako priemer "
                         "položiek; váhy vnútri aspektu môže neskôr určiť AHP panel")
 

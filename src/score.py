@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from shapely.geometry import LineString, Point, Polygon
 from shapely.ops import linemerge, polygonize, unary_union
 
+import regions
 import score_method as M
 from geo import haversine_m, square_bbox, to_local
 
@@ -382,7 +383,13 @@ def score_quiet(places: list[Place], shapes: Shapes) -> dict:
             "weights_method": "penalties", "status": M.QUIET_STATUS}
 
 
-def whoqol_profile(places: list[Place], scores: dict) -> dict:
+def _region_fact(r: dict) -> str:
+    value = f"{r['value']:g}".replace(".", ",")
+    return (f"{r['region']}: {value} {r['unit']} ({r['period']}), lepšie ako {r['better_than_pct']} % "
+            f"z {r['n_regions']} území; {r['source']}")
+
+
+def whoqol_profile(places: list[Place], scores: dict, place: dict | None = None) -> dict:
     """The eight WHOQOL-BREF environment facets: each the mean of its indicators, the index the mean of the
     facets, computed only when at least 6 of 8 facets have data (WHOQOL-BREF's own rule for domain 4)."""
     green = {r["key"]: r for r in scores["green"]["breakdown"]}
@@ -396,15 +403,20 @@ def whoqol_profile(places: list[Place], scores: dict) -> dict:
         subs[key] = (green[key]["sub_score"], green[key]["fact"])
     subs["quiet"] = (float(scores["quiet"]["score"]), f"skóre Pokoj {scores['quiet']['score']} (orientačné)")
     subs["walk"] = (float(scores["walk"]["score"]), f"skóre Pešo {scores['walk']['score']}")
+    for key in M.REGION_INDICATORS:
+        r = regions.indicator(key, place) if place else None
+        if r:
+            subs[key] = (r["sub_score"], _region_fact(r))
 
     facets = []
     for fid, spec in M.WHOQOL_FACETS.items():
-        keys = spec["indicators"]
+        keys = [k for k in spec["indicators"] if k in subs]  # regional statistics exist only inside Slovakia
         rows = [_row(k, M.FACET_INDICATORS[k]["label"], subs[k][0], 1 / len(keys), subs[k][1]) for k in keys]
         score = round(sum(r["sub_score"] * r["weight"] for r in rows)) if rows else None
         facets.append({"id": fid, "label": spec["label"], "item": spec["item"], "score": score,
                        "breakdown": rows, "planned": spec["planned"],
-                       "status": "chýbajú dáta" if not rows else ("orientačné" if "quiet" in keys else None)})
+                       "status": "chýbajú dáta" if not rows else ("orientačné" if "quiet" in keys
+                                                                  else "len za kraj" if keys == ["crime"] else None)})
     have = [f for f in facets if f["score"] is not None]
     index = round(sum(f["score"] for f in have) / len(have)) if len(have) >= M.WHOQOL_MIN_FACETS else None
     return {"facets": facets, "index": index, "facets_with_data": len(have), "facets_total": len(facets),
@@ -416,7 +428,8 @@ def compute(osm: dict, lat: float, lon: float) -> dict:
     green = score_green(shapes)
     transit = _nearest(places, "transit")
     scores = {"walk": score_walk(places), "green": green, "quiet": score_quiet(places, shapes)}
-    whoqol = whoqol_profile(places, scores)
+    place = regions.locate(lat, lon)
+    whoqol = whoqol_profile(places, scores, place)
     profiles = {pid: score_profile(pid, whoqol["facets"]) for pid in M.PROFILES}
     scores["family"] = profiles["rodina"]
     scores = {k: scores[k] for k in ("walk", "green", "family", "quiet")}
@@ -424,6 +437,7 @@ def compute(osm: dict, lat: float, lon: float) -> dict:
         "lat": lat, "lon": lon,
         "scores": scores,
         "whoqol": whoqol,
+        "region": place,
         "profiles": profiles,
         "transit": _fact("Zastávka MHD alebo vlak", transit[0]) if transit else None,
         "method_version": M.VERSION,
