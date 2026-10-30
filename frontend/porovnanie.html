@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HoodieMap porovnanie adries</title>
+  <meta name="description" content="Porovnajte 2 až 5 adries: Index HoodieMap, okolie adresy a štatistiky územia, každé číslo s výpočtom, normou a zdrojom." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Figtree:wght@400;500;600;700&display=swap" />
+</head>
+<body class="sk">
+  <header class="sk-bar">
+    <a class="sk-brand" href="/skore">HoodieMap</a>
+    <span class="sk-proto">Prototyp</span>
+  </header>
+
+  <main class="sk-page">
+    <section class="sk-intro">
+      <h1>Porovnanie adries</h1>
+      <p class="sk-lede">Pridajte 2 až 5 adries. Pri každej ukážeme rovnaké výpočty: Index HoodieMap, okolie adresy (Pešo, deti a zdravie, doprava, zeleň, pokoj) a štatistiky územia. Kliknutím na oblasť uvidíte ukazovatele a fakty, z ktorých vznikla.</p>
+      <form id="cmp-form" class="sk-search" role="search" novalidate>
+        <label for="cmp-q" class="sk-sr">Adresa</label>
+        <input id="cmp-q" type="search" autocomplete="off" maxlength="200" placeholder="Ulica a číslo, mesto" />
+        <button type="submit">Pridať adresu</button>
+      </form>
+      <div class="sk-examples" aria-label="Ukážky">
+        <span>Skúste:</span>
+        <button type="button" data-set="pezinok">Pezinok: centrum, Muškát, Viničné</button>
+        <button type="button" data-set="all">+ Bratislava, Nám. SNP</button>
+      </div>
+      <p id="cmp-state" class="sk-state" role="status"></p>
+    </section>
+
+    <section id="cmp-result" class="cmp-result" hidden aria-labelledby="cmp-title">
+      <div class="cmp-head">
+        <h2 id="cmp-title">Porovnanie</h2>
+        <button type="button" id="cmp-share" class="cmp-share">Kopírovať odkaz</button>
+      </div>
+      <p class="cmp-swipe sk-muted">Ďalšie adresy posuňte do strany →</p>
+      <div class="cmp-wrap">
+        <table id="cmp-table" class="cmp-table"></table>
+      </div>
+      <p class="sk-muted cmp-legend">Čísla sú 0 až 100, viac je lepšie. <b>Tučne</b> je najlepšia hodnota v riadku. Okolie hodnotíme podľa noriem (Walk Score, WHO: zeleň do 300 m), územie podľa rámca OECD Regional Well-Being poradím medzi územiami Slovenska. Normu každej oblasti a celý výpočet adresy otvorí odkaz v hlavičke stĺpca.<span id="cmp-planned"></span></p>
+    </section>
+  </main>
+
+  <footer class="sk-foot">
+    <p>Dáta © prispievatelia <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> (ODbL), ŠÚ SR, ÚPSVaR. Chýbajúce alebo neoznačené miesta skóre znižujú. Nie je to znalecký posudok.</p>
+  </footer>
+
+  <script type="module" src="/src/porovnanie/main.js"></script>
+</body>
+</html>

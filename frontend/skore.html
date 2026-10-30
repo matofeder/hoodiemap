@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HoodieMap skóre adresy</title>
+  <meta name="description" content="Index HoodieMap, Pešo, Zeleň a Pokoj: skóre 0 až 100 pre akúkoľvek adresu na Slovensku, z verejných dát, s normami a zdrojmi." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Figtree:wght@400;500;600;700&display=swap" />
+</head>
+<body class="sk">
+  <header class="sk-bar">
+    <span class="sk-brand">HoodieMap</span>
+    <span class="sk-proto">Prototyp</span>
+  </header>
+
+  <main class="sk-page">
+    <section class="sk-intro">
+      <h1>Ako sa tu žije?</h1>
+      <p class="sk-lede">Zadajte adresu. Ukážeme, čo vybavíte pešo, koľko je okolo zelene, aký je tam pokoj a ako si stojí obec a okres v štatistikách. Pri každom čísle ukážeme fakty a normu, z ktorých vzniklo.</p>
+      <form id="sk-form" class="sk-search" role="search" novalidate>
+        <label for="sk-q" class="sk-sr">Adresa</label>
+        <input id="sk-q" type="search" autocomplete="off" maxlength="200" placeholder="Ulica a číslo, mesto" />
+        <button type="submit">Zistiť skóre</button>
+      </form>
+      <div class="sk-examples" aria-label="Ukážky">
+        <span>Skúste:</span>
+        <button type="button" data-lat="48.28646434486518" data-lon="17.27221245956356" data-label="Záhradná, Pezinok">Pezinok, centrum</button>
+        <button type="button" data-lat="48.2967070" data-lon="17.2784455" data-label="Veltlínska 2, Pezinok">Pezinok, Muškát</button>
+        <button type="button" data-lat="48.2714954" data-lon="17.3017308" data-label="Viničné">Viničné</button>
+        <button type="button" data-lat="48.1450720" data-lon="17.1121379" data-label="Námestie SNP, Bratislava">Bratislava, Nám. SNP</button>
+      </div>
+      <p id="sk-state" class="sk-state" role="status"></p>
+    </section>
+
+    <section id="sk-result" class="sk-result" hidden aria-live="polite">
+      <div class="sk-result-head">
+        <h2 id="sk-title"></h2>
+        <span class="sk-links"><a id="sk-compare" class="sk-link">Porovnať s inou adresou</a> <a id="sk-map" class="sk-link">Pozrieť 3D okolie ↗</a></span>
+      </div>
+      <div id="sk-tiles" class="sk-tiles"></div>
+      <p id="sk-transit" class="sk-transit"></p>
+      <div id="sk-details" class="sk-details"></div>
+      <section class="sk-areas" aria-labelledby="areas-title">
+        <h3 id="areas-title">Index HoodieMap po oblastiach</h3>
+        <p class="sk-muted">Len objektívne údaje, každý ukazovateľ voči norme alebo rámcu: okolie adresy podľa Walk Score a noriem WHO, územie podľa rámca OECD Regional Well-Being. Index je priemer oblastí.</p>
+        <div id="sk-area-list" class="sk-area-list"></div>
+        <p id="sk-index" class="sk-index"></p>
+      </section>
+    </section>
+
+    <section class="sk-method" aria-labelledby="method-title">
+      <details id="sk-method">
+        <summary><h2 id="method-title">Ako počítame</h2></summary>
+        <div id="sk-method-body" class="sk-method-body"><p class="sk-muted">Načítavam metodiku…</p></div>
+      </details>
+    </section>
+  </main>
+
+  <footer class="sk-foot">
+    <p>Dáta © prispievatelia <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> (ODbL). Chýbajúce alebo neoznačené miesta skóre znižujú. Nie je to znalecký posudok.</p>
+  </footer>
+
+  <script type="module" src="/src/skore/main.js"></script>
+</body>
+</html>

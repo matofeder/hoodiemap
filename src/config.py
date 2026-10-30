@@ -1,3 +1,5 @@
+import os
+from functools import lru_cache
 from pathlib import Path
 
 import yaml
@@ -55,6 +57,47 @@ class CacheConfig(BaseModel):
     dir: str = ".cache"
 
 
+class StorageConfig(BaseModel):
+    dir: str = "data"  # uploaded photos
+
+
+class DatabaseConfig(BaseModel):
+    url: str = "postgresql://hoodiemap:hoodiemap@localhost:5432/hoodiemap"  # docker-compose up -d postgres
+    url_env: str = "HOODIEMAP_DATABASE_URL"  # overrides `url` when set (production credentials)
+
+    def resolved_url(self) -> str:
+        return os.environ.get(self.url_env) or self.url
+
+
+class LlmConfig(BaseModel):
+    """Any OpenAI-compatible chat API (DeepSeek, Qwen/DashScope, Kimi, GLM, a local server…)."""
+    base_url: str | None = None  # e.g. https://api.deepseek.com/v1 ; None = AI text off
+    model: str = ""
+    api_key_env: str = "HOODIEMAP_LLM_API_KEY"  # the key itself never goes into config.yaml
+    timeout_s: float = 90.0
+
+
+class SttConfig(BaseModel):
+    """Any OpenAI-compatible /audio/transcriptions server (faster-whisper-server, speaches, whisper.cpp…)."""
+    base_url: str | None = None  # e.g. http://localhost:8001/v1 ; None = voice input off
+    model: str = ""
+    language: str = "sk"
+    api_key_env: str = "HOODIEMAP_STT_API_KEY"  # optional; local servers usually need none
+    timeout_s: float = 180.0
+
+
+class AiConfig(BaseModel):
+    llm: LlmConfig = Field(default_factory=LlmConfig)
+    stt: SttConfig = Field(default_factory=SttConfig)
+
+
+class LandingConfig(BaseModel):
+    """The /prever demand test. Without an operator the sign-up form stays off (GDPR: who collects the e-mails)."""
+    operator: str | None = None        # e.g. "Matej Feder, IČO 12345678, Pezinok"
+    contact_email: str | None = None   # where people ask about or delete their data
+    price_variants: list[str] = Field(default_factory=lambda: ["9", "19"])  # € shown, one per visitor at random
+
+
 class ApiConfig(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8000
@@ -75,6 +118,10 @@ class Config(BaseModel):
     radii: RadiiConfig = Field(default_factory=RadiiConfig)
     poi: PoiConfig = Field(default_factory=PoiConfig)
     cache: CacheConfig = Field(default_factory=CacheConfig)
+    storage: StorageConfig = Field(default_factory=StorageConfig)
+    database: DatabaseConfig = Field(default_factory=DatabaseConfig)
+    ai: AiConfig = Field(default_factory=AiConfig)
+    landing: LandingConfig = Field(default_factory=LandingConfig)
     api: ApiConfig = Field(default_factory=ApiConfig)
     geocode: GeocodeConfig = Field(default_factory=GeocodeConfig)
     overpass: OverpassConfig = Field(default_factory=OverpassConfig)
@@ -84,3 +131,12 @@ def load_config(path: str | Path = "config.yaml") -> Config:
     with open(path, encoding="utf-8") as f:
         data = yaml.safe_load(f)
     return Config.model_validate(data)
+
+
+DEFAULT_CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
+
+
+@lru_cache(maxsize=1)
+def get_config() -> Config:
+    """The app's config.yaml, loaded once."""
+    return load_config(DEFAULT_CONFIG_PATH)

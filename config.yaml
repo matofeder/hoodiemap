@@ -32,6 +32,26 @@ cache:
   enabled: true
   dir: .cache
 
+storage:
+  dir: data             # uploaded photos (presentations live in Postgres)
+
+database:               # $HOODIEMAP_DATABASE_URL overrides url
+  url: postgresql://hoodiemap:hoodiemap@localhost:5432/hoodiemap   # docker-compose up -d postgres
+
+ai:
+  llm:                  # OpenAI-compatible chat API; key from $HOODIEMAP_LLM_API_KEY
+    base_url: null      # e.g. https://api.deepseek.com/v1 ; null = AI text off
+    model: ""           # e.g. deepseek-chat
+  stt:                  # OpenAI-compatible /audio/transcriptions (local whisper server)
+    base_url: null      # e.g. http://localhost:8001/v1 ; null = voice input off
+    model: ""           # the model name your server expects
+    language: sk
+
+landing:                # /prever demand test; the sign-up form stays off until operator and contact_email are set
+  operator: null        # e.g. "Matej Feder, IČO …, Pezinok": shown as who collects the e-mails
+  contact_email: null
+  price_variants: ["9", "19"]
+
 api:
   host: "0.0.0.0"
   port: 8000

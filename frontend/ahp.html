@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Expertný panel · HoodieMap</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Figtree:wght@400;500;600;700&display=swap" />
+</head>
+<body class="ed">
+  <header class="ed-bar"><span class="ed-brand">HoodieMap</span><span class="ed-muted">Expertný panel</span></header>
+  <main class="ed-page ed-narrow">
+    <div class="ed-head">
+      <h1>Čo je pri bývaní dôležitejšie?</h1>
+      <p class="ed-muted">Z vašich odpovedí vypočítame, ako dôležitá je každá z 9 oblastí Indexu HoodieMap (okolie adresy a štatistiky územia) pre rodinu s deťmi, seniora a domácnosť bez auta. Metóda AHP: vždy porovnáte len dve veci naraz. Jeden profil má 28 porovnaní, asi 8 minút.</p>
+    </div>
+    <section class="ed-card ahp-how">
+      <h2>Ako odpovedať</h2>
+      <ul>
+        <li>Pri každej dvojici kliknite bližšie k tomu, čo je podľa vás dôležitejšie. Stred znamená rovnako dôležité.</li>
+        <li>Myslite na bežnú rodinu alebo domácnosť na Slovensku, nie na seba.</li>
+        <li>Po vyplnení sady uvidíte výsledné váhy. Ak si odpovede v niečom protirečia (napríklad A &gt; B, B &gt; C, ale C &gt; A), zvýrazníme porovnanie, ktoré najviac nesedí.</li>
+        <li>V metodike zverejníme len vašu rolu, nie meno.</li>
+      </ul>
+    </section>
+    <form id="ahp-form" class="ed-form" novalidate>
+      <fieldset>
+        <legend>O vás</legend>
+        <div class="ed-row">
+          <div><label for="a-name">Meno</label><input id="a-name" autocomplete="name" maxlength="120" required /></div>
+          <div><label for="a-role">Rola</label><input id="a-role" list="roles" maxlength="120" required placeholder="napr. urbanista" /></div>
+        </div>
+        <datalist id="roles">
+          <option value="urbanista / urbanistka"></option><option value="realitný znalec"></option>
+          <option value="hypotekárny špecialista"></option><option value="sociológ / sociologička"></option>
+          <option value="odborník na verejné zdravie"></option><option value="realitný maklér"></option>
+          <option value="rodič"></option><option value="zástupca samosprávy"></option>
+        </datalist>
+        <label for="a-code">Kód panelu</label>
+        <input id="a-code" autocomplete="off" required />
+      </fieldset>
+      <div id="ahp-sets" class="ahp-sets"></div>
+      <div class="ed-save">
+        <ul id="ahp-problems" class="ed-problems" role="alert" hidden></ul>
+        <button id="ahp-submit" type="submit">Odoslať odpovede</button>
+        <p id="ahp-state" class="ed-muted" role="status"></p>
+      </div>
+    </form>
+  </main>
+  <script type="module" src="/src/ahp/main.js"></script>
+</body>
+</html>

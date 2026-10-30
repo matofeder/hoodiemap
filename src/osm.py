@@ -64,6 +64,9 @@ _AREA_FILTERS = [
 ]
 
 
+AREA_FAILED_DETAIL = "Could not load map data from OpenStreetMap. Try again in a minute."
+
+
 class OverpassError(RuntimeError):
     """All Overpass endpoints failed for a query."""
 

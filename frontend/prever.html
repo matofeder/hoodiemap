@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Preverte byt pred kúpou · HoodieMap</title>
+  <meta name="description" content="Vložte odkaz na inzerát a pozrite si cenu v porovnaní s mestom, dom a správcu, okolie, plány v okolí a čo si vypýtať od predávajúceho." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Figtree:wght@400;500;600;700&display=swap" />
+</head>
+<body class="ld">
+  <header class="ld-bar">
+    <span class="ld-brand">HoodieMap</span>
+    <a class="ld-bar-link" href="#co-najdete">Čo v správe nájdete</a>
+  </header>
+
+  <main>
+    <section class="ld-hero" aria-labelledby="hero-title">
+      <div class="ld-hero-text">
+        <p class="ld-kicker">Pred obhliadkou, pred rezerváciou</p>
+        <h1 id="hero-title">Je to dobrá kúpa? Preverte byt skôr, než podpíšete.</h1>
+        <p class="ld-lede">Vložte odkaz na inzerát. Ukážeme cenu v porovnaní s mestom, dom a jeho správcu, okolie, plány v okolí a čo si vypýtať od predávajúceho.</p>
+        <form class="ld-cta" data-cta novalidate>
+          <label for="hero-url" class="ld-sr">Odkaz na inzerát</label>
+          <input id="hero-url" type="url" inputmode="url" placeholder="https://www.nehnutelnosti.sk/detail/…" autocomplete="off" />
+          <button type="submit">Preveriť byt</button>
+        </form>
+        <p class="ld-price"><span data-price>Správa za 9 €</span> · výsledok do pár minút · funguje s nehnutelnosti.sk</p>
+      </div>
+
+      <figure class="ld-sample" aria-label="Ukážka správy">
+        <div class="ld-sample-head">
+          <span class="ld-sample-kicker">Ukážka správy</span>
+          <strong>3-izbový byt, Pezinok</strong>
+          <span class="ld-muted">72 m² · 4. poschodie · rok 1987</span>
+        </div>
+        <div class="ld-signal"><i class="warn"></i><span>Cena za m² je <b>o 18 % nad</b> priemerom mesta</span></div>
+        <div class="ld-signal"><i class="ask"></i><span>Chýba energetická trieda a správca domu</span></div>
+        <div class="ld-signal"><i class="ok"></i><span>Obchod, lekáreň a škola do 3 minút pešo</span></div>
+        <div class="ld-meter" role="img" aria-label="Cena bytu oproti priemeru mesta">
+          <span class="ld-meter-track"><i class="city" style="left:51%"></i><i class="this" style="left:78%"></i></span>
+          <span class="ld-meter-legend"><span>priemer mesta 3 019 €/m²</span><span>tento byt 3 556 €/m²</span></span>
+        </div>
+        <figcaption class="ld-muted">Vymyslený inzerát; vzdialenosti a priemer mesta sú skutočné.</figcaption>
+      </figure>
+    </section>
+
+    <section id="co-najdete" class="ld-section" aria-labelledby="what-title">
+      <h2 id="what-title">Čo v správe nájdete</h2>
+      <div class="ld-tiles">
+        <article><span class="ld-tile-mark" style="--c:#D63E44"></span><h3>Cena v kontexte</h3><p>Cena za m² oproti priemeru mesta a kraja a ako sa ceny v meste menili za posledný rok.</p></article>
+        <article><span class="ld-tile-mark" style="--c:#4A90D9"></span><h3>Dom a správca</h3><p>Rok, podlažia, výťah, energetika. Či je správca v štátnom registri, či dostal pokuty a ako ho hodnotia ľudia.</p></article>
+        <article><span class="ld-tile-mark" style="--c:#3E9E6B"></span><h3>Okolie</h3><p>3D mapa a presné vzdialenosti: obchod, škola, škôlka, lekár, MHD, park. Čas pešo aj autom.</p></article>
+        <article><span class="ld-tile-mark" style="--c:#F2A541"></span><h3>Susedstvo v číslach</h3><p>Aké je to tam bývať: vekové zloženie, nočný život v okolí, krátkodobé prenájmy. Len súhrnné čísla.</p></article>
+        <article><span class="ld-tile-mark" style="--c:#7B5EA7"></span><h3>Plány v okolí</h3><p>Nové stavby a zámery v posudzovaní, investície mesta, veľké stavby ciest. Zatiaľ Bratislava a Pezinok.</p></article>
+        <article><span class="ld-tile-mark" style="--c:#56657A"></span><h3>Čo si vypýtať</h3><p>Zoznam dokladov pred podpisom: list vlastníctva a ťarchy, dlhy na byte, fond opráv, zápisnice zo schôdzí.</p></article>
+      </div>
+    </section>
+
+    <section class="ld-section ld-steps-wrap" aria-labelledby="how-title">
+      <h2 id="how-title">Ako to funguje</h2>
+      <ol class="ld-steps">
+        <li><b>Vložte odkaz</b><span>Z inzerátu, ktorý zvažujete. Stačí aj adresa bytu.</span></li>
+        <li><b>Pozbierame údaje</b><span>Z inzerátu, verejných registrov, štatistík a mapových dát.</span></li>
+        <li><b>Dostanete správu</b><span>Na webe a v PDF, so zoznamom otázok na obhliadku.</span></li>
+      </ol>
+    </section>
+
+    <section class="ld-section ld-honest" aria-labelledby="honest-title">
+      <h2 id="honest-title">Čo vám povieme otvorene</h2>
+      <ul>
+        <li><b>Skutočné predajné ceny na Slovensku verejne nie sú.</b> Kataster ich eviduje, ale nezverejňuje. Porovnávame s cenami v meste a so štatistikami a vždy napíšeme, odkiaľ číslo je.</li>
+        <li><b>Nie sme znalci.</b> Správa nenahrádza znalecký posudok pre banku ani právnika pri zmluve. Pomôže vám rozhodnúť sa, či ísť ďalej.</li>
+        <li><b>O susedoch nič osobné.</b> Žiadne mená ani profily ľudí, len súhrnné čísla o okolí.</li>
+      </ul>
+    </section>
+
+    <section class="ld-section ld-final" aria-labelledby="final-title">
+      <h2 id="final-title">Zvažujete konkrétny byt?</h2>
+      <form class="ld-cta" data-cta novalidate>
+        <label for="final-url" class="ld-sr">Odkaz na inzerát</label>
+        <input id="final-url" type="url" inputmode="url" placeholder="https://www.nehnutelnosti.sk/detail/…" autocomplete="off" />
+        <button type="submit">Preveriť byt</button>
+      </form>
+      <p class="ld-price"><span data-price>Správa za 9 €</span></p>
+    </section>
+
+    <section class="ld-section ld-faq" aria-labelledby="faq-title">
+      <h2 id="faq-title">Otázky</h2>
+      <details><summary>Odkiaľ sú údaje?</summary><p>Z inzerátu, z OpenStreetMap, z Realitného barometra Realitnej únie, Národnej banky Slovenska a Štatistického úradu, zo zoznamu správcov bytových domov Ministerstva dopravy a z verejných dokumentov miest. Pri každom čísle uvádzame zdroj.</p></details>
+      <details><summary>S ktorými portálmi to funguje?</summary><p>Zatiaľ s nehnutelnosti.sk. Ďalšie portály pridáme podľa záujmu; vždy môžete zadať aj len adresu.</p></details>
+      <details><summary>Je to znalecký posudok?</summary><p>Nie. Posudok pre hypotéku vypracuje znalec, ktorého určí banka. Naša správa je pred tým: pomôže vám rozhodnúť, či o byt ďalej bojovať a na čo sa pýtať.</p></details>
+      <details><summary>Môžem si to preveriť sám?</summary><p>Áno, všetko je z verejných zdrojov. Správa vám ušetrí hodiny hľadania na desiatich weboch a pripomenie veci, na ktoré sa ľahko zabudne.</p></details>
+    </section>
+  </main>
+
+  <footer class="ld-foot">
+    <p id="operator-line" class="ld-muted"></p>
+    <p class="ld-muted">Mapové dáta © prispievatelia OpenStreetMap.</p>
+  </footer>
+
+  <dialog id="signup" class="ld-dialog" aria-labelledby="signup-title">
+    <form id="signup-form" method="dialog" novalidate>
+      <button type="button" class="ld-close" data-close aria-label="Zavrieť">×</button>
+      <div id="signup-body" class="ld-dialog-body">
+        <p class="ld-kicker">Spúšťame čoskoro</p>
+        <h2 id="signup-title">Ešte to dolaďujeme</h2>
+        <p>Správu zatiaľ skladáme pre prvých záujemcov. Nechajte e-mail a <b>vašu prvú správu dostanete zadarmo</b>, hneď ako bude pripravená. Neplatíte nič.</p>
+        <label for="s-email">E-mail</label>
+        <input id="s-email" type="email" autocomplete="email" required maxlength="200" />
+        <label for="s-url">Inzerát, ktorý zvažujete <span class="ld-muted">(nepovinné)</span></label>
+        <input id="s-url" type="url" inputmode="url" maxlength="500" placeholder="https://www.nehnutelnosti.sk/detail/…" />
+        <fieldset class="ld-radios">
+          <legend>Kedy plánujete kúpu?</legend>
+          <label for="s-t3"><input id="s-t3" type="radio" name="timeframe" value="3m" /> do 3 mesiacov</label>
+          <label for="s-t12"><input id="s-t12" type="radio" name="timeframe" value="12m" /> do roka</label>
+          <label for="s-tb"><input id="s-tb" type="radio" name="timeframe" value="browsing" /> zatiaľ sa len pozerám</label>
+        </fieldset>
+        <div class="ld-hp" aria-hidden="true"><label for="s-website">Web</label><input id="s-website" tabindex="-1" autocomplete="off" /></div>
+        <label class="ld-consent" for="s-consent"><input id="s-consent" type="checkbox" required />
+          <span id="consent-text">Súhlasím, aby ste mi na tento e-mail poslali správu a oznámili spustenie.</span></label>
+        <p id="s-error" class="ld-error" role="alert" hidden></p>
+        <button id="s-submit" type="submit" class="ld-primary">Chcem prvú správu zadarmo</button>
+        <p id="s-closed" class="ld-error" hidden>Prihlasovanie ešte nie je otvorené. Skúste to prosím neskôr.</p>
+      </div>
+      <div id="signup-done" class="ld-dialog-body" hidden>
+        <p class="ld-kicker">Hotovo</p>
+        <h2>Ďakujeme, ozveme sa</h2>
+        <p>Keď bude vaša správa pripravená, pošleme ju na váš e-mail. Ak ste pridali odkaz na inzerát, začneme práve ním.</p>
+        <button type="button" class="ld-primary" data-close>Zavrieť</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="/src/landing/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Import ukážky · HoodieMap</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Figtree:wght@400;500;600;700&display=swap" />
+</head>
+<body class="ed">
+  <header class="ed-bar">
+    <a class="ed-brand" href="/import">HoodieMap</a>
+    <a class="ed-new" href="/novy">Nová prezentácia</a>
+  </header>
+  <main class="ed-page ed-narrow">
+    <div class="ed-head">
+      <h1>Ukážka z inzerátu</h1>
+      <p class="ed-muted">Vložte odkaz na inzerát z nehnutelnosti.sk. Vznikne z neho neverejná ukážka prezentácie pre makléra, ktorý inzerát zverejnil.</p>
+    </div>
+    <form id="import-form" class="ed-form" novalidate>
+      <fieldset>
+        <legend>Inzerát</legend>
+        <label for="i-url">Odkaz na inzerát</label>
+        <input id="i-url" type="url" required maxlength="500" placeholder="https://www.nehnutelnosti.sk/detail/…" />
+        <div class="ed-row">
+          <div>
+            <label for="i-for">Ukážka pre</label>
+            <input id="i-for" maxlength="200" placeholder="predvolene realitka z inzerátu" />
+          </div>
+          <div>
+            <label for="i-days">Platnosť (dni)</label>
+            <input id="i-days" inputmode="numeric" value="30" />
+          </div>
+        </div>
+        <label for="i-token">Admin token</label>
+        <input id="i-token" type="password" autocomplete="current-password" />
+        <p class="ed-hint">Token si prehliadač zapamätá. Ukážka je neverejná a po uplynutí platnosti ju kupujúci neotvoria.</p>
+      </fieldset>
+      <div class="ed-save">
+        <button id="import-go" type="submit">Vytvoriť ukážku</button>
+        <p id="import-state" class="ed-muted" role="status"></p>
+      </div>
+    </form>
+    <section id="import-result" class="ed-card" hidden>
+      <h2 id="r-title"></h2>
+      <p id="r-meta" class="ed-muted"></p>
+      <ul id="r-warnings" class="ed-ai-missing ed-list"></ul>
+      <div class="ed-result-links">
+        <a id="r-edit" class="ed-button">Upraviť a doplniť AI text</a>
+        <a id="r-open" target="_blank" rel="noopener">Otvoriť prezentáciu ↗</a>
+      </div>
+      <p class="ed-hint">Odkaz na úpravy sa uložil do zoznamu posledných prezentácií v tomto prehliadači.</p>
+    </section>
+  </main>
+  <script type="module" src="/src/import/main.js"></script>
+</body>
+</html>

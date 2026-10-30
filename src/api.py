@@ -4,17 +4,23 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 import httpx
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from config import load_config
-from geocode import GeocodeUnavailable, Geocoder
-from osm import USER_AGENT, OverpassError
+from config import get_config
+from geocode import GeocodeUnavailable, Geocoder, get_geocoder
+from osm import AREA_FAILED_DETAIL, USER_AGENT, OverpassError
+from admin import admin_token
+from import_api import router as import_router
+from landing_api import router as landing_router
+from score_api import router as score_router
+from ahp_api import router as ahp_router
+from presentation_api import ai_features, router as presentation_router
 from scene_builder import build_scene
 
 _FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "pezinok-centrum.json"
-AREA_FAILED_DETAIL = "Could not load map data from OpenStreetMap. Try again in a minute."
 GEOCODE_NOT_FOUND = "No place matches the query."
 GEOCODE_DOWN = "Geocoding is temporarily unavailable."
 
@@ -27,23 +33,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-_cfg = None
-_geocoder = None
+app.include_router(presentation_router)
+app.include_router(import_router)
+app.include_router(landing_router)
+app.include_router(score_router)
+app.include_router(ahp_router)
+
+# Presentations are shared by link only (demos are built from other people's listings): keep them out of search engines.
+_PRIVATE_PREFIXES = ("/p/", "/novy", "/upravit/", "/import", "/admin", "/ahp", "/api/presentations", "/api/import", "/api/landing", "/api/ahp")
+
+
+@app.middleware("http")
+async def noindex_private_pages(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith(_PRIVATE_PREFIXES):
+        response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    return response
 
 
 def _get_cfg():
-    global _cfg
-    if _cfg is None:
-        _cfg = load_config(Path(__file__).parent.parent / "config.yaml")
-    return _cfg
+    return get_config()
 
 
 def _get_geocoder() -> Geocoder:
-    global _geocoder
-    if _geocoder is None:
-        cfg = _get_cfg()
-        _geocoder = Geocoder(cfg.geocode.countrycodes, cfg.cache.dir if cfg.cache.enabled else None)
-    return _geocoder
+    return get_geocoder()
 
 
 async def _reverse_geocode(lat: float, lon: float) -> str:
@@ -67,6 +80,12 @@ async def _reverse_geocode(lat: float, lon: float) -> str:
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/api/features")
+async def features():
+    """What the editor may offer; on/off flags only, no provider details."""
+    return {"ai": ai_features(), "create_needs_admin": admin_token() is not None}
 
 
 @app.get("/api/scene")
@@ -108,6 +127,39 @@ async def geocode(q: Annotated[str, Query(min_length=2, max_length=200)]):
 # Serve frontend build if it exists (production mode)
 _frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
 if _frontend_dist.exists():
+    @app.api_route("/p/{pid}", methods=["GET", "HEAD"], include_in_schema=False)
+    async def presentation_page(pid: str):
+        return FileResponse(_frontend_dist / "presentation.html")
+
+    @app.api_route("/ahp", methods=["GET", "HEAD"], include_in_schema=False)
+    async def ahp_page():
+        return FileResponse(_frontend_dist / "ahp.html")
+
+    @app.api_route("/skore", methods=["GET", "HEAD"], include_in_schema=False)
+    async def score_page():
+        return FileResponse(_frontend_dist / "skore.html")
+
+    @app.api_route("/porovnanie", methods=["GET", "HEAD"], include_in_schema=False)
+    async def compare_page():
+        return FileResponse(_frontend_dist / "porovnanie.html")
+
+    @app.api_route("/prever", methods=["GET", "HEAD"], include_in_schema=False)
+    async def landing_page():
+        return FileResponse(_frontend_dist / "prever.html")
+
+    @app.api_route("/admin", methods=["GET", "HEAD"], include_in_schema=False)
+    async def admin_page():
+        return FileResponse(_frontend_dist / "admin.html")
+
+    @app.api_route("/import", methods=["GET", "HEAD"], include_in_schema=False)
+    async def import_page():
+        return FileResponse(_frontend_dist / "import.html")
+
+    @app.api_route("/novy", methods=["GET", "HEAD"], include_in_schema=False)
+    @app.api_route("/upravit/{pid}", methods=["GET", "HEAD"], include_in_schema=False)
+    async def editor_page(pid: str | None = None):
+        return FileResponse(_frontend_dist / "editor.html")
+
     app.mount("/", StaticFiles(directory=str(_frontend_dist), html=True), name="static")
 
 

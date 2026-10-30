@@ -1,0 +1,71 @@
+# HoodieMap on your own server: app + Postgres + Overpass (Slovakia).
+#   cp .env.example .env   # fill in the secrets
+#   docker compose up -d --build
+# Details: docs/deploy.md
+name: hoodiemap
+
+services:
+  app:
+    build:
+      context: ..
+    image: hoodiemap:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      HOODIEMAP_DATABASE_URL: postgresql://hoodiemap:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/hoodiemap
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - app-data:/app/data         # uploaded and imported photos
+      - app-cache:/app/.cache      # OSM and geocoding cache
+    ports:
+      # Default: this machine only (put your reverse proxy with HTTPS in front).
+      # APP_BIND=0.0.0.0:8000 in .env opens it to the network.
+      - "${APP_BIND:-127.0.0.1:8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16.4-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hoodiemap
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: hoodiemap
+    volumes:
+      - postgres-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hoodiemap -d hoodiemap"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  overpass:
+    # Same pinned image and settings as the development docker-compose.yml (docs/local-overpass.md).
+    # The first start imports Slovakia: about an hour and ~6 GB of disk.
+    image: wiktorn/overpass-api:latest@sha256:9bb5f4a9b54cd225bf828c04c67e7f4010650ff4d70b72157a9473a9ba02d93c
+    restart: unless-stopped
+    volumes:
+      - overpass-db:/db
+    environment:
+      OVERPASS_MODE: init
+      OVERPASS_META: "no"
+      OVERPASS_PLANET_URL: https://download.geofabrik.de/europe/slovakia-latest.osm.pbf
+      OVERPASS_DIFF_URL: https://download.geofabrik.de/europe/slovakia-updates/
+      OVERPASS_PLANET_PREPROCESS: >-
+        mv /db/planet.osm.bz2 /db/planet.osm.pbf &&
+        osmium cat -o /db/planet.osm.bz2 /db/planet.osm.pbf &&
+        rm /db/planet.osm.pbf &&
+        chmod 755 /db
+      OVERPASS_COMPRESSION: gz
+      OVERPASS_RULES_LOAD: "10"
+      OVERPASS_UPDATE_SLEEP: "3600"
+      OVERPASS_USE_AREAS: "false"
+      OVERPASS_MAX_TIMEOUT: "120s"
+
+
+volumes:
+  app-data:
+  app-cache:
+  postgres-db:
+  overpass-db:
